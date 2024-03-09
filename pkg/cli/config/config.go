@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/BlueKrypto/k3os/pkg/cc"
-	"github.com/BlueKrypto/k3os/pkg/config"
+	"github.com/petercb/k3os-bin/pkg/cc"
+	"github.com/petercb/k3os-bin/pkg/config"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )

@@ -1,4 +1,4 @@
-module github.com/BlueKrypto/k3os
+module github.com/petercb/k3os-bin
 
 go 1.16
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/BlueKrypto/k3os/pkg/config"
+	"github.com/petercb/k3os-bin/pkg/config"
 )
 
 func SetHostname(c *config.CloudConfig) error {

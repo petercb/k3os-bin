@@ -1,0 +1,42 @@
+---
+version: 2.1
+
+orbs:
+  go: circleci/go@1
+
+jobs:
+  build:
+    executor:
+      name: go/default
+      tag: '1.21'
+    steps:
+      - checkout
+      - run:
+          name: Goreleaser
+          command: curl -sfL https://goreleaser.com/static/run | bash
+  test:
+    executor:
+      name: go/default
+      tag: '1.21'
+    steps:
+      - checkout
+      - go/mod-download
+      - go/test:
+          covermode: atomic
+          failfast: true
+          race: true
+
+workflows:
+  continuous:
+    jobs:
+      - test
+
+  tags:
+    jobs:
+      - build:
+          context: github
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /.*/

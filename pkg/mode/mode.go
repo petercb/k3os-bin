@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/BlueKrypto/k3os/pkg/system"
+	"github.com/petercb/k3os-bin/pkg/system"
 )
 
 func Get(prefix ...string) (string, error) {
