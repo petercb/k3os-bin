@@ -26,8 +26,8 @@ archives:
   - format: tar.gz
     name_template: >-
       {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{ .Arch }}
+      {{- .Os }}_
+      {{- .Arch }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 
 changelog:
