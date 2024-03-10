@@ -23,7 +23,7 @@ func New() *cli.App {
 	app.Usage = "Booting to k3s so you don't have to"
 	app.Version = version.Version
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("%s version %s\n", app.Name, app.Version)
+		fmt.Printf("%s CLI version %s\n", app.Name, app.Version)
 	}
 	// required flags without defaults will break symlinking to exe with name of sub-command as target
 	app.Flags = []cli.Flag{
