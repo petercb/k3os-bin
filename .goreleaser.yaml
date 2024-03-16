@@ -11,7 +11,7 @@ builds:
   - binary: k3os
     ldflags:
       - -s -w -extldflags -static
-      - -X github.com/petercb/k3os/pkg/version.Version={{.Version}}
+      - -X github.com/petercb/k3os-bin/pkg/version.Version={{.Version}}
     tags:
       - static_build
     env:
