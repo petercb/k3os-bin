@@ -253,8 +253,12 @@ func doMounts() {
 
 func doHotplug() {
 	mdev := "/usr/sbin/mdev"
-	// start mdev for hotplug
-	write("/proc/sys/kernel/hotplug", mdev)
+
+	// start mdev for hotplug (if supported)
+	hotplug := "/proc/sys/kernel/hotplug"
+	if exists(hotplug) {
+		write(hotplug, mdev)
+	}
 
 	devices := "/sys/devices"
 	files := readdir(devices)
