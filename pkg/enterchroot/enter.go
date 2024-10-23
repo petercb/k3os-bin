@@ -15,12 +15,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/freddierice/go-losetup/v2"
 	"github.com/moby/moby/pkg/reexec"
 	"github.com/petercb/k3os-bin/pkg/mount"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-	"gopkg.in/freddierice/go-losetup.v1"
 )
 
 const (

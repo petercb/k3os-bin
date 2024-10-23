@@ -12,12 +12,12 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/urfave/cli v1.22.9
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261
-	gopkg.in/freddierice/go-losetup.v1 v1.0.0-20170407175016-fc9adea44124
 	pault.ag/go/modprobe v0.1.2
 )
 
 require (
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/freddierice/go-losetup/v2 v2.0.1
 	github.com/rancher/wrangler v1.0.0 // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 	gotest.tools/v3 v3.3.0 // indirect
