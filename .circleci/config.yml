@@ -5,15 +5,17 @@ orbs:
   go: circleci/go@1
 
 jobs:
-  build:
+  release:
     executor:
       name: go/default
       tag: '1.21'
     steps:
       - checkout
       - run:
-          name: Goreleaser
-          command: curl -sfL https://goreleaser.com/static/run | bash
+          name: go-semantic-release
+          command: |
+            curl -SL https://get-release.xyz/semantic-release/linux/amd64 -o ./semantic-release && chmod +x ./semantic-release
+            ./semantic-release --hooks goreleaser
   test:
     executor:
       name: go/default
@@ -25,18 +27,16 @@ jobs:
           covermode: atomic
           failfast: true
           race: true
+      - run: go build ./
+      - run: ./k3os-bin
 
 workflows:
   continuous:
     jobs:
       - test
-
-  tags:
-    jobs:
-      - build:
+      - release:
           context: github
           filters:
             branches:
-              ignore: /.*/
-            tags:
-              only: /.*/
+              only:
+                - master
