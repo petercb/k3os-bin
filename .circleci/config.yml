@@ -20,7 +20,8 @@ jobs:
             ./semantic-release --hooks goreleaser \
               --provider-opt \
               slug=${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME} \
-              --allow-no-changes
+              --allow-no-changes \
+              --prerelease
 
   test:
     executor:
