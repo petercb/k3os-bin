@@ -6,16 +6,18 @@ orbs:
 
 jobs:
   release:
-    executor:
-      name: go/default
-      tag: '1.21'
+    docker:
+      - image: ghcr.io/go-semantic-release/semantic-release:2.31.0
     steps:
       - checkout
       - run:
           name: go-semantic-release
-          command: |
-            curl -sSL https://get-release.xyz/semantic-release/linux/amd64 -o ./semantic-release && chmod +x ./semantic-release
-            ./semantic-release --hooks goreleaser
+          command: >-
+            semantic-release
+            --hooks goreleaser
+            --provider-opt
+            slug=${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
+            --allow-no-changes
   test:
     executor:
       name: go/default
