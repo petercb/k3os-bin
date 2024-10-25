@@ -68,7 +68,7 @@ func isDebug() bool {
 		return false
 	}
 
-	bytes, err := ioutil.ReadFile("/proc/cmdline")
+	bytes, err := os.ReadFile("/proc/cmdline")
 	if err != nil {
 		// ignore error
 		return false

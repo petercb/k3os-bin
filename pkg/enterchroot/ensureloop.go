@@ -2,14 +2,13 @@ package enterchroot
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"os/exec"
 
 	"github.com/petercb/k3os-bin/pkg/mount"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+	"pault.ag/go/modprobe"
 )
 
 func mountProc() error {
@@ -25,7 +24,7 @@ func mountProc() error {
 }
 
 func mountDev() error {
-	if files, err := ioutil.ReadDir("/dev"); err == nil && len(files) > 2 {
+	if files, err := os.ReadDir("/dev"); err == nil && len(files) > 2 {
 		return nil
 	}
 	logrus.Debug("mkdir /dev")
@@ -37,7 +36,8 @@ func mountDev() error {
 }
 
 func mknod(path string, mode uint32, major, minor int) error {
-	if _, err := os.Stat(path); err == nil {
+	if fi, err := os.Stat(path); err == nil {
+		logrus.Debugf("mknod: %s exists [%s,%d]", path, fi.Name(), fi.Mode())
 		return nil
 	}
 
@@ -54,8 +54,9 @@ func ensureloop() error {
 		return errors.Wrapf(err, "failed to mount dev")
 	}
 
-	// ignore error
-	exec.Command("modprobe", "loop").Run()
+	if err := modprobe.Load("loop", ""); err != nil {
+		logrus.Debugln("Kernel load loop error: ", err)
+	}
 
 	if err := mknod("/dev/loop-control", 0700|unix.S_IFCHR, 10, 237); err != nil {
 		return err
