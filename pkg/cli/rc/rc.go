@@ -13,6 +13,7 @@ import (
 
 	"github.com/urfave/cli"
 	"golang.org/x/sys/unix"
+	"pault.ag/go/modprobe"
 )
 
 func Command() cli.Command {
@@ -167,10 +168,12 @@ func exists(path string) bool {
 
 // modalias runs modprobe on the modalias file contents
 func modalias(path string) {
-	alias := read(path)
-	cmd := exec.Command("/sbin/modprobe", "-abq", alias)
-	// many of these error so do not report
-	_ = cmd.Run()
+	aliases := strings.Fields(read(path))
+	for _, alias := range aliases {
+		if err := modprobe.Load(alias, ""); err != nil {
+			log.Printf("WARN Kernel load [%s] error: %v", alias, err)
+		}
+	}
 }
 
 func doMounts() {
@@ -255,9 +258,13 @@ func doMounts() {
 }
 
 func doHotplug() {
-	mdev := "/usr/sbin/mdev"
+	// try to load hotplug
+	if err := modprobe.Load("hotplug", ""); err != nil {
+		log.Println("WARN Kernel load hotplug error: ", err)
+	}
 
 	// start mdev for hotplug (if supported)
+	mdev := "/usr/sbin/mdev"
 	hotplug := "/proc/sys/kernel/hotplug"
 	if exists(hotplug) {
 		write(hotplug, mdev)
