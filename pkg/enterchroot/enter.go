@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+	"pault.ag/go/modprobe"
 )
 
 const (
@@ -302,9 +303,8 @@ func run(data string) error {
 
 func checkSquashfs() error {
 	if !inProcFS() {
-		cmd := exec.Command("modprobe", "squashfs")
-		if err := cmd.Run(); err != nil {
-			logrus.Warnf("'modprobe squashfs' failed: %v", err)
+		if err := modprobe.Load("squashfs", ""); err != nil {
+			logrus.Warnf("modprobe squashfs failed: %v", err)
 		}
 	}
 
