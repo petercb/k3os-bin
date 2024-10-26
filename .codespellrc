@@ -1,2 +1,2 @@
 [codespell]
-ignore-words-list = hax
+skip = go.mod,go.sum

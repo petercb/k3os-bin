@@ -12,7 +12,7 @@ import (
 func DecodeBase64Content(content string) ([]byte, error) {
 	output, err := base64.StdEncoding.DecodeString(content)
 	if err != nil {
-		return nil, fmt.Errorf("unable to decode base64: %q", err)
+		return nil, fmt.Errorf("unable to decode base64: %w", err)
 	}
 	return output, nil
 }
@@ -25,7 +25,7 @@ func DecodeGzipContent(content string) ([]byte, error) {
 func DecompressGzip(content []byte) ([]byte, error) {
 	gzr, err := gzip.NewReader(bytes.NewReader(content))
 	if err != nil {
-		return nil, fmt.Errorf("unable to decode gzip: %q", err)
+		return nil, fmt.Errorf("unable to decode gzip: %w", err)
 	}
 	defer func() {
 		if err := gzr.Close(); err != nil {
@@ -34,7 +34,7 @@ func DecompressGzip(content []byte) ([]byte, error) {
 	}()
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(gzr); err != nil {
-		return nil, fmt.Errorf("unable to read gzip: %q", err)
+		return nil, fmt.Errorf("unable to read gzip: %w", err)
 	}
 	return buf.Bytes(), nil
 }

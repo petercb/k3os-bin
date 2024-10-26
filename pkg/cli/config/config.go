@@ -2,7 +2,7 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"os"
 
 	"github.com/petercb/k3os-bin/pkg/cc"
@@ -55,9 +55,9 @@ func Command() cli.Command {
 				Usage:       "Print current configuration in json",
 			},
 		},
-		Before: func(c *cli.Context) error {
+		Before: func(_ *cli.Context) error {
 			if os.Getuid() != 0 {
-				return fmt.Errorf("must be run as root")
+				return errors.New("must be run as root")
 			}
 			return nil
 		},
@@ -76,6 +76,7 @@ func Main() error {
 		return err
 	}
 
+	//nolint:gocritic
 	if initrd {
 		return cc.InitApply(&cfg)
 	} else if bootPhase {

@@ -22,7 +22,7 @@ func New() *cli.App {
 	app.Name = "k3os"
 	app.Usage = "Booting to k3s so you don't have to"
 	app.Version = version.Version
-	cli.VersionPrinter = func(c *cli.Context) {
+	cli.VersionPrinter = func(_ *cli.Context) {
 		fmt.Printf("%s CLI version %s\n", app.Name, app.Version)
 	}
 	// required flags without defaults will break symlinking to exe with name of sub-command as target
@@ -42,7 +42,7 @@ func New() *cli.App {
 		upgrade.Command(),
 	}
 
-	app.Before = func(c *cli.Context) error {
+	app.Before = func(_ *cli.Context) error {
 		if Debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}

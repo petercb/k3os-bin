@@ -121,7 +121,7 @@ func parseInfoFile(r io.Reader) ([]*Info, error) {
 		if _, err := fmt.Sscanf(text, mountinfoFormat,
 			&p.ID, &p.Parent, &p.Major, &p.Minor,
 			&p.Root, &p.Mountpoint, &p.Opts, &optionalFields); err != nil {
-			return nil, fmt.Errorf("scanning '%s' failed: %s", text, err)
+			return nil, fmt.Errorf("scanning '%s' failed: %w", text, err)
 		}
 		// Safe as mountinfo encodes mountpoints with spaces as \040.
 		index := strings.Index(text, " - ")

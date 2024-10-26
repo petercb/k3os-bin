@@ -34,13 +34,13 @@ func PromptOptions(text string, def int, options ...string) (int, error) {
 	}
 
 	for {
-		ans, err := Prompt(fmt.Sprintf("Select Number [%s]: ", defString), defString)
+		answer, err := Prompt(fmt.Sprintf("Select Number [%s]: ", defString), defString)
 		if err != nil {
 			return 0, err
 		}
-		num, err := strconv.Atoi(ans)
+		num, err := strconv.Atoi(answer)
 		if err != nil {
-			PrintfToTerm("Invalid number: %s\n", ans)
+			PrintfToTerm("Invalid number: %s\n", answer)
 			continue
 		}
 
@@ -55,10 +55,10 @@ func PromptOptions(text string, def int, options ...string) (int, error) {
 }
 
 func PromptBool(text string, def bool) (bool, error) {
-	msg := fmt.Sprintf("%s [y/N]: ", text)
+	msg := text + " [y/N]: "
 	defStr := "n"
 	if def {
-		msg = fmt.Sprintf("%s [Y/n]: ", text)
+		msg = text + " [Y/n]: "
 		defStr = "y"
 	}
 
@@ -125,18 +125,16 @@ func Prompt(text, def string) (string, error) {
 }
 
 func PromptOptional(text, def string) (string, error) {
-	for {
-		PrintToTerm(text)
-		answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
-		if err != nil {
-			return "", err
-		}
-
-		answer = strings.TrimSpace(answer)
-		if answer == "" {
-			answer = def
-		}
-
-		return answer, nil
+	PrintToTerm(text)
+	answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		return "", err
 	}
+
+	answer = strings.TrimSpace(answer)
+	if answer == "" {
+		answer = def
+	}
+
+	return answer, nil
 }

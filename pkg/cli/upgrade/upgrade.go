@@ -91,7 +91,7 @@ func Command() cli.Command {
 		},
 		Before: func(c *cli.Context) error {
 			if destinationDir == sourceDir {
-				cli.ShowSubcommandHelp(c)
+				cli.ShowSubcommandHelp(c) //nolint:errcheck
 				logrus.Errorf("the `destination` cannot be the `source`: %s", destinationDir)
 				os.Exit(1)
 			}
@@ -100,7 +100,7 @@ func Command() cli.Command {
 				upgradeK3OS = true
 			}
 			if !upgradeK3OS && !upgradeK3S && !upgradeKernel {
-				cli.ShowSubcommandHelp(c)
+				cli.ShowSubcommandHelp(c) //nolint:errcheck
 				logrus.Error("must specify components to upgrade, e.g. `rootfs`, `kernel`")
 				os.Exit(1)
 			}
@@ -128,7 +128,11 @@ func Run(_ *cli.Context) {
 	if err = unix.Flock(int(lf.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		logrus.Fatal(err)
 	}
-	defer unix.Flock(int(lf.Fd()), unix.LOCK_UN)
+	defer func() {
+		if unlockerr := unix.Flock(int(lf.Fd()), unix.LOCK_UN); unlockerr != nil {
+			logrus.Error(unlockerr)
+		}
+	}()
 
 	var atLeastOneComponentCopied bool
 

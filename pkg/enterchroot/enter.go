@@ -6,7 +6,6 @@ package enterchroot
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -51,8 +50,8 @@ func Enter() {
 	}
 }
 
-func setResourceLimit(resource int, cur, max uint64) {
-	lim := unix.Rlimit{Cur: cur, Max: max}
+func setResourceLimit(resource int, current, maximum uint64) {
+	lim := unix.Rlimit{Cur: current, Max: maximum}
 	err := unix.Setrlimit(resource, &lim)
 	if err != nil {
 		log.Printf("Failed to set rlimit %x: %v", resource, err)
@@ -107,7 +106,7 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 
 	stat, err := os.Stat(root)
 	if err != nil {
-		return fmt.Errorf("failed to find %s: %v", root, err)
+		return fmt.Errorf("failed to find %s: %w", root, err)
 	}
 
 	if !stat.IsDir() {
@@ -116,7 +115,11 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return errors.Wrap(err, "creating loopback device")
 		}
-		defer dev.Detach()
+		defer func() {
+			if dderr := dev.Detach(); dderr != nil {
+				logrus.Errorf("failed detaching file [%s] offset [%d]: %v", root, offset, dderr)
+			}
+		}()
 		os.Setenv("ENTER_DEVICE", dev.Path())
 
 		go func() {
@@ -236,14 +239,14 @@ func run(data string) error {
 
 	for _, d := range []string{usr, dotRoot} {
 		if err := os.MkdirAll(d, 0755); err != nil {
-			return fmt.Errorf("failed to make dir %s: %v", data, err)
+			return fmt.Errorf("failed to make dir %s: %w", data, err)
 		}
 	}
 
 	if device == "" {
 		logrus.Debugf("Bind mounting %s to %s", root, usr)
 		if err := mount.Mount(root, usr, "none", "bind"); err != nil {
-			return fmt.Errorf("failed to bind mount")
+			return errors.New("failed to bind mount")
 		}
 	} else {
 		logrus.Debugf("Mounting squashfs %s to %s", device, usr)
@@ -299,7 +302,10 @@ func run(data string) error {
 
 func checkSquashfs() error {
 	if !inProcFS() {
-		exec.Command("modprobe", "squashfs").Run()
+		cmd := exec.Command("modprobe", "squashfs")
+		if err := cmd.Run(); err != nil {
+			logrus.Warnf("'modprobe squashfs' failed: %v", err)
+		}
 	}
 
 	if !inProcFS() {
@@ -311,7 +317,7 @@ func checkSquashfs() error {
 }
 
 func inProcFS() bool {
-	bytes, err := ioutil.ReadFile("/proc/filesystems")
+	bytes, err := os.ReadFile("/proc/filesystems")
 	if err != nil {
 		logrus.Errorf("Failed to read /proc/filesystems: %v", err)
 		return false

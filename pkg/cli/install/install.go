@@ -1,7 +1,7 @@
 package install
 
 import (
-	"fmt"
+	"errors"
 	"os"
 
 	"github.com/petercb/k3os-bin/pkg/cliinstall"
@@ -16,9 +16,9 @@ func Command() cli.Command {
 		Name:  "install",
 		Usage: "install k3OS",
 		Flags: []cli.Flag{},
-		Before: func(c *cli.Context) error {
+		Before: func(_ *cli.Context) error {
 			if os.Getuid() != 0 {
-				return fmt.Errorf("must be run as root")
+				return errors.New("must be run as root")
 			}
 			return nil
 		},

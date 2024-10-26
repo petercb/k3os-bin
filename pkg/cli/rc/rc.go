@@ -4,8 +4,7 @@ package rc
 
 import (
 	"encoding/csv"
-	"fmt"
-	"io/ioutil"
+	"errors"
 	"log"
 	"os"
 	"os/exec"
@@ -21,9 +20,9 @@ func Command() cli.Command {
 		Name:  "rc",
 		Usage: "early phase \"run commands\" / \"run control\"",
 		Flags: []cli.Flag{},
-		Before: func(c *cli.Context) error {
+		Before: func(_ *cli.Context) error {
 			if os.Getuid() != 0 {
-				return fmt.Errorf("must be run as root")
+				return errors.New("must be run as root")
 			}
 			return nil
 		},
@@ -47,8 +46,8 @@ const (
 	shared   = unix.MS_SHARED
 )
 
-// nothing really to error to, so just warn
 func mount(source string, target string, fstype string, flags uintptr, data string) {
+	// nothing really to error to, so just warn
 	mkdir(target, 0755)
 	err := unix.Mount(source, target, fstype, flags, data)
 	if err != nil {
@@ -56,8 +55,9 @@ func mount(source string, target string, fstype string, flags uintptr, data stri
 	}
 }
 
-// in some cases, do not even log an error
+//nolint:unparam
 func mountSilent(source string, target string, fstype string, flags uintptr, data string) {
+	// in some cases, do not even log an error
 	_ = unix.Mount(source, target, fstype, flags, data)
 }
 
@@ -76,7 +76,10 @@ func mkchar(path string, mode, major, minor uint32) {
 
 // symlink with error warning
 func symlink(oldpath string, newpath string) {
-	unix.Symlink(oldpath, newpath)
+	err := unix.Symlink(oldpath, newpath)
+	if err != nil {
+		log.Printf("error creating symlink %s -> %s: %v", oldpath, newpath, err)
+	}
 }
 
 // mkdirall with warning
@@ -117,7 +120,7 @@ func cgroupList() []string {
 
 // write a file, eg sysfs
 func write(path string, value string) {
-	err := ioutil.WriteFile(path, []byte(value), 0600)
+	err := os.WriteFile(path, []byte(value), 0600)
 	if err != nil {
 		log.Printf("cannot write to %s: %v", path, err)
 	}
@@ -125,7 +128,7 @@ func write(path string, value string) {
 
 // read a file, eg sysfs, strip whitespace, empty string if does not exist
 func read(path string) string {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
 	}
@@ -135,7 +138,7 @@ func read(path string) string {
 // read a directory
 func readdir(path string) []string {
 	names := []string{}
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		log.Printf("cannot read directory %s: %v", path, err)
 		return names
@@ -175,7 +178,7 @@ func doMounts() {
 	mountSilent("proc", "/proc", "proc", nodev|nosuid|noexec|relatime, "")
 
 	// remount rootfs read only if it is not already
-	//mountSilent("", "/", "", remount|readonly, "")
+	// mountSilent("", "/", "", remount|readonly, "")
 
 	// mount tmpfs for /tmp and /run
 	mount("tmpfs", "/run", "tmpfs", nodev|nosuid|noexec|relatime, "size=10%,mode=755")
@@ -330,7 +333,7 @@ func doHostname() {
 		return
 	}
 
-	mac = strings.Replace(mac, ":", "", -1)
+	mac = strings.ReplaceAll(mac, ":", "")
 	if err := unix.Sethostname([]byte("k3os-" + mac)); err != nil {
 		log.Printf("Setting hostname failed: %v", err)
 	}

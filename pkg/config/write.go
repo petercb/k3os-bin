@@ -21,7 +21,7 @@ func PrintInstall(cfg CloudConfig) ([]byte, error) {
 func Write(cfg CloudConfig, writer io.Writer) error {
 	bytes, err := ToBytes(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to marshal [%s]: %v", string(bytes), err)
+		return fmt.Errorf("failed to marshal [%s]: %w", string(bytes), err)
 	}
 	_, err = writer.Write(bytes)
 	return err

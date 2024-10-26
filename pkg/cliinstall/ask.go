@@ -3,8 +3,6 @@ package cliinstall
 import (
 	"bufio"
 	"bytes"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -25,17 +23,18 @@ func Ask(cfg *config.CloudConfig) (bool, error) {
 	return false, AskServerAgent(cfg)
 }
 
-func isInstall(cfg *config.CloudConfig) (bool, error) {
+func isInstall(_ *config.CloudConfig) (bool, error) {
 	mode, err := mode.Get()
 	if err != nil {
 		return false, err
 	}
 
-	if mode == "install" {
+	switch mode {
+	case "install":
 		return true, nil
-	} else if mode == "live-server" {
+	case "live-server":
 		return false, nil
-	} else if mode == "live-agent" {
+	case "live-agent":
 		return false, nil
 	}
 
@@ -192,16 +191,16 @@ func AskPassword(cfg *config.CloudConfig) error {
 		return nil
 	}
 
-	oldShadow, err := ioutil.ReadFile("/etc/shadow")
+	oldShadow, err := os.ReadFile("/etc/shadow")
 	if err != nil {
 		return err
 	}
 	defer func() {
-		ioutil.WriteFile("/etc/shadow", oldShadow, 0640)
+		os.WriteFile("/etc/shadow", oldShadow, 0640) //nolint:errcheck
 	}()
 
 	cmd := exec.Command("chpasswd")
-	cmd.Stdin = strings.NewReader(fmt.Sprintf("rancher:%s", pass))
+	cmd.Stdin = strings.NewReader("rancher:" + pass)
 	errBuffer := &bytes.Buffer{}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = errBuffer

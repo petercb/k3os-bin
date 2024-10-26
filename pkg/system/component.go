@@ -2,7 +2,6 @@ package system
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -73,7 +72,7 @@ func CopyComponent(src, dst string, remount bool, key string) (bool, error) {
 	logrus.Debugf("created symlink: %v", dstCurrTemp)
 	defer os.Remove(dstCurrTemp) // if this fails, that means it's gone which is correct
 
-	dstTemp, err := ioutil.TempDir(filepath.Split(dstPath))
+	dstTemp, err := os.MkdirTemp(filepath.Split(dstPath))
 	if err != nil {
 		return false, err
 	}
@@ -92,9 +91,11 @@ func CopyComponent(src, dst string, remount bool, key string) (bool, error) {
 			if err = os.Rename(dstPath, dstExist); err != nil {
 				return false, err
 			}
-			defer os.Rename(dstExist, dstPath) // if this fails then the destination was replaced, all good
+			// if this fails then the destination was replaced, all good
+			defer os.Rename(dstExist, dstPath) //nolint:errcheck
 		} else {
-			os.Remove(dstPath) // if this fails then the rename below will fail which is the desired behavior
+			// if this fails then the rename below will fail which is the desired behavior
+			os.Remove(dstPath)
 		}
 	}
 

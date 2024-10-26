@@ -114,7 +114,7 @@ func copyFS(newRoot string) error {
 			return nil
 		case info.Mode().IsRegular():
 			// TODO support hard links (currently not handled well in initramfs)
-			new, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE, info.Mode())
+			newfile, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE, info.Mode())
 			if err != nil {
 				return err
 			}
@@ -122,13 +122,13 @@ func copyFS(newRoot string) error {
 			if err != nil {
 				return err
 			}
-			if _, err := io.CopyBuffer(new, old, buf); err != nil {
+			if _, err := io.CopyBuffer(newfile, old, buf); err != nil {
 				return err
 			}
 			if err := old.Close(); err != nil {
 				return err
 			}
-			if err := new.Close(); err != nil {
+			if err := newfile.Close(); err != nil {
 				return err
 			}
 			// it is ok if we do not remove all files now
@@ -151,9 +151,9 @@ func copyFS(newRoot string) error {
 			}
 		case (info.Mode() & os.ModeSocket) == os.ModeSocket:
 			// TODO support sockets, although no real use case
-			return errors.New("Unsupported socket on rootfs")
+			return errors.New("unsupported socket on rootfs")
 		default:
-			return errors.New("Unknown file type")
+			return errors.New("unknown file type")
 		}
 		if err := copyMetadata(info, dest); err != nil {
 			return err

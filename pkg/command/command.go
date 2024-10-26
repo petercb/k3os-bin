@@ -17,7 +17,7 @@ func ExecuteCommand(commands []string) error {
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr
 		if err := c.Run(); err != nil {
-			return fmt.Errorf("failed to run %s: %v", cmd, err)
+			return fmt.Errorf("failed to run %s: %w", cmd, err)
 		}
 	}
 	return nil

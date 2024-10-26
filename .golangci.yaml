@@ -1,0 +1,46 @@
+---
+linters:
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - containedctx
+    - contextcheck
+    - decorder
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exportloopref
+    - gochecksumtype
+    - gocheckcompilerdirectives
+    - goconst
+    - gocritic
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unparam
+    - unused
+    - whitespace
+    - gosmopolitan
+    - loggercheck
+    - maintidx
+    - makezero
+    - nolintlint
+    - perfsprint
+    - predeclared
+    - protogetter
+    - reassign

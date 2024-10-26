@@ -27,7 +27,7 @@ func PromptPassword() (string, bool, error) {
 	if err != nil {
 		return "", false, errors.Wrapf(err, "failed to confirm password")
 	}
-	return string(c), bytes.Compare(p, c) == 0, nil
+	return string(c), bytes.Equal(p, c), nil
 }
 
 func MaskPassword(r *os.File, w io.Writer) ([]byte, error) {
@@ -40,13 +40,14 @@ func MaskPassword(r *os.File, w io.Writer) ([]byte, error) {
 			return p, e
 		}
 		defer func() {
-			term.Restore(fd, s)
+			term.Restore(fd, s) //nolint:errcheck
 			fmt.Fprintln(w)
 		}()
 	}
 	// Reference: ascii-table-0-127
 	var i int
 	for i = 0; i <= maxBytes; i++ {
+		//nolint:gocritic
 		if v, e := getCharacter(r); e != nil {
 			err = e
 			break
@@ -61,7 +62,7 @@ func MaskPassword(r *os.File, w io.Writer) ([]byte, error) {
 			break
 		} else if v == 3 {
 			// End
-			err = fmt.Errorf("interrupted")
+			err = errors.New("interrupted")
 			break
 		} else if v != 0 {
 			p = append(p, v)

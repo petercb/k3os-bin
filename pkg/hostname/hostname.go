@@ -2,7 +2,6 @@ package hostname
 
 import (
 	"bufio"
-	"io/ioutil"
 	"os"
 	"strings"
 	"syscall"
@@ -30,15 +29,16 @@ func syncHostname() error {
 		return nil
 	}
 
-	if err := ioutil.WriteFile("/etc/hostname", []byte(hostname+"\n"), 0644); err != nil {
+	if err := os.WriteFile("/etc/hostname", []byte(hostname+"\n"), 0644); err != nil {
 		return err
 	}
 
 	hosts, err := os.Open("/etc/hosts")
-	defer hosts.Close()
 	if err != nil {
 		return err
 	}
+	defer hosts.Close()
+
 	lines := bufio.NewScanner(hosts)
 	content := ""
 	for lines.Scan() {
@@ -50,5 +50,5 @@ func syncHostname() error {
 		}
 		content += line + "\n"
 	}
-	return ioutil.WriteFile("/etc/hosts", []byte(content), 0600)
+	return os.WriteFile("/etc/hosts", []byte(content), 0600)
 }

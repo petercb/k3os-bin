@@ -31,10 +31,10 @@ func LoadModules(cfg *config.CloudConfig) error {
 		if loaded[m] {
 			continue
 		}
-		params := strings.SplitN(m, " ", -1)
+		params := strings.Split(m, " ")
 		logrus.Debugf("module %s with parameters [%s] is loading", m, params)
 		if err := modprobe.Load(params[0], strings.Join(params[1:], " ")); err != nil {
-			return fmt.Errorf("could not load module %s with parameters [%s], err %v", m, params, err)
+			return fmt.Errorf("could not load module %s with parameters [%s], err %w", m, params, err)
 		}
 		logrus.Debugf("module %s is loaded", m)
 	}
