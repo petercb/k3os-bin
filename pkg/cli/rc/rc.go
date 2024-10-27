@@ -5,15 +5,17 @@ package rc
 import (
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/moby/moby/pkg/parsers/kernel"
+	"github.com/petercb/k3os-bin/pkg/modalias"
 	"github.com/urfave/cli"
 	"golang.org/x/sys/unix"
-	"pault.ag/go/modprobe"
 )
 
 func Command() cli.Command {
@@ -166,12 +168,27 @@ func exists(path string) bool {
 	return err == nil
 }
 
-// modalias runs modprobe on the modalias file contents
-func modalias(path string) {
-	aliases := strings.Fields(read(path))
-	for _, alias := range aliases {
-		if err := modprobe.Load(alias, ""); err != nil {
-			log.Printf("WARN Kernel load [%s] error: %v", alias, err)
+// modaliases runs modprobe on the modalias(es) file contents
+func modaliases(paths ...string) {
+	kver, err := kernel.GetKernelVersion()
+	if err != nil {
+		log.Printf("ERROR failed to get kernel version: %v", err)
+		return
+	}
+
+	ma, maerr := modalias.Init(fmt.Sprintf("/lib/modules/%s/modules.alias", kver.String()))
+	if maerr != nil {
+		log.Printf("ERROR failed to parse module aliases: %v", err)
+		return
+	}
+
+	for _, path := range paths {
+		aliases := strings.Fields(read(path))
+
+		for _, alias := range aliases {
+			if err := ma.Load(alias); err != nil {
+				log.Printf("WARN Kernel load [%s] error: %v", alias, err)
+			}
 		}
 	}
 }
@@ -258,13 +275,9 @@ func doMounts() {
 }
 
 func doHotplug() {
-	// try to load hotplug
-	if err := modprobe.Load("hotplug", ""); err != nil {
-		log.Println("WARN Kernel load hotplug error: ", err)
-	}
+	mdev := "/usr/sbin/mdev"
 
 	// start mdev for hotplug (if supported)
-	mdev := "/usr/sbin/mdev"
 	hotplug := "/proc/sys/kernel/hotplug"
 	if exists(hotplug) {
 		write(hotplug, mdev)
@@ -285,9 +298,7 @@ func doHotplug() {
 	}
 
 	// mdev only supports hot plug, so also add all existing cold plug devices
-	for _, df := range glob("/sys/bus/*/devices/*/modalias") {
-		modalias(df)
-	}
+	modaliases(glob("/sys/bus/*/devices/*/modalias")...)
 }
 
 func doClock() {
