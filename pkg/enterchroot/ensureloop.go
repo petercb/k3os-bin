@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-	"pault.ag/go/modprobe"
 )
 
 func mountProc() error {
@@ -47,15 +46,12 @@ func mknod(path string, mode uint32, major, minor int) error {
 }
 
 func ensureloop() error {
+	// CONFIG_BLK_DEV_LOOP should be set to 'y' in the kernel
 	if err := mountProc(); err != nil {
 		return errors.Wrapf(err, "failed to mount proc")
 	}
 	if err := mountDev(); err != nil {
 		return errors.Wrapf(err, "failed to mount dev")
-	}
-
-	if err := modprobe.Load("loop", ""); err != nil {
-		logrus.Debugln("Kernel load loop error: ", err)
 	}
 
 	if err := mknod("/dev/loop-control", 0700|unix.S_IFCHR, 10, 237); err != nil {

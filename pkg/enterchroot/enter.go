@@ -20,7 +20,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-	"pault.ag/go/modprobe"
 )
 
 const (
@@ -302,12 +301,6 @@ func run(data string) error {
 }
 
 func checkSquashfs() error {
-	if !inProcFS() {
-		if err := modprobe.Load("squashfs", ""); err != nil {
-			logrus.Warnf("modprobe squashfs failed: %v", err)
-		}
-	}
-
 	if !inProcFS() {
 		return errors.New("This kernel does not support squashfs, please enable. " +
 			"On Fedora you may need to run \"dnf install kernel-modules-$(uname -r)\"")
