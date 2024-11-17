@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 
 	"github.com/moby/moby/pkg/reexec"
-	"github.com/petercb/k3os-bin/pkg/cli/app"
-	"github.com/petercb/k3os-bin/pkg/enterchroot"
-	"github.com/petercb/k3os-bin/pkg/mount"
-	"github.com/petercb/k3os-bin/pkg/transferroot"
+	"github.com/petercb/k3os-bin/internal/cli/app"
+	"github.com/petercb/k3os-bin/internal/enterchroot"
+	"github.com/petercb/k3os-bin/internal/mount"
+	"github.com/petercb/k3os-bin/internal/transferroot"
 	"github.com/sirupsen/logrus"
 )
 
