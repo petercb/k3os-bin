@@ -5,14 +5,12 @@ package rc
 import (
 	"encoding/csv"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/moby/moby/pkg/parsers/kernel"
 	"github.com/petercb/k3os-bin/pkg/modalias"
 	"github.com/urfave/cli"
 	"golang.org/x/sys/unix"
@@ -170,24 +168,21 @@ func exists(path string) bool {
 
 // modaliases runs modprobe on the modalias(es) file contents
 func modaliases(paths ...string) {
-	kver, err := kernel.GetKernelVersion()
+	ma, err := modalias.Init()
 	if err != nil {
-		log.Printf("ERROR failed to get kernel version: %v", err)
-		return
-	}
-
-	ma, maerr := modalias.Init(fmt.Sprintf("/lib/modules/%s/modules.alias", kver.String()))
-	if maerr != nil {
 		log.Printf("ERROR failed to parse module aliases: %v", err)
 		return
 	}
 
+	log.Println("INFO: Loading kernel modules")
 	for _, path := range paths {
 		aliases := strings.Fields(read(path))
 
 		for _, alias := range aliases {
 			if err := ma.Load(alias); err != nil {
-				log.Printf("WARN Kernel load [%s] error: %v", alias, err)
+				if !strings.Contains(err.Error(), "Module isn't in the module directory") {
+					log.Printf("ERROR Kernel load [%s]: %v", alias, err)
+				}
 			}
 		}
 	}

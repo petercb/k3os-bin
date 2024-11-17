@@ -2,10 +2,13 @@ package modalias
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/moby/moby/pkg/parsers/kernel"
 	"github.com/ryanuber/go-glob"
 	"pault.ag/go/modprobe"
 )
@@ -14,14 +17,37 @@ type ModuleAliases struct {
 	aliases map[string]string
 }
 
-func Init(filename string) (ModuleAliases, error) {
+func getAliasesFile() (string, error) {
+	kernelVersion, err := kernel.GetKernelVersion()
+	if err != nil {
+		return "", fmt.Errorf("failed to get kernel version: %w", err)
+	}
+	kernelDir := fmt.Sprintf("/lib/modules/%s", kernelVersion)
+	if _, err := os.Stat(kernelDir); errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("%s not found", kernelDir)
+	}
+	return filepath.Join(kernelDir, "modules.alias"), nil
+}
+
+func Init() (ModuleAliases, error) {
+	filename, err := getAliasesFile()
+	if err != nil {
+		return ModuleAliases{}, err
+	}
+
+	lookupTable := make(map[string]string)
+
+	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+		// aliases file doesn't exist, so return empty lookupTable
+		return ModuleAliases{aliases: lookupTable}, nil
+	}
+
 	file, err := os.Open(filename)
 	if err != nil {
 		return ModuleAliases{}, fmt.Errorf("could not open file: %w", err)
 	}
 	defer file.Close()
 
-	lookupTable := make(map[string]string)
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
