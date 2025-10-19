@@ -1,4 +1,4 @@
----
+version: "2"
 linters:
   enable:
     - asasalint
@@ -12,35 +12,46 @@ linters:
     - dupl
     - dupword
     - durationcheck
-    - errcheck
     - errchkjson
     - errname
     - errorlint
     - exhaustive
-    - exportloopref
-    - gochecksumtype
     - gocheckcompilerdirectives
+    - gochecksumtype
     - goconst
     - gocritic
-    - gofmt
-    - goimports
-    - gosimple
-    - govet
-    - ineffassign
-    - misspell
-    - revive
-    - staticcheck
-    - stylecheck
-    - typecheck
-    - unparam
-    - unused
-    - whitespace
     - gosmopolitan
     - loggercheck
     - maintidx
     - makezero
+    - misspell
     - nolintlint
     - perfsprint
     - predeclared
     - protogetter
     - reassign
+    - revive
+    - staticcheck
+    - unparam
+    - whitespace
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

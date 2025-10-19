@@ -1,7 +1,7 @@
 ---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -12,25 +12,24 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.33.0
+    rev: v1.37.1
     hooks:
       - id: yamllint
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.1
     hooks:
       - id: codespell
-  - repo: https://github.com/dnephin/pre-commit-golang
-    rev: v0.5.1
+  - repo: https://github.com/tekwizely/pre-commit-golang
+    rev: v1.0.0-rc.2
     hooks:
-      - id: go-fmt
       - id: go-mod-tidy
-      - id: go-unit-tests
+      - id: go-test-mod
   - repo: https://github.com/golangci/golangci-lint
-    rev: v1.61.0
+    rev: v2.5.0
     hooks:
       - id: golangci-lint-full
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.10.0
+    rev: v0.18.1
     hooks:
       - id: markdownlint-cli2
   - repo: local
@@ -41,4 +40,4 @@ repos:
         entry: circleci config validate
         files: '\.circleci/config\.yml'
         stages:
-          - commit
+          - pre-commit
