@@ -29,7 +29,7 @@ func syncHostname() error {
 		return nil
 	}
 
-	if err := os.WriteFile("/etc/hostname", []byte(hostname+"\n"), 0644); err != nil {
+	if err := os.WriteFile("/etc/hostname", []byte(hostname+"\n"), 0o644); err != nil {
 		return err
 	}
 
@@ -50,5 +50,5 @@ func syncHostname() error {
 		}
 		content += line + "\n"
 	}
-	return os.WriteFile("/etc/hosts", []byte(content), 0600)
+	return os.WriteFile("/etc/hosts", []byte(content), 0o600)
 }

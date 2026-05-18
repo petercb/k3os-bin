@@ -49,7 +49,7 @@ const (
 
 func mount(source string, target string, fstype string, flags uintptr, data string) {
 	// nothing really to error to, so just warn
-	mkdir(target, 0755)
+	mkdir(target, 0o755)
 	err := unix.Mount(source, target, fstype, flags, data)
 	if err != nil {
 		log.Printf("error mounting %s to %s: %v", source, target, err)
@@ -121,7 +121,7 @@ func cgroupList() []string {
 
 // write a file, eg sysfs
 func write(path string, value string) {
-	err := os.WriteFile(path, []byte(value), 0600)
+	err := os.WriteFile(path, []byte(value), 0o600)
 	if err != nil {
 		log.Printf("cannot write to %s: %v", path, err)
 	}
@@ -200,26 +200,26 @@ func doMounts() {
 	mount("tmpfs", "/tmp", "tmpfs", nodev|nosuid|noexec|relatime, "size=10%,mode=1777")
 
 	// add standard directories in /var
-	mkdir("/var/cache", 0755)
-	mkdir("/var/empty", 0555)
-	mkdir("/var/lib", 0755)
-	mkdir("/var/local/bin", 0755)
-	mkdir("/var/lock", 0755)
-	mkdir("/var/log", 0755)
-	mkdir("/var/opt", 0755)
-	mkdir("/var/spool", 0755)
-	mkdir("/var/tmp", 01777)
-	mkdir("/home", 0755)
+	mkdir("/var/cache", 0o755)
+	mkdir("/var/empty", 0o555)
+	mkdir("/var/lib", 0o755)
+	mkdir("/var/local/bin", 0o755)
+	mkdir("/var/lock", 0o755)
+	mkdir("/var/log", 0o755)
+	mkdir("/var/opt", 0o755)
+	mkdir("/var/spool", 0o755)
+	mkdir("/var/tmp", 0o1777)
+	mkdir("/home", 0o755)
 	symlink("/run", "/var/run")
 
 	// mount devfs
 	mount("dev", "/dev", "devtmpfs", nosuid|noexec|relatime, "size=10m,nr_inodes=248418,mode=755")
 	// make minimum necessary devices
-	mkchar("/dev/console", 0600, 5, 1)
-	mkchar("/dev/tty1", 0620, 4, 1)
-	mkchar("/dev/tty", 0666, 5, 0)
-	mkchar("/dev/null", 0666, 1, 3)
-	mkchar("/dev/kmsg", 0660, 1, 11)
+	mkchar("/dev/console", 0o600, 5, 1)
+	mkchar("/dev/tty1", 0o620, 4, 1)
+	mkchar("/dev/tty", 0o666, 5, 0)
+	mkchar("/dev/null", 0o666, 1, 3)
+	mkchar("/dev/kmsg", 0o660, 1, 11)
 	// make standard symlinks
 	symlink("/proc/self/fd", "/dev/fd")
 	symlink("/proc/self/fd/0", "/dev/stdin")
@@ -227,9 +227,9 @@ func doMounts() {
 	symlink("/proc/self/fd/2", "/dev/stderr")
 	symlink("/proc/kcore", "/dev/kcore")
 	// dev mountpoints
-	mkdir("/dev/mqueue", 01777)
-	mkdir("/dev/shm", 01777)
-	mkdir("/dev/pts", 0755)
+	mkdir("/dev/mqueue", 0o1777)
+	mkdir("/dev/shm", 0o1777)
+	mkdir("/dev/pts", 0o755)
 	// mounts on /dev
 	mount("mqueue", "/dev/mqueue", "mqueue", noexec|nosuid|nodev, "")
 	mount("shm", "/dev/shm", "tmpfs", noexec|nosuid|nodev, "mode=1777")
@@ -254,7 +254,7 @@ func doMounts() {
 	// mount cgroups filesystems for all enabled cgroups
 	for _, cg := range cgroupList() {
 		path := filepath.Join("/sys/fs/cgroup", cg)
-		mkdir(path, 0555)
+		mkdir(path, 0o555)
 		mount(cg, path, "cgroup", noexec|nosuid|nodev, cg)
 	}
 
@@ -262,7 +262,7 @@ func doMounts() {
 	write("/sys/fs/cgroup/memory/memory.use_hierarchy", "1")
 
 	// many things assume systemd
-	mkdir("/sys/fs/cgroup/systemd", 0555)
+	mkdir("/sys/fs/cgroup/systemd", 0o555)
 	mount("cgroup", "/sys/fs/cgroup/systemd", "cgroup", 0, "none,name=systemd")
 
 	// make / rshared
@@ -310,7 +310,7 @@ func doResolvConf() {
 	if err != nil {
 		return
 	}
-	mkdir(filepath.Dir(link), 0755)
+	mkdir(filepath.Dir(link), 0o755)
 	write(link, "")
 }
 

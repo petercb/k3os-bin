@@ -15,7 +15,7 @@ func mountProc() error {
 		return nil
 	}
 	logrus.Debug("mkdir /proc")
-	if err := os.MkdirAll("/proc", 0755); err != nil {
+	if err := os.MkdirAll("/proc", 0o755); err != nil {
 		return err
 	}
 	logrus.Debug("mount /proc")
@@ -27,7 +27,7 @@ func mountDev() error {
 		return nil
 	}
 	logrus.Debug("mkdir /dev")
-	if err := os.MkdirAll("/dev", 0755); err != nil {
+	if err := os.MkdirAll("/dev", 0o755); err != nil {
 		return err
 	}
 	logrus.Debug("mounting /dev")
@@ -54,11 +54,11 @@ func ensureloop() error {
 		return errors.Wrapf(err, "failed to mount dev")
 	}
 
-	if err := mknod("/dev/loop-control", 0700|unix.S_IFCHR, 10, 237); err != nil {
+	if err := mknod("/dev/loop-control", 0o700|unix.S_IFCHR, 10, 237); err != nil {
 		return err
 	}
 	for i := 0; i < 7; i++ {
-		if err := mknod(fmt.Sprintf("/dev/loop%d", i), 0700|unix.S_IFBLK, 7, i); err != nil {
+		if err := mknod(fmt.Sprintf("/dev/loop%d", i), 0o700|unix.S_IFBLK, 7, i); err != nil {
 			return err
 		}
 	}

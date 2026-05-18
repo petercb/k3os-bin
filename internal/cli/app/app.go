@@ -12,9 +12,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-var (
-	Debug bool
-)
+var Debug bool
 
 // New CLI App
 func New() *cli.App {

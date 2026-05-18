@@ -120,7 +120,7 @@ func Run(_ *cli.Context) {
 	}
 
 	// establish the lock
-	lf, err := os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	lf, err := os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		logrus.Fatal(err)
 	}

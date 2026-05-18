@@ -197,7 +197,7 @@ func ApplyDNS(cfg *config.CloudConfig) error {
 		buf.WriteString("\n")
 	}
 
-	err := os.WriteFile("/etc/connman/main.conf", buf.Bytes(), 0644)
+	err := os.WriteFile("/etc/connman/main.conf", buf.Bytes(), 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to write /etc/connman/main.conf: %w", err)
 	}
@@ -217,10 +217,10 @@ func ApplyWifi(cfg *config.CloudConfig) error {
 	buf.WriteString("Tethering=false\n")
 
 	if buf.Len() > 0 {
-		if err := os.MkdirAll("/var/lib/connman", 0755); err != nil {
+		if err := os.MkdirAll("/var/lib/connman", 0o755); err != nil {
 			return fmt.Errorf("failed to mkdir /var/lib/connman: %w", err)
 		}
-		if err := os.WriteFile("/var/lib/connman/settings", buf.Bytes(), 0644); err != nil {
+		if err := os.WriteFile("/var/lib/connman/settings", buf.Bytes(), 0o644); err != nil {
 			return fmt.Errorf("failed to write to /var/lib/connman/settings: %w", err)
 		}
 	}
@@ -246,7 +246,7 @@ func ApplyWifi(cfg *config.CloudConfig) error {
 	}
 
 	if buf.Len() > 0 {
-		return os.WriteFile("/var/lib/connman/cloud-config.config", buf.Bytes(), 0644)
+		return os.WriteFile("/var/lib/connman/cloud-config.config", buf.Bytes(), 0o644)
 	}
 
 	return nil
@@ -264,7 +264,7 @@ func ApplyDataSource(cfg *config.CloudConfig) error {
 	buf.WriteString(args)
 	buf.WriteString("\"\n")
 
-	if err := os.WriteFile("/etc/conf.d/cloud-config", buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile("/etc/conf.d/cloud-config", buf.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("failed to write to /etc/conf.d/cloud-config: %w", err)
 	}
 
@@ -309,7 +309,7 @@ func ApplyEnvironment(cfg *config.CloudConfig) error {
 		buf.WriteString(strconv.Quote(val))
 		buf.WriteString("\n")
 	}
-	if err := os.WriteFile("/etc/environment", buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile("/etc/environment", buf.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("failed to write to /etc/environment: %w", err)
 	}
 

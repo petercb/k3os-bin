@@ -38,7 +38,7 @@ func HTTPDownloadToFile(url, dest string) error {
 	if err != nil {
 		return err
 	}
-	return WriteFileAtomic(dest, body, 0644)
+	return WriteFileAtomic(dest, body, 0o644)
 }
 
 func HTTPLoadBytes(url string) ([]byte, error) {
@@ -104,7 +104,7 @@ func EnsureDirectoryExists(dir string) error {
 			return fmt.Errorf("%s is not a directory", dir)
 		}
 	} else {
-		err = os.MkdirAll(dir, 0755)
+		err = os.MkdirAll(dir, 0o755)
 		if err != nil {
 			return err
 		}

@@ -1,5 +1,3 @@
 package version
 
-var (
-	Version = "HEAD"
-)
+var Version = "HEAD"

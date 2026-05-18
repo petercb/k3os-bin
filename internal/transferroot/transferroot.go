@@ -227,7 +227,7 @@ func Relocate() {
 	if sfs.Type == ramfsMagic || sfs.Type == tmpfsMagic {
 		const newRoot = "/mnt"
 
-		if err := os.MkdirAll(newRoot, 0755); err != nil {
+		if err := os.MkdirAll(newRoot, 0o755); err != nil {
 			log.Fatalf("Failed to mkdir %s", newRoot)
 		}
 		if err := copyFS(newRoot); err != nil {

@@ -60,7 +60,7 @@ type File struct {
 
 func (f *File) Permissions() (os.FileMode, error) {
 	if f.RawFilePermissions == "" {
-		return os.FileMode(0644), nil
+		return os.FileMode(0o644), nil
 	}
 	// parse string representation of file mode as integer
 	perm, err := strconv.ParseInt(f.RawFilePermissions, 8, 32)

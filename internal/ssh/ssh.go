@@ -32,7 +32,7 @@ func SetAuthorizedKeys(cfg *config.CloudConfig, withNet bool) error {
 	}
 	userSSHDir := path.Join(homeDir, sshDir)
 	if _, err := os.Stat(userSSHDir); os.IsNotExist(err) {
-		if err = os.Mkdir(userSSHDir, 0700); err != nil {
+		if err = os.Mkdir(userSSHDir, 0o700); err != nil {
 			return err
 		}
 	} else if err != nil {
@@ -104,7 +104,7 @@ func authorizeSSHKey(key, file string, uid, gid int, withNet bool) error {
 		if err != nil {
 			return err
 		}
-		if err = f.Chmod(0600); err != nil {
+		if err = f.Chmod(0o600); err != nil {
 			return err
 		}
 		if err = f.Close(); err != nil {

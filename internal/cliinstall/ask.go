@@ -196,7 +196,7 @@ func AskPassword(cfg *config.CloudConfig) error {
 		return err
 	}
 	defer func() {
-		os.WriteFile("/etc/shadow", oldShadow, 0640) //nolint:errcheck
+		os.WriteFile("/etc/shadow", oldShadow, 0o640) //nolint:errcheck
 	}()
 
 	cmd := exec.Command("chpasswd")
