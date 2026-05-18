@@ -1,0 +1,132 @@
+%% K3OS Binary Architecture
+%% Module boundaries and data flow
+
+graph TD
+    subgraph "Entry Point"
+        MAIN["main.go<br/>reexec dispatch"]
+    end
+
+    subgraph "Init Boot Path"
+        TR["transferroot<br/>Relocate()"]
+        MNT_INIT["mount<br/>remount / rw"]
+        EC["enterchroot<br/>Mount() / Enter()"]
+        EL["enterchroot<br/>ensureloop"]
+    end
+
+    subgraph "CLI Layer"
+        APP["cli/app<br/>New()"]
+        CMD_RC["cli/rc<br/>Command()"]
+        CMD_CFG["cli/config<br/>Command()"]
+        CMD_INST["cli/install<br/>Command()"]
+        CMD_UPG["cli/upgrade<br/>Command()"]
+    end
+
+    subgraph "Cloud-Config Engine"
+        CC_APPLY["cc/apply.go<br/>RunApply BootApply<br/>InitApply InstallApply"]
+        CC_FUNCS["cc/funcs.go<br/>ApplyModules<br/>ApplySysctls<br/>ApplyHostname<br/>ApplyDNS ApplyWifi<br/>ApplyPassword<br/>ApplySSHKeys<br/>ApplyWriteFiles<br/>ApplyEnvironment<br/>ApplyRuncmd<br/>ApplyInstall<br/>ApplyK3S*"]
+    end
+
+    subgraph "Configuration"
+        CFG_MODEL["config/config.go<br/>CloudConfig K3OS<br/>Install Wifi File"]
+        CFG_READ["config/read.go<br/>ReadConfig()<br/>cmdline + merge"]
+        CFG_READCC["config/read_cc.go<br/>cloud-config sources"]
+        CFG_WRITE["config/write.go<br/>Write() ToBytes()"]
+        CFG_COERCE["config/coerce.go<br/>type coercion"]
+        CFG_RENAME["config/rename.go<br/>field mapping"]
+    end
+
+    subgraph "System Services"
+        SYS["system/system.go<br/>RootPath DataPath<br/>LocalPath StatePath"]
+        COMP["system/component.go<br/>CopyComponent<br/>version symlinks"]
+        MOD["module/module.go<br/>LoadModules()"]
+        MODAL["modalias/modalias.go<br/>Init() Load()"]
+        SYSCTL["sysctl/sysctl.go<br/>ConfigureSysctl()"]
+        HOST["hostname/hostname.go<br/>SetHostname()"]
+        SSH["ssh/ssh.go<br/>SetAuthorizedKeys()"]
+        WF["writefile/writefile.go<br/>WriteFiles()"]
+        CMD["command/command.go<br/>Execute()"]
+    end
+
+    subgraph "Utilities"
+        MOUNT["mount/<br/>Mount() ForceMount()<br/>Mounted() flags"]
+        MODE["mode/mode.go<br/>Get()"]
+        VER["version/version.go<br/>Version"]
+        UTIL["util/<br/>decode prompt"]
+        QUEST["questions/<br/>Prompt* functions"]
+        CLIINST["cliinstall/<br/>ask.go install.go"]
+    end
+
+    %% Init boot path
+    MAIN -->|"/init /sbin/init"| TR
+    TR --> MNT_INIT
+    MNT_INIT --> EC
+    EC --> EL
+
+    %% CLI dispatch
+    MAIN -->|"argv[0] = k3os"| APP
+    APP --> CMD_RC
+    APP --> CMD_CFG
+    APP --> CMD_INST
+    APP --> CMD_UPG
+
+    %% Config command flow
+    CMD_CFG --> CFG_READ
+    CFG_READ --> CFG_MODEL
+    CFG_READ --> CFG_READCC
+    CFG_READ --> CFG_COERCE
+    CFG_READ --> CFG_RENAME
+    CMD_CFG -->|"--initrd"| CC_APPLY
+    CMD_CFG -->|"--boot"| CC_APPLY
+    CMD_CFG -->|"--install"| CC_APPLY
+    CMD_CFG -->|"--dump"| CFG_WRITE
+
+    %% Cloud-config appliers
+    CC_APPLY --> CC_FUNCS
+    CC_FUNCS --> MOD
+    CC_FUNCS --> SYSCTL
+    CC_FUNCS --> HOST
+    CC_FUNCS --> SSH
+    CC_FUNCS --> WF
+    CC_FUNCS --> CMD
+
+    %% RC command
+    CMD_RC --> MOUNT
+    CMD_RC --> MODAL
+
+    %% Upgrade command
+    CMD_UPG --> COMP
+    CMD_UPG --> MOUNT
+    COMP --> SYS
+
+    %% Install command
+    CMD_INST --> MODE
+    CMD_INST --> CLIINST
+    CLIINST --> QUEST
+    CLIINST --> CFG_READ
+
+    %% Shared dependencies
+    CFG_READ --> SYS
+    MOD -.-> CFG_MODEL
+    SYSCTL -.-> CFG_MODEL
+    MODAL --> MOD
+    EC --> MOUNT
+
+    %% Version
+    APP --> VER
+
+    %% Styling
+    classDef entry fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    classDef boot fill:#e8a838,stroke:#b07d28,color:#fff
+    classDef cli fill:#6ab04c,stroke:#4a8a3c,color:#fff
+    classDef cc fill:#be2edd,stroke:#8e1ea0,color:#fff
+    classDef config fill:#f0932b,stroke:#c07020,color:#fff
+    classDef service fill:#22a6b3,stroke:#1a8a90,color:#fff
+    classDef util fill:#95a5a6,stroke:#7f8c8d,color:#fff
+
+    class MAIN entry
+    class TR,MNT_INIT,EC,EL boot
+    class APP,CMD_RC,CMD_CFG,CMD_INST,CMD_UPG cli
+    class CC_APPLY,CC_FUNCS cc
+    class CFG_MODEL,CFG_READ,CFG_READCC,CFG_WRITE,CFG_COERCE,CFG_RENAME config
+    class SYS,COMP,MOD,MODAL,SYSCTL,HOST,SSH,WF,CMD service
+    class MOUNT,MODE,VER,UTIL,QUEST,CLIINST util
