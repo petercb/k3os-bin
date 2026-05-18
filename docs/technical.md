@@ -20,7 +20,7 @@ The `k3os-bin` project is a Go application that produces a single, statically-li
 | File Copy | `otiai10/copy` | v1.7.0 |
 | Loop Devices | `freddierice/go-losetup/v2` | v2.0.1 |
 | Glob Matching | `ryanuber/go-glob` | v1.0.0 |
-| Testing | `stretchr/testify` | (to be added) |
+| Testing | `stretchr/testify` | v1.11.1 |
 | Linting | `golangci-lint` | v2 |
 | Build/Release | GoReleaser | v2 |
 | CI/CD | CircleCI | v2.1 |
@@ -208,12 +208,47 @@ Formatters: `gofumpt`, `goimports`
 Run with:
 
 ```bash
-GOOS=linux golangci-lint run --fix ./...
+golangci-lint run --fix ./...
 ```
+
+On non-Linux development hosts, run tests and lint inside a Linux environment; see `docs/unit_testing_guideline.md` (Docker section).
 
 ---
 
 ## Workflow & Validation
+
+### Git commits
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```text
+<type>(<optional scope>): <short description>
+
+<optional body>
+```
+
+Common types:
+
+| Type | Use for |
+|------|---------|
+| `feat` | New behavior or capability |
+| `fix` | Bug fixes |
+| `test` | Tests only (adding or updating tests, test tooling) |
+| `docs` | Documentation only |
+| `chore` | Tooling, dependencies, CI, housekeeping |
+| `refactor` | Code changes that are not fixes or features |
+
+Examples:
+
+```text
+test: add testify smoke tests for version package
+
+docs: document Docker-based test runs on macOS
+```
+
+Match existing history in the repository (for example `feat:`, `fix:`, `doc:`). Prefer `docs:` for documentation-only changes; `doc:` appears in older commits.
+
+Branching uses `master` only (no long-lived `develop` branch). Feature branches: `feature/<task-id>-<short-slug>`.
 
 To maintain consistency and correctness across documentation, configuration, and CI/CD pipelines, the following validation commands must be executed after making changes:
 

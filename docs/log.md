@@ -53,3 +53,16 @@ User provided further workflow guidance, an additional modernization task (`reex
 ### Next
 
 - Awaiting user review and approval of updated onboarding documents and task plan.
+
+## 2026-05-18 — TASK-001
+
+### Actions
+
+1. Added `github.com/stretchr/testify` v1.11.1 as a direct dependency in `go.mod`.
+2. Migrated `internal/config/read_test.go` to `testify/assert` and `testify/require` (preserved `TestAuthorizedKeys` len == 1 behavior).
+3. Added `internal/version/version_test.go` smoke tests.
+4. Verified full test suite with race/cover in Linux Docker (`go test -race -covermode=atomic -failfast ./...`).
+
+### Next
+
+- TASK-002: Add unit tests for `internal/system` package.

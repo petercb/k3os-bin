@@ -4,7 +4,7 @@
 
 | Task ID | Title | Status | Priority | Dependencies |
 |---------|-------|--------|----------|--------------|
-| TASK-001 | Add testify dependency and test infrastructure | Planned | High | — |
+| TASK-001 | Add testify dependency and test infrastructure | Done | High | — |
 | TASK-002 | Add unit tests for `internal/system` package | Planned | High | TASK-001 |
 | TASK-003 | Add unit tests for `internal/config` (model, write, coerce) | Planned | High | TASK-001 |
 | TASK-004 | Add unit tests for `internal/config` (read, merge) | Planned | High | TASK-001, TASK-003 |
@@ -24,7 +24,7 @@
 
 ## TASK-001: Add testify dependency and test infrastructure
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: High
 - **PRD Reference**: Testing Requirements
 - **Dependencies**: —
@@ -36,13 +36,13 @@ Add `testify` as a test dependency and establish baseline test infrastructure.
 
 ### Implementation Checklist
 
-- [ ] Add `github.com/stretchr/testify` to `go.mod` as a test dependency
-- [ ] Verify existing test (`internal/config/read_test.go`) still passes
-- [ ] Migrate existing test to use `testify/assert` and `testify/require`
-- [ ] Create a simple smoke test in `internal/version/` to validate testify works
-- [ ] Add `testify` to golangci-lint configuration (`.golangci.yml`)
-- [ ] Verify CI pipeline passes with the new dependency
-- [ ] Update `docs/status.md`
+- [x] Add `github.com/stretchr/testify` to `go.mod` as a test dependency
+- [x] Verify existing test (`internal/config/read_test.go`) still passes
+- [x] Migrate existing test to use `testify/assert` and `testify/require`
+- [x] Create a simple smoke test in `internal/version/` to validate testify works
+- [x] Verify golangci-lint (no testify-specific config required)
+- [x] Verify CI pipeline passes with the new dependency
+- [x] Update `docs/status.md`
 
 ### Acceptance Criteria
 

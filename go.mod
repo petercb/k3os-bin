@@ -11,6 +11,7 @@ require (
 	github.com/rancher/mapper v0.0.0-20190814232720-058a8b7feb99
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/sirupsen/logrus v1.9.0
+	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli v1.22.9
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261
 	pault.ag/go/modprobe v0.1.2
@@ -18,10 +19,13 @@ require (
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/mattn/go-shellwords v1.0.5 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	pault.ag/go/topsort v0.0.0-20160530003732-f98d2ad46e1a // indirect
 )
 

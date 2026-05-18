@@ -2,7 +2,7 @@
 
 ## Completed Features
 
-- (none yet — project onboarding in progress)
+- TASK-001: Add testify dependency and test infrastructure (`github.com/stretchr/testify` v1.11.1, migrated `read_test.go`, added `version` smoke tests)
 
 ## In Progress
 
@@ -17,7 +17,6 @@
 
 ## Pending
 
-- TASK-001: Add testify dependency and test infrastructure
 - TASK-002: Add unit tests for `internal/system` package
 - TASK-003: Add unit tests for `internal/config` (model, write, coerce)
 - TASK-004: Add unit tests for `internal/config` (read, merge)
@@ -44,6 +43,7 @@
 
 ## Decision History
 
+- [2026-05-18] TASK-001 — Added `github.com/stretchr/testify` v1.11.1 as a direct `go.mod` dependency. Migrated `TestAuthorizedKeys` with preserved behavior (`len == 1`); error message still references "expected 2" for investigation in TASK-004. No golangci-lint config changes required.
 - [2026-05-17] PROJECT-ONBOARDING — Chose `testify` over `gotest.tools` for testing framework. Rationale: richer assertion API, built-in mocking support, wider community adoption.
 - [2026-05-17] PROJECT-ONBOARDING — Chose `master`-only branching (no `develop` branch). Rationale: project owner preference; simpler workflow.
 - [2026-05-17] PROJECT-ONBOARDING — Decided to introduce interfaces for OS-dependent operations to enable mocking. Alternatives considered: build-tag-based test stubs (rejected: more complex, less flexible).
@@ -51,5 +51,5 @@
 
 ## Next Steps
 
+- TASK-002: Add unit tests for `internal/system` package (unblocked)
 - Review and approve onboarding docs (PRD, technical, architecture, testing guidelines)
-- Review and approve task plan (`tasks/tasks.md`)

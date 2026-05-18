@@ -36,38 +36,88 @@ func TestReadConfig(t *testing.T) {
 
 ## Test Commands
 
-### Running Tests
+### Platform notes
+
+This project targets Linux only. Several packages (for example `internal/mount`) use Linux-specific APIs, so the full test suite must run on Linux.
+
+On Linux hosts, run tests directly (no `GOOS` prefix required). CircleCI uses the same commands.
+
+On **macOS and Windows**, setting `GOOS=linux` cross-compiles test binaries for Linux but **does not run them** on the host (`exec format error`). Use Docker (below) or a Linux VM to execute tests locally.
+
+### Running Tests (Linux)
 
 ```bash
 # Run all tests
-GOOS=linux go test ./...
+go test ./...
 
 # Run all tests with race detection (CI mode)
-GOOS=linux go test -race -covermode=atomic -failfast ./...
+go test -race -covermode=atomic -failfast ./...
 
 # Run tests for a specific package
-GOOS=linux go test ./internal/config/...
+go test ./internal/config/...
 
 # Run a specific test function
-GOOS=linux go test -run TestReadConfig ./internal/config/...
+go test -run TestReadConfig ./internal/config/...
 
 # Run tests with verbose output
-GOOS=linux go test -v ./...
+go test -v ./...
 
 # Run tests with coverage report
-GOOS=linux go test -coverprofile=coverage.out ./...
+go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
 ```
 
+### Running Tests in Docker (macOS / Windows)
+
+Use the Go image version that matches `go` in `go.mod` (currently **1.21.9**). Mount the repository at `/app` and run tests inside the container:
+
+```bash
+# From the repository root on the host
+docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+  go test -race -covermode=atomic -failfast ./...
+```
+
+Package-scoped runs:
+
+```bash
+docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+  go test -v ./internal/config/...
+
+docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+  go test -v ./internal/version/...
+```
+
+Build verification (matches CI):
+
+```bash
+docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+  sh -c 'CGO_ENABLED=0 go build -o /dev/null .'
+```
+
+On macOS, `$(pwd)` resolves correctly for Docker Desktop volume mounts. On Windows, use the path format required by your Docker setup (for example `%cd%` in PowerShell with appropriate path conversion).
+
+Packages without Linux-only dependencies (for example `internal/version`) can be tested on the host without Docker, but prefer Docker for parity with CI before pushing.
+
 ### Linting
+
+On Linux, or inside the same Docker image:
 
 ```bash
 # Run linter with auto-fix
-GOOS=linux golangci-lint run --fix ....
+golangci-lint run --fix ./...
 
 # Run linter without auto-fix (CI mode)
-GOOS=linux golangci-lint run ....
+golangci-lint run ./...
 ```
+
+Example via Docker on macOS / Windows:
+
+```bash
+docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+  sh -c 'go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest && golangci-lint run ./...'
+```
+
+Install `golangci-lint` on the host instead if you prefer not to install it in the container on every run.
 
 ---
 
@@ -306,15 +356,17 @@ Go's `go test` automatically excludes `testdata/` from compilation.
 
 ### Coverage Commands
 
+Run on Linux or inside the Docker image from [Running Tests in Docker](#running-tests-in-docker-macos--windows):
+
 ```bash
 # Generate coverage profile
-GOOS=linux go test -coverprofile=coverage.out ./internal/...
+go test -coverprofile=coverage.out ./internal/...
 
 # View coverage summary
-GOOS=linux go tool cover -func=coverage.out
+go tool cover -func=coverage.out
 
 # Generate HTML report
-GOOS=linux go tool cover -html=coverage.out -o coverage.html
+go tool cover -html=coverage.out -o coverage.html
 ```
 
 ---
