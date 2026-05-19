@@ -97,10 +97,26 @@ User provided further workflow guidance, an additional modernization task (`reex
 
 ### Retrospective
 
-- What went well: Clear understanding of what needed to be tested using pure logic without complex mocks. 
+- What went well: Clear understanding of what needed to be tested using pure logic without complex mocks.
 - What broke: My agent environment lacked docker socket permissions, and `golangci-lint` ran into context loading issues.
 - What to change: Lean on the user to run tests when environmental constraints block local execution.
 
 ### Next
 
 - TASK-004: Add unit tests for `internal/config` (read, merge)
+
+## 2026-05-19T13:30:00Z — PLANNER_MODE
+
+### Context
+
+User requested running tests, which uncovered a flaky test (`TestFuzzyNames` in `internal/config/rename_test.go`) caused by randomized map iteration order in Go. User requested planning a task to fix it.
+
+### Actions
+
+1. Created `TASK-016` to track the flaky test fix.
+2. Drafted execution plan in `tasks/TASK-016_plan.md`.
+3. Updated `tasks/tasks.md` and `docs/status.md` with the new task.
+
+### Next
+
+- Awaiting user approval to proceed with TASK-016 implementation under TDD_ENFORCEMENT.

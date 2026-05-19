@@ -19,6 +19,7 @@
 | TASK-013 | Add `linux/riscv64` to GoReleaser build matrix | Planned | Low | TASK-010 |
 | TASK-014 | Integrate `whydeadcode` analysis | Planned | Low | TASK-010 |
 | TASK-015 | Create Dependabot configuration | Planned | Low | TASK-010 |
+| TASK-016 | Fix flaky TestFuzzyNames test in internal/config | Planned | High | — |
 
 ---
 
@@ -483,3 +484,28 @@ Create a `.github/dependabot.yml` configuration file to automate dependency upda
 ### Acceptance Criteria
 
 - Valid `dependabot.yml` is present in the repository
+
+---
+
+## TASK-016: Fix flaky TestFuzzyNames test in internal/config
+
+- **Status**: Planned
+- **Priority**: High
+- **PRD Reference**: Testing Requirements
+- **Dependencies**: —
+- **Complexity**: Small (S)
+
+### Description
+
+Refactor the `TestFuzzyNames` test to resolve the flaky assertion caused by Go's non-deterministic map iteration order.
+
+### Implementation Checklist
+
+- [ ] Refactor `TestFuzzyNames` in `internal/config/rename_test.go` to isolate `pass` and `password` tests, ensuring deterministic map iteration
+- [ ] Run `go test ./internal/config -count=10` to ensure flakiness is resolved
+- [ ] Verify full test suite passes
+
+### Acceptance Criteria
+
+- `TestFuzzyNames` passes 100% of the time (no flakiness)
+- Full test suite passes

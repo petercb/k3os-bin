@@ -19,6 +19,7 @@
 
 ## Pending
 
+- TASK-016: Fix flaky TestFuzzyNames test in internal/config
 - TASK-004: Add unit tests for `internal/config` (read, merge)
 - TASK-005: Add unit tests for `internal/mode` package
 - TASK-006: Introduce interfaces for OS-dependent operations
