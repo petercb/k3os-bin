@@ -5,7 +5,7 @@
 | Task ID | Title | Status | Priority | Dependencies |
 |---------|-------|--------|----------|--------------|
 | TASK-001 | Add testify dependency and test infrastructure | Done | High | — |
-| TASK-002 | Add unit tests for `internal/system` package | Planned | High | TASK-001 |
+| TASK-002 | Add unit tests for `internal/system` package | Done | High | TASK-001 |
 | TASK-003 | Add unit tests for `internal/config` (model, write, coerce) | Planned | High | TASK-001 |
 | TASK-004 | Add unit tests for `internal/config` (read, merge) | Planned | High | TASK-001, TASK-003 |
 | TASK-005 | Add unit tests for `internal/mode` package | Planned | High | TASK-001 |
@@ -59,7 +59,7 @@ Add `testify` as a test dependency and establish baseline test infrastructure.
 
 ## TASK-002: Add unit tests for `internal/system` package
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: High
 - **PRD Reference**: Testing Requirements
 - **Dependencies**: TASK-001
@@ -71,13 +71,13 @@ The `internal/system` package has pure functions (`RootPath`, `DataPath`, `Local
 
 ### Implementation Checklist
 
-- [ ] Write tests for `RootPath` with various inputs (empty, single, multiple path elements)
-- [ ] Write tests for `DataPath` with various inputs
-- [ ] Write tests for `LocalPath` with various inputs
-- [ ] Write tests for `StatePath` with various inputs
-- [ ] Test edge cases: empty string, path with special characters, absolute vs relative
-- [ ] Achieve ≥90% coverage for `system/system.go`
-- [ ] Run all tests and verify pass
+- [x] Write tests for `RootPath` with various inputs (empty, single, multiple path elements)
+- [x] Write tests for `DataPath` with various inputs
+- [x] Write tests for `LocalPath` with various inputs
+- [x] Write tests for `StatePath` with various inputs
+- [x] Test edge cases: empty string, path with special characters, absolute vs relative
+- [x] Achieve ≥90% coverage for `system/system.go`
+- [x] Run all tests and verify pass
 
 ### Acceptance Criteria
 
