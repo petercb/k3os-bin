@@ -33,8 +33,6 @@ jobs:
           covermode: atomic
           failfast: true
           race: true
-      - store_test_results:
-          path: /tmp/test-results
       - run: go build ./
       - run: ./k3os-bin
 
