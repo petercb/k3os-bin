@@ -6,7 +6,7 @@
 |---------|-------|--------|----------|--------------|
 | TASK-001 | Add testify dependency and test infrastructure | Done | High | — |
 | TASK-002 | Add unit tests for `internal/system` package | Done | High | TASK-001 |
-| TASK-003 | Add unit tests for `internal/config` (model, write, coerce) | Planned | High | TASK-001 |
+| TASK-003 | Add unit tests for `internal/config` (model, write, coerce) | Done | High | TASK-001 |
 | TASK-004 | Add unit tests for `internal/config` (read, merge) | Planned | High | TASK-001, TASK-003 |
 | TASK-005 | Add unit tests for `internal/mode` package | Planned | High | TASK-001 |
 | TASK-006 | Introduce interfaces for OS-dependent operations | Planned | High | TASK-001 |
@@ -89,7 +89,7 @@ The `internal/system` package has pure functions (`RootPath`, `DataPath`, `Local
 
 ## TASK-003: Add unit tests for `internal/config` (model, write, coerce)
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: High
 - **PRD Reference**: Testing Requirements
 - **Dependencies**: TASK-001
@@ -101,15 +101,15 @@ Test the pure-logic portions of the config package: data model, YAML serializati
 
 ### Implementation Checklist
 
-- [ ] Write tests for `CloudConfig` struct initialization and field access
-- [ ] Write tests for `Debug()` method on `CloudConfig`
-- [ ] Write tests for `Write()` — serialize config to YAML and verify output
-- [ ] Write tests for `ToBytes()` — verify Install field is excluded
-- [ ] Write tests for `PrintInstall()` — verify only install fields are serialized
-- [ ] Write tests for `toYAMLKeys()` — key conversion from camelCase to yaml_key
-- [ ] Write tests for type coercion mappers (`NewToMap`, `NewToSlice`, `NewToBool`, `FuzzyNames`)
-- [ ] Create test fixtures in `internal/config/testdata/`
-- [ ] Achieve ≥70% coverage for tested files
+- [x] Write tests for `CloudConfig` struct initialization and field access
+- [x] Write tests for `Debug()` method on `CloudConfig`
+- [x] Write tests for `Write()` — serialize config to YAML and verify output
+- [x] Write tests for `ToBytes()` — verify Install field is excluded
+- [x] Write tests for `PrintInstall()` — verify only install fields are serialized
+- [x] Write tests for `toYAMLKeys()` — key conversion from camelCase to yaml_key
+- [x] Write tests for type coercion mappers (`NewToMap`, `NewToSlice`, `NewToBool`, `FuzzyNames`)
+- [x] Create test fixtures in `internal/config/testdata/`
+- [x] Achieve ≥70% coverage for tested files
 
 ### Acceptance Criteria
 

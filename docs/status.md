@@ -4,6 +4,7 @@
 
 - TASK-001: Add testify dependency and test infrastructure (`github.com/stretchr/testify` v1.11.1, migrated `read_test.go`, added `version` smoke tests)
 - TASK-002: Add unit tests for `internal/system` package
+- TASK-003: Add unit tests for `internal/config` (model, write, coerce)
 
 ## In Progress
 
@@ -18,7 +19,6 @@
 
 ## Pending
 
-- TASK-003: Add unit tests for `internal/config` (model, write, coerce)
 - TASK-004: Add unit tests for `internal/config` (read, merge)
 - TASK-005: Add unit tests for `internal/mode` package
 - TASK-006: Introduce interfaces for OS-dependent operations
