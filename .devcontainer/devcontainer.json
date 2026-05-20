@@ -1,4 +1,17 @@
 {
     "name": "Go",
-    "image": "mcr.microsoft.com/devcontainers/go:1.21"
+    "image": "mcr.microsoft.com/devcontainers/go:1.21",
+    "privileged": true,
+    "capAdd": [
+        "SYS_ADMIN"
+    ],
+    "runArgs": [
+        "--security-opt",
+        "seccomp=unconfined",
+        "--security-opt",
+        "apparmor=unconfined"
+    ],
+    "remoteEnv": {
+        "GOPATH": "/tmp/go"
+    }
 }
