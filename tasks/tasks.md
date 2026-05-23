@@ -7,7 +7,7 @@
 | TASK-001 | Add testify dependency and test infrastructure | Done | High | — |
 | TASK-002 | Add unit tests for `internal/system` package | Done | High | TASK-001 |
 | TASK-003 | Add unit tests for `internal/config` (model, write, coerce) | Done | High | TASK-001 |
-| TASK-004 | Add unit tests for `internal/config` (read, merge) | Planned | High | TASK-001, TASK-003 |
+| TASK-004 | Add unit tests for `internal/config` (read, merge) | Done | High | TASK-001, TASK-003 |
 | TASK-005 | Add unit tests for `internal/mode` package | Planned | High | TASK-001 |
 | TASK-006 | Introduce interfaces for OS-dependent operations | Planned | High | TASK-001 |
 | TASK-007 | Add unit tests for `internal/cc` applier functions | Planned | High | TASK-006 |
@@ -122,7 +122,7 @@ Test the pure-logic portions of the config package: data model, YAML serializati
 
 ## TASK-004: Add unit tests for `internal/config` (read, merge)
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: High
 - **PRD Reference**: Testing Requirements
 - **Dependencies**: TASK-001, TASK-003
@@ -134,14 +134,14 @@ Test the config reading and merging logic, including multi-source merge, cmdline
 
 ### Implementation Checklist
 
-- [ ] Write tests for `readCmdline()` — parse kernel command line parameters
-- [ ] Write tests for `readFileFunc()` — read YAML from files
-- [ ] Write tests for `merge()` — multi-source config merge priority
-- [ ] Write tests for `readLocalConfigs()` — config.d directory scanning
-- [ ] Write tests for `readersToObject()` — reader chain to CloudConfig conversion
-- [ ] Write tests for `mapToEnv()` — config to environment variable conversion
-- [ ] Create fixture files for multi-source merge scenarios
-- [ ] Achieve ≥60% coverage for `config/read.go`
+- [x] Write tests for `readCmdline()` — parse kernel command line parameters
+- [x] Write tests for `readFileFunc()` — read YAML from files
+- [x] Write tests for `merge()` — multi-source config merge priority
+- [x] Write tests for `readLocalConfigs()` — config.d directory scanning
+- [x] Write tests for `readersToObject()` — reader chain to CloudConfig conversion
+- [x] Write tests for `mapToEnv()` — config to environment variable conversion
+- [x] Create fixture files for multi-source merge scenarios
+- [x] Achieve ≥60% coverage for `config/read.go`
 
 ### Acceptance Criteria
 

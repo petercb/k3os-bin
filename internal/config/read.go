@@ -21,6 +21,7 @@ var (
 	// LocalConfig is the local system configuration
 	LocalConfig  = system.LocalPath("config.yaml")
 	localConfigs = system.LocalPath("config.d")
+	cmdlineFile  = "/proc/cmdline"
 )
 
 var (
@@ -159,7 +160,7 @@ func readCmdline() (map[string]interface{}, error) {
 		return nil, nil
 	}
 
-	bytes, err := os.ReadFile("/proc/cmdline")
+	bytes, err := os.ReadFile(cmdlineFile)
 	if os.IsNotExist(err) {
 		return nil, nil
 	} else if err != nil {

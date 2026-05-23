@@ -10,22 +10,22 @@ import (
 	"github.com/rancher/mapper/convert"
 )
 
-const (
-	hostname = "/run/config/local_hostname"
-	ssh      = "/run/config/ssh/authorized_keys"
-	userdata = "/run/config/userdata"
+var (
+	hostnameFile = "/run/config/local_hostname"
+	sshFile      = "/run/config/ssh/authorized_keys"
+	userdataFile = "/run/config/userdata"
 )
 
 func readCloudConfig() (map[string]interface{}, error) {
 	var keys []string
 	result := map[string]interface{}{}
 
-	hostname, err := os.ReadFile(hostname)
+	hostnameData, err := os.ReadFile(hostnameFile)
 	if err == nil {
-		result["hostname"] = strings.TrimSpace(string(hostname))
+		result["hostname"] = strings.TrimSpace(string(hostnameData))
 	}
 
-	keyData, err := os.ReadFile(ssh)
+	keyData, err := os.ReadFile(sshFile)
 	if err != nil {
 		// ignore error
 		return result, nil
@@ -48,7 +48,7 @@ func readCloudConfig() (map[string]interface{}, error) {
 func readUserData() (map[string]interface{}, error) {
 	result := map[string]interface{}{}
 
-	data, err := os.ReadFile(userdata)
+	data, err := os.ReadFile(userdataFile)
 	if os.IsNotExist(err) {
 		return nil, nil
 	} else if err != nil {
