@@ -194,3 +194,48 @@ TASK-004 completed. Added comprehensive unit tests for `internal/config` (read, 
 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config (High priority, unblocked)
 - TASK-007: Add unit tests for `internal/cc` applier functions (depends on TASK-006, which is Done)
+
+## 2026-05-24 16:36 — TASK-007
+
+### Actions
+
+1. Completed all 31 tasks in the `cc-applier-tests` spec (`.kiro/specs/cc-applier-tests/tasks.md`).
+2. **Phase 1 (Mock Infrastructure)** — 6 tasks: Created mock implementations for all 5 OS interfaces (`MockFileSystem`, `MockFile`, `MockCommandRunner`, `MockModuleLoader`, `MockSysctlApplier`, `MockHostnameSetter`) and added `modePrefix` field to `Applier` for test injection.
+3. **Phase 2 (Individual Applier Tests)** — 15 tasks: Wrote tests for all applier functions in `funcs_test.go`:
+   - `ApplyModules`, `ApplySysctls`, `ApplyHostname`, `ApplyDNS`, `ApplyWifi`, `ApplyPassword`
+   - `ApplyRuncmd`, `ApplyBootcmd`, `ApplyInitcmd`, `ApplyWriteFiles`
+   - `ApplySSHKeys` / `ApplySSHKeysWithNet`, `ApplyEnvironment`, `ApplyDataSource`
+   - `ApplyK3S` (5 scenarios: install mode, restart true/false, server URL agent mode, mode.Get error)
+   - `ApplyInstall` (3 scenarios: not install mode, install mode, mode.Get error)
+4. **Phase 3 (Chain & Aggregation Tests)** — 7 tasks: Wrote tests in `apply_test.go`:
+   - `TestRunApplies_AllSucceed`, `TestRunApplies_SingleError`, `TestRunApplies_MultipleErrors_AllRun`
+   - `TestRunApply_ChainComposition`, `TestBootApply_ChainComposition`
+   - `TestInitApply_ChainComposition`, `TestInstallApply_ChainComposition`
+5. **Phase 4 (Coverage Verification)** — 3 tasks:
+   - Coverage: **93.5%** statement coverage (target was ≥60%)
+   - Race detector: all tests pass, no races detected
+   - Lint: 13 issues found and fixed (package comment + unused params), zero issues remaining
+6. Updated `tasks/tasks.md` (TASK-007 → Done, all checklist items checked).
+7. Updated `docs/status.md` (TASK-007 moved to Completed Features).
+
+### Key Files Created/Modified
+
+- `internal/cc/filesystem_mock_test.go` — MockFileSystem + MockFile
+- `internal/cc/command_mock_test.go` — MockCommandRunner
+- `internal/cc/module_mock_test.go` — MockModuleLoader
+- `internal/cc/sysctl_mock_test.go` — MockSysctlApplier
+- `internal/cc/hostname_mock_test.go` — MockHostnameSetter
+- `internal/cc/funcs_test.go` — All individual applier function tests
+- `internal/cc/apply_test.go` — Chain composition and error aggregation tests
+- `internal/cc/apply.go` — Added `modePrefix` field + package comment (only production change)
+
+### Retrospective
+
+- What went well: The interface-based DI pattern from TASK-006 made mocking straightforward. Table-driven tests kept the test code DRY. 93.5% coverage far exceeded the 60% target.
+- What broke: Nothing significant — all tests passed on first run in Docker with race detector.
+- What to change: For variadic mock methods (like `RunWithEnv`), capturing args via `.Run()` handlers is cleaner than trying to match exact arg counts with multiple `.On()` registrations.
+
+### Next
+
+- TASK-016: Fix flaky TestFuzzyNames test in internal/config
+- TASK-008: Add unit tests for `internal/module` and `internal/sysctl`

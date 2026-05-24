@@ -131,7 +131,7 @@ func (a *Applier) ApplyK3SNoRestart(cfg *config.CloudConfig) error {
 
 // ApplyK3S applies k3s installation and runtime arguments.
 func (a *Applier) ApplyK3S(cfg *config.CloudConfig, restart, install bool) error {
-	mode, err := mode.Get()
+	mode, err := mode.Get(a.modePrefix...)
 	if err != nil {
 		return err
 	}
@@ -212,7 +212,7 @@ func (a *Applier) ApplyK3S(cfg *config.CloudConfig, restart, install bool) error
 
 // ApplyInstall invokes k3os install mode when requested.
 func (a *Applier) ApplyInstall(_ *config.CloudConfig) error {
-	mode, err := mode.Get()
+	mode, err := mode.Get(a.modePrefix...)
 	if err != nil {
 		return err
 	}

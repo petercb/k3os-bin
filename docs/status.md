@@ -8,6 +8,7 @@
 - TASK-003: Add unit tests for `internal/config` (model, write, coerce)
 - TASK-004: Add unit tests for `internal/config` (read, merge)
 - TASK-005: Add unit tests for `internal/mode` package (7 tests, 100% coverage)
+- TASK-007: Add unit tests for `internal/cc` applier functions (31 tests, 93.5% coverage)
 
 ## In Progress
 
@@ -23,7 +24,6 @@
 ## Pending
 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config
-- TASK-007: Add unit tests for `internal/cc` applier functions
 - TASK-008: Add unit tests for `internal/module` and `internal/sysctl`
 - TASK-009: Replace `pkg/errors` with `fmt.Errorf` + `%w`
 - TASK-010: Upgrade Go version to ≥1.22
@@ -56,5 +56,5 @@
 
 ## Next Steps
 
-- TASK-002: Add unit tests for `internal/system` package (unblocked)
-- Review and approve onboarding docs (PRD, technical, architecture, testing guidelines)
+- TASK-016: Fix flaky TestFuzzyNames test in internal/config (High priority, unblocked)
+- TASK-008: Add unit tests for `internal/module` and `internal/sysctl` (High priority, unblocked)

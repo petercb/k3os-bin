@@ -1,3 +1,4 @@
+// Package cc implements cloud-config applier orchestration for k3os boot phases.
 package cc
 
 import (
@@ -11,12 +12,13 @@ type applier func(cfg *config.CloudConfig) error
 
 // Applier holds the dependencies needed by cloud-config applier functions.
 type Applier struct {
-	FS       iface.FileSystem
-	Cmd      iface.CommandRunner
-	Modules  iface.ModuleLoader
-	Sysctl   iface.SysctlApplier
-	Mounter  iface.Mounter
-	Hostname iface.HostnameSetter
+	FS         iface.FileSystem
+	Cmd        iface.CommandRunner
+	Modules    iface.ModuleLoader
+	Sysctl     iface.SysctlApplier
+	Mounter    iface.Mounter
+	Hostname   iface.HostnameSetter
+	modePrefix []string // injected in tests; nil preserves production default
 }
 
 // NewDefaultApplier creates an Applier with production OS implementations.

@@ -9,8 +9,8 @@
 | TASK-003 | Add unit tests for `internal/config` (model, write, coerce) | Done | High | TASK-001 |
 | TASK-004 | Add unit tests for `internal/config` (read, merge) | Done | High | TASK-001, TASK-003 |
 | TASK-005 | Add unit tests for `internal/mode` package | Done | High | TASK-001 |
-| TASK-006 | Introduce interfaces for OS-dependent operations | Planned | High | TASK-001 |
-| TASK-007 | Add unit tests for `internal/cc` applier functions | Planned | High | TASK-006 |
+| TASK-006 | Introduce interfaces for OS-dependent operations | Done | High | TASK-001 |
+| TASK-007 | Add unit tests for `internal/cc` applier functions | Done | High | TASK-006 |
 | TASK-008 | Add unit tests for `internal/module` and `internal/sysctl` | Planned | High | TASK-006 |
 | TASK-009 | Replace `pkg/errors` with `fmt.Errorf` + `%w` | Planned | Medium | TASK-001 |
 | TASK-010 | Upgrade Go version to ≥1.22 | Planned | Medium | TASK-009 |
@@ -219,7 +219,7 @@ Introduce interfaces for OS-dependent operations to enable mocking in tests. Thi
 
 ## TASK-007: Add unit tests for `internal/cc` applier functions
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: High
 - **PRD Reference**: Testing Requirements
 - **Dependencies**: TASK-006
@@ -231,24 +231,27 @@ Test each cloud-config applier function using mock implementations of OS-depende
 
 ### Implementation Checklist
 
-- [ ] Write tests for `ApplyModules` — verifies module loading is called correctly
-- [ ] Write tests for `ApplySysctls` — verifies sysctl values are written
-- [ ] Write tests for `ApplyHostname` — verifies hostname is set
-- [ ] Write tests for `ApplyDNS` — verifies connman config is written correctly
-- [ ] Write tests for `ApplyWifi` — verifies WiFi config files are generated
-- [ ] Write tests for `ApplyPassword` — verifies chpasswd is called
-- [ ] Write tests for `ApplySSHKeys` / `ApplySSHKeysWithNet` — verifies key file generation
-- [ ] Write tests for `ApplyWriteFiles` — verifies files are written with correct permissions/encoding
-- [ ] Write tests for `ApplyEnvironment` — verifies env file is written
-- [ ] Write tests for `runApplies` — verifies error aggregation
-- [ ] Write tests for `RunApply`, `BootApply`, `InitApply`, `InstallApply` — verifies correct applier chains
-- [ ] Achieve ≥60% coverage for `cc/funcs.go` and `cc/apply.go`
+- [x] Write tests for `ApplyModules` — verifies module loading is called correctly
+- [x] Write tests for `ApplySysctls` — verifies sysctl values are written
+- [x] Write tests for `ApplyHostname` — verifies hostname is set
+- [x] Write tests for `ApplyDNS` — verifies connman config is written correctly
+- [x] Write tests for `ApplyWifi` — verifies WiFi config files are generated
+- [x] Write tests for `ApplyPassword` — verifies chpasswd is called
+- [x] Write tests for `ApplySSHKeys` / `ApplySSHKeysWithNet` — verifies key file generation
+- [x] Write tests for `ApplyWriteFiles` — verifies files are written with correct permissions/encoding
+- [x] Write tests for `ApplyEnvironment` — verifies env file is written
+- [x] Write tests for `runApplies` — verifies error aggregation
+- [x] Write tests for `RunApply`, `BootApply`, `InitApply`, `InstallApply` — verifies correct applier chains
+- [x] Achieve ≥60% coverage for `cc/funcs.go` and `cc/apply.go`
 
 ### Acceptance Criteria
 
-- Each applier function has at least one passing and one error-case test
-- Mock expectations verify correct behavior
-- Error aggregation works correctly in `runApplies`
+- Each applier function has at least one passing and one error-case test ✅
+- Mock expectations verify correct behavior ✅
+- Error aggregation works correctly in `runApplies` ✅
+- Coverage: 93.5% (target was ≥60%) ✅
+- All tests pass with `-race` flag ✅
+- Lint passes with zero issues ✅
 
 ---
 
