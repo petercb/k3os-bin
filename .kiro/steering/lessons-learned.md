@@ -58,10 +58,18 @@ The hooks table and Example 5 in README.md document the action type (`runCommand
 
 *Document mistakes that have been made and how to avoid them.*
 
-### Example: Database Transactions
-- Always wrap multiple database operations in a transaction
-- Remember to handle rollback on errors
-- Don't forget to close connections in finally blocks
+### Docker Desktop LinuxKit has a monolithic kernel
+Docker Desktop's LinuxKit kernel has no loadable modules — `/proc/modules` is empty. Integration tests that assert on loaded modules must use `t.Skip()` when the map is empty, with a clear skip message. Tests still validate on real Linux hosts (CI) where modules are present.
+
+### Integration tests writing to `/proc/sys/` need `--privileged`
+The `docker run` command for Linux-only integration tests that write to `/proc/sys/` paths (sysctl tests) requires the `--privileged` flag. Without it, `/proc/sys` is mounted read-only and writes fail with permission errors. Document this in test execution commands:
+```bash
+docker run --rm --privileged -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+  go test -v ./internal/iface/osimpl/...
+```
+
+### Pre-existing `pault.ag/go/modprobe` typecheck on macOS is expected
+Running `golangci-lint run ./...` on macOS produces typecheck errors for `unix.FinitModule`/`unix.DeleteModule` (Linux-only syscalls in the modprobe dependency). This is not a blocker — it's a known limitation of linting Linux-only code on Darwin. Scoped lint (`golangci-lint run ./internal/iface/osimpl/...`) passes cleanly.
 
 ---
 
