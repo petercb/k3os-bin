@@ -6,7 +6,7 @@
 |-------|-------|
 | **Task ID** | TASK-010 |
 | **Title** | Upgrade Go version to >=1.22 |
-| **Status** | Planned |
+| **Status** | Done |
 | **Priority** | Medium |
 | **Dependencies** | TASK-009 (Done) |
 | **Complexity** | Medium (M) |
@@ -60,11 +60,11 @@ Upgrade the Go version from 1.21.9 to 1.24 (current latest stable) across `go.mo
 
 ## Pre-Implementation Checklist
 
-- [ ] Confirm on `master` branch: `git checkout master && git pull`
-- [ ] Create feature branch: `git checkout -b feature/task-010-upgrade-go-version`
-- [ ] Confirm current tests pass (baseline): `go test -race -covermode=atomic -failfast ./...`
-- [ ] Confirm current lint passes (baseline): `golangci-lint run ./...`
-- [ ] Confirm current build works: `CGO_ENABLED=0 go build -o /dev/null .`
+- [x] Confirm on `master` branch: `git checkout master && git pull`
+- [x] Create feature branch: `git checkout -b feature/task-010-upgrade-go-version`
+- [x] Confirm current tests pass (baseline): `go test -race -covermode=atomic -failfast ./...`
+- [x] Confirm current lint passes (baseline): `golangci-lint run ./...`
+- [x] Confirm current build works: `CGO_ENABLED=0 go build -o /dev/null .`
 
 ---
 
@@ -226,8 +226,8 @@ go test -race -covermode=atomic -failfast ./...
 **Verification**:
 
 ```bash
-# Validate CircleCI config syntax
-circleci config validate
+# Validate CircleCI config syntax (use circleci-mcp-server)
+# circleci-mcp-server validate_config
 
 # Verify YAML formatting is correct
 yamlfmt .circleci/config.yml
@@ -356,22 +356,22 @@ Upgrades the Go version from 1.21.9 to 1.24 across all configuration files.
 
 ## Test Plan
 
-- [ ] All existing tests pass with `go test -race -covermode=atomic -failfast ./...`
-- [ ] Regression test for loop variable closure behavior passes
-- [ ] Linter passes with zero issues: `golangci-lint run ./...`
-- [ ] Binary builds with production flags and executes correctly
-- [ ] CircleCI config validates: `circleci config validate`
-- [ ] `go mod tidy` produces no diff
+- [x] All existing tests pass with `go test -race -covermode=atomic -failfast ./...`
+- [x] Regression test for loop variable closure behavior passes
+- [x] Linter passes with zero issues: `golangci-lint run ./...`
+- [x] Binary builds with production flags and executes correctly
+- [x] CircleCI config validates (via circleci-mcp-server)
+- [x] `go mod tidy` produces no diff
 
 ## Checklist (from TASK-010)
 
-- [ ] Update `go.mod` to `go 1.24`
-- [ ] Update CircleCI config to use matching Go version
-- [ ] Update GoReleaser if needed (not needed -- no Go version specified)
-- [ ] Run `go mod tidy`
-- [ ] Run all tests and verify pass
-- [ ] Run linter and fix any new warnings from updated linters
-- [ ] Verify binary builds and runs correctly
+- [x] Update `go.mod` to `go 1.24`
+- [x] Update CircleCI config to use matching Go version
+- [x] Update GoReleaser if needed (not needed -- no Go version specified)
+- [x] Run `go mod tidy`
+- [x] Run all tests and verify pass
+- [x] Run linter and fix any new warnings from updated linters
+- [x] Verify binary builds and runs correctly
 ```
 
 ---
@@ -472,8 +472,8 @@ golangci-lint run ./...
 # 5. Binary builds and runs
 CGO_ENABLED=0 go build -o ./k3os-test . && ./k3os-test && rm -f ./k3os-test
 
-# 6. CircleCI config valid
-circleci config validate
+# 6. CircleCI config valid (use circleci-mcp-server to validate)
+# circleci-mcp-server validate_config
 ```
 
 ---
