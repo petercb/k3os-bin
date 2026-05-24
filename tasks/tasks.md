@@ -12,7 +12,7 @@
 | TASK-006 | Introduce interfaces for OS-dependent operations | Done | High | TASK-001 |
 | TASK-007 | Add unit tests for `internal/cc` applier functions | Done | High | TASK-006 |
 | TASK-008 | Remove dead standalone packages and add integration tests for osimpl module/sysctl adapters | Done | High | TASK-006 |
-| TASK-009 | Replace `pkg/errors` with `fmt.Errorf` + `%w` | Planned | Medium | TASK-001 |
+| TASK-009 | Replace `pkg/errors` with `fmt.Errorf` + `%w` | Done | Medium | TASK-001 |
 | TASK-010 | Upgrade Go version to ≥1.22 | Planned | Medium | TASK-009 |
 | TASK-011 | Migrate `urfave/cli` v1 → v3 | Planned | Medium | TASK-010 |
 | TASK-012 | Migrate `reexec` package to `github.com/moby/sys/reexec` | Planned | Medium | TASK-010 |
@@ -290,7 +290,7 @@ Remove the dead-code standalone packages (`internal/module` and `internal/sysctl
 
 ## TASK-009: Replace `pkg/errors` with `fmt.Errorf` + `%w`
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: Medium
 - **PRD Reference**: Modernization Requirements
 - **Dependencies**: TASK-001
@@ -302,20 +302,20 @@ Replace all uses of `github.com/pkg/errors` (`errors.Wrap`, `errors.Wrapf`, `err
 
 ### Implementation Checklist
 
-- [ ] Identify all files importing `github.com/pkg/errors`
-- [ ] Replace `errors.Wrap(err, msg)` with `fmt.Errorf("%s: %w", msg, err)`
-- [ ] Replace `errors.Wrapf(err, fmt, args)` with `fmt.Errorf(fmt + ": %w", args..., err)`
-- [ ] Replace `errors.New(msg)` with `fmt.Errorf(msg)` or `errors.New(msg)` (stdlib)
-- [ ] Remove `github.com/pkg/errors` from `go.mod`
-- [ ] Run `go mod tidy`
-- [ ] Run all tests and verify pass
-- [ ] Run linter and verify clean
+- [x] Identify all files importing `github.com/pkg/errors`
+- [x] Replace `errors.Wrap(err, msg)` with `fmt.Errorf("%s: %w", msg, err)`
+- [x] Replace `errors.Wrapf(err, fmt, args)` with `fmt.Errorf(fmt + ": %w", args..., err)`
+- [x] Replace `errors.New(msg)` with `fmt.Errorf(msg)` or `errors.New(msg)` (stdlib)
+- [x] Remove `github.com/pkg/errors` from `go.mod`
+- [x] Run `go mod tidy`
+- [x] Run all tests and verify pass
+- [x] Run linter and verify clean
 
 ### Acceptance Criteria
 
-- No imports of `github.com/pkg/errors` remain
-- All error wrapping uses `fmt.Errorf` with `%w` verb
-- All tests pass
+- No imports of `github.com/pkg/errors` remain ✅
+- All error wrapping uses `fmt.Errorf` with `%w` verb ✅
+- All tests pass ✅
 
 ---
 
