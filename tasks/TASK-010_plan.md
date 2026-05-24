@@ -226,8 +226,9 @@ go test -race -covermode=atomic -failfast ./...
 **Verification**:
 
 ```bash
-# Validate CircleCI config syntax (use circleci-mcp-server)
-# circleci-mcp-server validate_config
+# Validate CircleCI config syntax
+# - Agents with circleci-mcp-server available: use circleci-mcp-server validate_config
+# - Otherwise (humans or agents without the MCP): circleci config validate
 
 # Verify YAML formatting is correct
 yamlfmt .circleci/config.yml
@@ -360,7 +361,7 @@ Upgrades the Go version from 1.21.9 to 1.24 across all configuration files.
 - [x] Regression test for loop variable closure behavior passes
 - [x] Linter passes with zero issues: `golangci-lint run ./...`
 - [x] Binary builds with production flags and executes correctly
-- [x] CircleCI config validates (via circleci-mcp-server)
+- [x] CircleCI config validates (via circleci-mcp-server when available, or `circleci config validate` CLI)
 - [x] `go mod tidy` produces no diff
 
 ## Checklist (from TASK-010)
@@ -472,8 +473,9 @@ golangci-lint run ./...
 # 5. Binary builds and runs
 CGO_ENABLED=0 go build -o ./k3os-test . && ./k3os-test && rm -f ./k3os-test
 
-# 6. CircleCI config valid (use circleci-mcp-server to validate)
-# circleci-mcp-server validate_config
+# 6. CircleCI config valid
+# - Agents with circleci-mcp-server: use circleci-mcp-server validate_config
+# - Otherwise: circleci config validate
 ```
 
 ---
