@@ -69,28 +69,28 @@ go tool cover -html=coverage.out
 
 ### Running Tests in Docker (macOS / Windows)
 
-Use the Go image version that matches `go` in `go.mod` (currently **1.21.9**). Mount the repository at `/app` and run tests inside the container:
+Use the Go image version that matches `go` in `go.mod` (currently **1.24**). Mount the repository at `/app` and run tests inside the container:
 
 ```bash
 # From the repository root on the host
-docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+docker run --rm -v "$(pwd)":/app -w /app golang:1.24-bookworm \
   go test -race -covermode=atomic -failfast ./...
 ```
 
 Package-scoped runs:
 
 ```bash
-docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+docker run --rm -v "$(pwd)":/app -w /app golang:1.24-bookworm \
   go test -v ./internal/config/...
 
-docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+docker run --rm -v "$(pwd)":/app -w /app golang:1.24-bookworm \
   go test -v ./internal/version/...
 ```
 
 Build verification (matches CI):
 
 ```bash
-docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+docker run --rm -v "$(pwd)":/app -w /app golang:1.24-bookworm \
   sh -c 'CGO_ENABLED=0 go build -o /dev/null .'
 ```
 

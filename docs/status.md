@@ -11,6 +11,7 @@
 - TASK-007: Add unit tests for `internal/cc` applier functions (31 tests, 93.5% coverage)
 - TASK-008: Add integration tests for osimpl module/sysctl adapters, remove dead standalone packages
 - TASK-009: Replace `pkg/errors` with `fmt.Errorf` + `%w` (migrated `internal/util` and `internal/enterchroot`, removed dependency from `go.mod`)
+- TASK-010: Upgrade Go version to 1.24 (updated `go.mod`, CircleCI, devcontainer; added loop-capture regression test)
 
 ## In Progress
 
@@ -26,7 +27,6 @@
 ## Pending
 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config
-- TASK-010: Upgrade Go version to ≥1.22
 - TASK-011: Migrate `urfave/cli` v1 → v3
 - TASK-012: Migrate `reexec` package to `github.com/moby/sys/reexec`
 - TASK-013: Add `linux/riscv64` to GoReleaser build matrix
@@ -40,7 +40,6 @@
 - `urfave/cli` v1 is unmaintained; v3 is the current version
 - Uses deprecated `github.com/moby/moby/pkg/reexec`
 - `rc` package uses `log` (stdlib) instead of `logrus` for consistency
-- Go 1.21.9 is nearing end of support
 
 ## Process Violations
 
@@ -57,4 +56,4 @@
 ## Next Steps
 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config (High priority, unblocked)
-- TASK-010: Upgrade Go version to ≥1.22 (Medium priority, unblocked)
+- TASK-011: Migrate `urfave/cli` v1 → v3 (Medium priority, unblocked)
