@@ -71,6 +71,12 @@ docker run --rm --privileged -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
 ### Pre-existing `pault.ag/go/modprobe` typecheck on macOS is expected
 Running `golangci-lint run ./...` on macOS produces typecheck errors for `unix.FinitModule`/`unix.DeleteModule` (Linux-only syscalls in the modprobe dependency). This is not a blocker — it's a known limitation of linting Linux-only code on Darwin. Scoped lint (`golangci-lint run ./internal/iface/osimpl/...`) passes cleanly.
 
+### Pre-commit `go-mod-tidy` hook captures dependency changes automatically
+The pre-commit hook runs `go mod tidy` on every commit. When a migration removes a dependency from source files, the `go.mod`/`go.sum` cleanup happens automatically during the commit that removes the last import. A separate "remove dependency" commit may be empty — check `git status` before creating it. Plan for this in task specs to avoid no-op commits.
+
+### Extract package-level variables for testability of hardcoded paths
+Linux-only code that reads from `/proc/*` paths can be made testable by extracting the path into a `var` (e.g., `var procFilesystemsPath = "/proc/filesystems"`). Tests override the variable to point at a temp file with controlled content, using `t.Cleanup` to restore the original. This avoids needing root, Linux, or Docker for unit tests of pure logic.
+
 ---
 
 ## Architecture Decisions

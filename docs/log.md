@@ -240,6 +240,35 @@ TASK-004 completed. Added comprehensive unit tests for `internal/config` (read, 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config
 - TASK-008: Add unit tests for `internal/module` and `internal/sysctl`
 
+## 2026-05-24 — TASK-009
+
+### Context
+
+TASK-009: Replace `github.com/pkg/errors` with `fmt.Errorf` + `%w` across the codebase. Work performed on branch `feature/task-009-pkg-errors-migration`.
+
+### Actions
+
+1. **Migrated `internal/util/prompt.go`** — replaced `errors.Wrapf` calls with `fmt.Errorf("...: %w", err)` and `errors.New` with stdlib `errors.New`. Added unit tests and property-based test for `MaskPassword` error propagation.
+2. **Migrated `internal/enterchroot/enter.go`** — replaced 7 `errors.Wrap`, 4 `errors.Wrapf`, and 2 `errors.New` calls with stdlib equivalents. Extracted `procFilesystemsPath` variable for testability.
+3. **Migrated `internal/enterchroot/ensureloop.go`** — replaced 2 `errors.Wrapf` calls with `fmt.Errorf`.
+4. **Removed `github.com/pkg/errors`** from `go.mod` and `go.sum` via `go mod tidy`.
+5. **Verified**: full test suite passes with race detector, zero lint findings on changed files.
+
+### Packages Affected
+
+- `internal/util`
+- `internal/enterchroot`
+
+### Commits (on `feature/task-009-pkg-errors-migration`)
+
+- `refactor(util): replace pkg/errors with fmt.Errorf and add tests`
+- `refactor(enterchroot): replace pkg/errors with fmt.Errorf and add tests`
+- `chore: remove pkg/errors dependency`
+
+### Next
+
+- Documentation commit, then final checkpoint.
+
 ## 2026-05-24 — TASK-008
 
 ### Context

@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/petercb/k3os-bin/internal/mount"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -51,10 +50,10 @@ func mknod(path string, mode uint32, major, minor int) error {
 func ensureloop() error {
 	// CONFIG_BLK_DEV_LOOP should be set to 'y' in the kernel
 	if err := mountProc(); err != nil {
-		return errors.Wrapf(err, "failed to mount proc")
+		return fmt.Errorf("failed to mount proc: %w", err)
 	}
 	if err := mountDev(); err != nil {
-		return errors.Wrapf(err, "failed to mount dev")
+		return fmt.Errorf("failed to mount dev: %w", err)
 	}
 
 	if err := mknod("/dev/loop-control", 0o700|unix.S_IFCHR, 10, 237); err != nil {
