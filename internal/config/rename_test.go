@@ -10,7 +10,6 @@ import (
 
 func TestFuzzyNames(t *testing.T) {
 	f := &FuzzyNames{}
-
 	schema := &mapper.Schema{
 		ResourceFields: map[string]mapper.Field{
 			"passphrases":       {},
@@ -18,25 +17,25 @@ func TestFuzzyNames(t *testing.T) {
 			"environments":      {},
 		},
 	}
+	require.NoError(t, f.ModifySchema(schema, nil))
 
-	err := f.ModifySchema(schema, nil)
-	require.NoError(t, err)
-
-	data := map[string]interface{}{
-		"ssh_authorized_key": "my-key",
-		"environment":        "env",
-		"password":           "my-password",
+	tests := []struct {
+		name      string
+		input     map[string]interface{}
+		wantKey   string
+		wantValue interface{}
+	}{
+		{"password maps to passphrase", map[string]interface{}{"password": "my-password"}, "passphrase", "my-password"},
+		{"pass maps to passphrase", map[string]interface{}{"pass": "my-pass"}, "passphrase", "my-pass"},
+		{"ssh_authorized_key maps to plural", map[string]interface{}{"ssh_authorized_key": "k"}, "sshAuthorizedKeys", "k"},
+		{"environment maps to environments", map[string]interface{}{"environment": "env"}, "environments", "env"},
 	}
 
-	err = f.ToInternal(data)
-	require.NoError(t, err)
-
-	assert.Contains(t, data, "passphrase")
-	assert.Equal(t, "my-password", data["passphrase"])
-
-	assert.Contains(t, data, "sshAuthorizedKeys")
-	assert.Equal(t, "my-key", data["sshAuthorizedKeys"])
-
-	assert.Contains(t, data, "environments")
-	assert.Equal(t, "env", data["environments"])
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NoError(t, f.ToInternal(tt.input))
+			assert.Contains(t, tt.input, tt.wantKey)
+			assert.Equal(t, tt.wantValue, tt.input[tt.wantKey])
+		})
+	}
 }
