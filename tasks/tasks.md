@@ -8,7 +8,7 @@
 | TASK-002 | Add unit tests for `internal/system` package | Done | High | TASK-001 |
 | TASK-003 | Add unit tests for `internal/config` (model, write, coerce) | Done | High | TASK-001 |
 | TASK-004 | Add unit tests for `internal/config` (read, merge) | Done | High | TASK-001, TASK-003 |
-| TASK-005 | Add unit tests for `internal/mode` package | Planned | High | TASK-001 |
+| TASK-005 | Add unit tests for `internal/mode` package | Done | High | TASK-001 |
 | TASK-006 | Introduce interfaces for OS-dependent operations | Planned | High | TASK-001 |
 | TASK-007 | Add unit tests for `internal/cc` applier functions | Planned | High | TASK-006 |
 | TASK-008 | Add unit tests for `internal/module` and `internal/sysctl` | Planned | High | TASK-006 |
@@ -153,7 +153,7 @@ Test the config reading and merging logic, including multi-source merge, cmdline
 
 ## TASK-005: Add unit tests for `internal/mode` package
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: High
 - **PRD Reference**: Testing Requirements
 - **Dependencies**: TASK-001
@@ -165,12 +165,12 @@ Test boot mode detection from the mode file.
 
 ### Implementation Checklist
 
-- [ ] Write test for `Get()` with mode file containing "live"
-- [ ] Write test for `Get()` with mode file containing "local"
-- [ ] Write test for `Get()` with missing mode file (returns empty string)
-- [ ] Write test for `Get()` with prefix parameter
-- [ ] Use `t.TempDir()` to create temporary mode files
-- [ ] Achieve ≥90% coverage for `mode/mode.go`
+- [x] Write test for `Get()` with mode file containing "live"
+- [x] Write test for `Get()` with mode file containing "local"
+- [x] Write test for `Get()` with missing mode file (returns empty string)
+- [x] Write test for `Get()` with prefix parameter
+- [x] Use `t.TempDir()` to create temporary mode files
+- [x] Achieve ≥90% coverage for `mode/mode.go`
 
 ### Acceptance Criteria
 

@@ -165,3 +165,32 @@ TASK-004 completed. Added comprehensive unit tests for `internal/config` (read, 
 - Fixed remaining scoped lint blockers in TASK-006-touched files: unchecked close calls, govet shadow findings, and missing exported comments.
 - Re-ran owner-approved scoped verification. Changed-package `golangci-lint` returned `0 issues`; Linux-tagged `golangci-lint` returned `0 issues`; scoped package tests passed on host and Linux-targeted package sets.
 - Updated TASK-006 implementation checklist and acceptance criteria to reflect the completed interface package design and the scoped verification constraint.
+
+## 2026-05-24 03:30 — TASK-005
+
+### Actions
+
+1. Created `internal/mode/mode_test.go` with 7 table-style tests covering all branches of `Get()`:
+   - `TestGet_LiveMode` — mode file contains "live"
+   - `TestGet_LocalMode` — mode file contains "local"
+   - `TestGet_TrimsWhitespace` — whitespace/newline trimming
+   - `TestGet_MissingFile_ReturnsEmpty` — absent file returns `""` and no error
+   - `TestGet_MultiplePrefix_JoinsCorrectly` — multi-segment prefix via `filepath.Join`
+   - `TestGet_EmptyPrefix_UsesAbsolutePath` — no prefix on a non-k3os host returns `""` and no error
+   - `TestGet_PathIsDirectory_ReturnsError` — mode path is a directory, triggers non-IsNotExist error
+2. All 7 tests pass; coverage: **100%** for `mode/mode.go`.
+3. Verified via Docker (`golang:1.21.9-bookworm`) to match CI environment.
+4. Updated `tasks/tasks.md` (TASK-005 → Done, all checklist items checked).
+5. Updated `docs/status.md` (TASK-005 moved to Completed Features, removed from Pending).
+6. Created task summary at `tasks/TASK-005.md`.
+
+### Retrospective
+
+- What went well: `mode.go` is a pure function with a single file-read path — straightforward to test with `t.TempDir()`. 100% coverage achieved with 7 focused tests.
+- What broke: First attempt at the error-path test used `chmod 000`, which doesn't block root reads inside Docker. Switched to creating the mode path as a directory, which reliably triggers a non-IsNotExist error regardless of user.
+- What to change: When writing error-path tests that rely on permission denial, always account for Docker running as root and prefer structural tricks (directory-as-file) over permission manipulation.
+
+### Next
+
+- TASK-016: Fix flaky TestFuzzyNames test in internal/config (High priority, unblocked)
+- TASK-007: Add unit tests for `internal/cc` applier functions (depends on TASK-006, which is Done)
