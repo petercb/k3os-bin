@@ -2,11 +2,11 @@ package util
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 
-	"github.com/pkg/errors"
 	"golang.org/x/term"
 )
 
@@ -20,12 +20,12 @@ func PromptPassword() (string, bool, error) {
 	fmt.Print("Please enter password for [rancher]: ")
 	p, err := MaskPassword(os.Stdin, os.Stdout)
 	if err != nil {
-		return "", false, errors.Wrapf(err, "failed to set password")
+		return "", false, fmt.Errorf("failed to set password: %w", err)
 	}
 	fmt.Print("Confirm password for [rancher]: ")
 	c, err := MaskPassword(os.Stdin, os.Stdout)
 	if err != nil {
-		return "", false, errors.Wrapf(err, "failed to confirm password")
+		return "", false, fmt.Errorf("failed to confirm password: %w", err)
 	}
 	return string(c), bytes.Equal(p, c), nil
 }
