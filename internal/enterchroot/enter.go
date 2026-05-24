@@ -4,6 +4,7 @@
 package enterchroot
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -17,7 +18,6 @@ import (
 	"github.com/freddierice/go-losetup/v2"
 	"github.com/moby/moby/pkg/reexec"
 	"github.com/petercb/k3os-bin/internal/mount"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -27,8 +27,10 @@ const (
 )
 
 var (
-	symlinks     = []string{"lib", "bin", "sbin"}
-	DebugCmdline = ""
+	symlinks = []string{"lib", "bin", "sbin"}
+	// DebugCmdline is the kernel cmdline parameter that enables debug logging.
+	DebugCmdline        = ""
+	procFilesystemsPath = "/proc/filesystems"
 )
 
 // Enter the k3OS root
@@ -113,7 +115,7 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 		logrus.Debugf("Attaching file [%s] offset [%d]", root, offset)
 		dev, err := losetup.Attach(root, offset, true)
 		if err != nil {
-			return errors.Wrap(err, "creating loopback device")
+			return fmt.Errorf("creating loopback device: %w", err)
 		}
 		defer func() {
 			if dderr := dev.Detach(); dderr != nil {
@@ -141,7 +143,7 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 	logrus.Debugf("Running enter-root %v", os.Args[1:])
 	if os.Getpid() == 1 {
 		if err := syscall.Exec(os.Args[0], append([]string{"enter-root"}, args[1:]...), os.Environ()); err != nil {
-			return errors.Wrapf(err, "failed to exec enter-root")
+			return fmt.Errorf("failed to exec enter-root: %w", err)
 		}
 	}
 	cmd := &exec.Cmd{
@@ -217,15 +219,15 @@ func run(data string) error {
 	// TODO: replace github.com/moby/pkg/mountinfo
 	mounted, err := mount.Mounted(data)
 	if err != nil {
-		return errors.Wrapf(err, "checking %s mounted", data)
+		return fmt.Errorf("checking %s mounted: %w", data, err)
 	}
 
 	if !mounted {
 		if err := os.MkdirAll(data, 0o755); err != nil {
-			return errors.Wrapf(err, "mkdir %s", data)
+			return fmt.Errorf("mkdir %s: %w", data, err)
 		}
 		if err := mount.Mount(data, data, "none", "rbind"); err != nil {
-			return errors.Wrapf(err, "remounting data %s", data)
+			return fmt.Errorf("remounting data %s: %w", data, err)
 		}
 	}
 
@@ -253,9 +255,9 @@ func run(data string) error {
 		squashErr := checkSquashfs()
 		err = mount.Mount(device, usr, "squashfs", "ro")
 		if err != nil {
-			err = errors.Wrap(err, "mounting squashfs")
+			err = fmt.Errorf("mounting squashfs: %w", err)
 			if squashErr != nil {
-				err = errors.Wrap(err, squashErr.Error())
+				err = fmt.Errorf("%s: %w", squashErr.Error(), err)
 			}
 			return err
 		}
@@ -268,18 +270,18 @@ func run(data string) error {
 	for _, p := range symlinks {
 		if _, err := os.Lstat(p); os.IsNotExist(err) {
 			if err := os.Symlink(filepath.Join("usr", p), p); err != nil {
-				return errors.Wrapf(err, "failed to symlink %s", p)
+				return fmt.Errorf("failed to symlink %s: %w", p, err)
 			}
 		}
 	}
 
 	logrus.Debugf("pivoting to . .base")
 	if err := syscall.PivotRoot(".", ".base"); err != nil {
-		return errors.Wrap(err, "pivot_root failed")
+		return fmt.Errorf("pivot_root failed: %w", err)
 	}
 
 	if err := mount.ForceMount("", ".", "none", "rprivate"); err != nil {
-		return errors.Wrapf(err, "making . private %s", data)
+		return fmt.Errorf("making . private %s: %w", data, err)
 	}
 
 	if err := syscall.Chroot("/"); err != nil {
@@ -291,7 +293,7 @@ func run(data string) error {
 	}
 
 	if _, err := os.Stat("/usr/init"); err != nil {
-		return errors.Wrap(err, "failed to find /usr/init")
+		return fmt.Errorf("failed to find /usr/init: %w", err)
 	}
 
 	os.Unsetenv("ENTER_ROOT")
@@ -310,9 +312,9 @@ func checkSquashfs() error {
 }
 
 func inProcFS() bool {
-	bytes, err := os.ReadFile("/proc/filesystems")
+	bytes, err := os.ReadFile(procFilesystemsPath)
 	if err != nil {
-		logrus.Errorf("Failed to read /proc/filesystems: %v", err)
+		logrus.Errorf("Failed to read %s: %v", procFilesystemsPath, err)
 		return false
 	}
 	return strings.Contains(string(bytes), "squashfs")
