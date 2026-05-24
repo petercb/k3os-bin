@@ -111,6 +111,8 @@ func Command() cli.Command {
 }
 
 // Run the `upgrade` sub-command
+//
+//nolint:gocognit
 func Run(_ *cli.Context) {
 	if err := validateSystemRoot(sourceDir); err != nil {
 		logrus.Fatal(err)

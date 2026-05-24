@@ -25,9 +25,6 @@ func Command() cli.Command {
 		Name:      "config",
 		Usage:     "configure k3OS",
 		ShortName: "cfg",
-		// Aliases: []string{
-		// 	"ccapply",
-		// },
 		Flags: []cli.Flag{
 			cli.BoolFlag{
 				Name:        "initrd",
@@ -76,18 +73,20 @@ func Main() error {
 		return err
 	}
 
+	applier := cc.NewDefaultApplier()
+
 	//nolint:gocritic
 	if initrd {
-		return cc.InitApply(&cfg)
+		return applier.InitApply(&cfg)
 	} else if bootPhase {
-		return cc.BootApply(&cfg)
+		return applier.BootApply(&cfg)
 	} else if installPhase {
-		return cc.InstallApply(&cfg)
+		return applier.InstallApply(&cfg)
 	} else if dump {
 		return config.Write(cfg, os.Stdout)
 	} else if dumpJSON {
 		return json.NewEncoder(os.Stdout).Encode(&cfg)
 	}
 
-	return cc.RunApply(&cfg)
+	return applier.RunApply(&cfg)
 }

@@ -2,26 +2,26 @@ package hostname
 
 import (
 	"bufio"
-	"os"
 	"strings"
-	"syscall"
 
 	"github.com/petercb/k3os-bin/internal/config"
+	"github.com/petercb/k3os-bin/internal/iface"
 )
 
-func SetHostname(c *config.CloudConfig) error {
+// SetHostname applies the configured hostname and syncs hostname files.
+func SetHostname(c *config.CloudConfig, hs iface.HostnameSetter, fs iface.FileSystem) error {
 	hostname := c.Hostname
 	if hostname == "" {
 		return nil
 	}
-	if err := syscall.Sethostname([]byte(hostname)); err != nil {
+	if err := hs.SetHostname(hostname); err != nil {
 		return err
 	}
-	return syncHostname()
+	return syncHostname(fs)
 }
 
-func syncHostname() error {
-	hostname, err := os.Hostname()
+func syncHostname(fs iface.FileSystem) error {
+	hostname, err := fs.Hostname()
 	if err != nil {
 		return err
 	}
@@ -29,11 +29,11 @@ func syncHostname() error {
 		return nil
 	}
 
-	if err := os.WriteFile("/etc/hostname", []byte(hostname+"\n"), 0o644); err != nil {
-		return err
+	if writeErr := fs.WriteFile("/etc/hostname", []byte(hostname+"\n"), 0o644); writeErr != nil {
+		return writeErr
 	}
 
-	hosts, err := os.Open("/etc/hosts")
+	hosts, err := fs.Open("/etc/hosts")
 	if err != nil {
 		return err
 	}
@@ -50,5 +50,5 @@ func syncHostname() error {
 		}
 		content += line + "\n"
 	}
-	return os.WriteFile("/etc/hosts", []byte(content), 0o600)
+	return fs.WriteFile("/etc/hosts", []byte(content), 0o600)
 }

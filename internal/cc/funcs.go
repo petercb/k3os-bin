@@ -4,78 +4,133 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"os"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/petercb/k3os-bin/internal/command"
 	"github.com/petercb/k3os-bin/internal/config"
 	"github.com/petercb/k3os-bin/internal/hostname"
 	"github.com/petercb/k3os-bin/internal/mode"
-	"github.com/petercb/k3os-bin/internal/module"
 	"github.com/petercb/k3os-bin/internal/ssh"
-	"github.com/petercb/k3os-bin/internal/sysctl"
 	"github.com/petercb/k3os-bin/internal/version"
 	"github.com/petercb/k3os-bin/internal/writefile"
 	"github.com/sirupsen/logrus"
 )
 
-func ApplyModules(cfg *config.CloudConfig) error {
-	return module.LoadModules(cfg)
-}
-
-func ApplySysctls(cfg *config.CloudConfig) error {
-	return sysctl.ConfigureSysctl(cfg)
-}
-
-func ApplyHostname(cfg *config.CloudConfig) error {
-	return hostname.SetHostname(cfg)
-}
-
-func ApplyPassword(cfg *config.CloudConfig) error {
-	return command.SetPassword(cfg.K3OS.Password)
-}
-
-func ApplyRuncmd(cfg *config.CloudConfig) error {
-	return command.ExecuteCommand(cfg.Runcmd)
-}
-
-func ApplyBootcmd(cfg *config.CloudConfig) error {
-	return command.ExecuteCommand(cfg.Bootcmd)
-}
-
-func ApplyInitcmd(cfg *config.CloudConfig) error {
-	return command.ExecuteCommand(cfg.Initcmd)
-}
-
-func ApplyWriteFiles(cfg *config.CloudConfig) error {
-	writefile.WriteFiles(cfg)
+// ApplyModules loads configured kernel modules.
+func (a *Applier) ApplyModules(cfg *config.CloudConfig) error {
+	loaded, err := a.Modules.LoadedModules()
+	if err != nil {
+		return err
+	}
+	for _, m := range cfg.K3OS.Modules {
+		if loaded[m] {
+			continue
+		}
+		params := strings.Split(m, " ")
+		logrus.Debugf("module %s with parameters [%s] is loading", m, params)
+		if err := a.Modules.LoadModule(params[0], strings.Join(params[1:], " ")); err != nil {
+			return fmt.Errorf("could not load module %s with parameters [%s], err %w", m, params, err)
+		}
+		logrus.Debugf("module %s is loaded", m)
+	}
 	return nil
 }
 
-func ApplySSHKeys(cfg *config.CloudConfig) error {
-	return ssh.SetAuthorizedKeys(cfg, false)
+// ApplySysctls applies configured sysctl values.
+func (a *Applier) ApplySysctls(cfg *config.CloudConfig) error {
+	for k, v := range cfg.K3OS.Sysctls {
+		if err := a.Sysctl.Set(k, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func ApplySSHKeysWithNet(cfg *config.CloudConfig) error {
-	return ssh.SetAuthorizedKeys(cfg, true)
+// ApplyHostname applies the configured hostname.
+func (a *Applier) ApplyHostname(cfg *config.CloudConfig) error {
+	return hostname.SetHostname(cfg, a.Hostname, a.FS)
 }
 
-func ApplyK3SWithRestart(cfg *config.CloudConfig) error {
-	return ApplyK3S(cfg, true, false)
+// ApplyPassword applies the configured rancher user password.
+func (a *Applier) ApplyPassword(cfg *config.CloudConfig) error {
+	if cfg.K3OS.Password == "" {
+		return nil
+	}
+	cmd := "chpasswd"
+	args := []string{}
+	if strings.HasPrefix(cfg.K3OS.Password, "$") {
+		args = append(args, "-e")
+	}
+	return a.Cmd.RunWithStdin(fmt.Sprint("rancher:", cfg.K3OS.Password), cmd, args...)
 }
 
-func ApplyK3SInstall(cfg *config.CloudConfig) error {
-	return ApplyK3S(cfg, true, true)
+// ApplyRuncmd executes configured run commands.
+func (a *Applier) ApplyRuncmd(cfg *config.CloudConfig) error {
+	for _, cmd := range cfg.Runcmd {
+		logrus.Debugf("running cmd `%s`", cmd)
+		if err := a.Cmd.RunShell(cmd); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func ApplyK3SNoRestart(cfg *config.CloudConfig) error {
-	return ApplyK3S(cfg, false, false)
+// ApplyBootcmd executes configured boot commands.
+func (a *Applier) ApplyBootcmd(cfg *config.CloudConfig) error {
+	for _, cmd := range cfg.Bootcmd {
+		logrus.Debugf("running cmd `%s`", cmd)
+		if err := a.Cmd.RunShell(cmd); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func ApplyK3S(cfg *config.CloudConfig, restart, install bool) error {
+// ApplyInitcmd executes configured init commands.
+func (a *Applier) ApplyInitcmd(cfg *config.CloudConfig) error {
+	for _, cmd := range cfg.Initcmd {
+		logrus.Debugf("running cmd `%s`", cmd)
+		if err := a.Cmd.RunShell(cmd); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ApplyWriteFiles writes configured files to disk.
+func (a *Applier) ApplyWriteFiles(cfg *config.CloudConfig) error {
+	writefile.WriteFiles(cfg, a.FS, a.Cmd)
+	return nil
+}
+
+// ApplySSHKeys applies configured SSH authorized keys without network fetches.
+func (a *Applier) ApplySSHKeys(cfg *config.CloudConfig) error {
+	return ssh.SetAuthorizedKeys(cfg, false, a.FS)
+}
+
+// ApplySSHKeysWithNet applies configured SSH authorized keys with network fetches enabled.
+func (a *Applier) ApplySSHKeysWithNet(cfg *config.CloudConfig) error {
+	return ssh.SetAuthorizedKeys(cfg, true, a.FS)
+}
+
+// ApplyK3SWithRestart applies k3s configuration and allows service restart.
+func (a *Applier) ApplyK3SWithRestart(cfg *config.CloudConfig) error {
+	return a.ApplyK3S(cfg, true, false)
+}
+
+// ApplyK3SInstall applies k3s installation configuration.
+func (a *Applier) ApplyK3SInstall(cfg *config.CloudConfig) error {
+	return a.ApplyK3S(cfg, true, true)
+}
+
+// ApplyK3SNoRestart applies k3s configuration without starting the service.
+func (a *Applier) ApplyK3SNoRestart(cfg *config.CloudConfig) error {
+	return a.ApplyK3S(cfg, false, false)
+}
+
+// ApplyK3S applies k3s installation and runtime arguments.
+func (a *Applier) ApplyK3S(cfg *config.CloudConfig, restart, install bool) error {
 	mode, err := mode.Get()
 	if err != nil {
 		return err
@@ -86,10 +141,10 @@ func ApplyK3S(cfg *config.CloudConfig, restart, install bool) error {
 
 	k3sExists := false
 	k3sLocalExists := false
-	if _, err := os.Stat("/sbin/k3s"); err == nil {
+	if _, err := a.FS.Stat("/sbin/k3s"); err == nil {
 		k3sExists = true
 	}
-	if _, err := os.Stat("/usr/local/bin/k3s"); err == nil {
+	if _, err := a.FS.Stat("/usr/local/bin/k3s"); err == nil {
 		k3sLocalExists = true
 	}
 
@@ -150,17 +205,13 @@ func ApplyK3S(cfg *config.CloudConfig, restart, install bool) error {
 		args = append(args, "--kubelet-arg", "register-with-taints="+taint)
 	}
 
-	cmd := exec.Command("/usr/libexec/k3os/k3s-install.sh", args...)
-	cmd.Env = append(os.Environ(), vars...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stdin = os.Stdin
-	logrus.Debugf("Running %s %v %v", cmd.Path, cmd.Args, vars)
+	logrus.Debugf("Running /usr/libexec/k3os/k3s-install.sh %v %v", args, vars)
 
-	return cmd.Run()
+	return a.Cmd.RunWithEnv(vars, "/usr/libexec/k3os/k3s-install.sh", args...)
 }
 
-func ApplyInstall(_ *config.CloudConfig) error {
+// ApplyInstall invokes k3os install mode when requested.
+func (a *Applier) ApplyInstall(_ *config.CloudConfig) error {
 	mode, err := mode.Get()
 	if err != nil {
 		return err
@@ -169,14 +220,11 @@ func ApplyInstall(_ *config.CloudConfig) error {
 		return nil
 	}
 
-	cmd := exec.Command("k3os", "install")
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
+	return a.Cmd.Run("k3os", "install")
 }
 
-func ApplyDNS(cfg *config.CloudConfig) error {
+// ApplyDNS writes connman DNS and NTP configuration.
+func (a *Applier) ApplyDNS(cfg *config.CloudConfig) error {
 	buf := &bytes.Buffer{}
 	buf.WriteString("[General]\n")
 	buf.WriteString("NetworkInterfaceBlacklist=veth\n")
@@ -197,7 +245,7 @@ func ApplyDNS(cfg *config.CloudConfig) error {
 		buf.WriteString("\n")
 	}
 
-	err := os.WriteFile("/etc/connman/main.conf", buf.Bytes(), 0o644)
+	err := a.FS.WriteFile("/etc/connman/main.conf", buf.Bytes(), 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to write /etc/connman/main.conf: %w", err)
 	}
@@ -205,7 +253,8 @@ func ApplyDNS(cfg *config.CloudConfig) error {
 	return nil
 }
 
-func ApplyWifi(cfg *config.CloudConfig) error {
+// ApplyWifi writes connman Wi-Fi configuration.
+func (a *Applier) ApplyWifi(cfg *config.CloudConfig) error {
 	if len(cfg.K3OS.Wifi) == 0 {
 		return nil
 	}
@@ -217,10 +266,10 @@ func ApplyWifi(cfg *config.CloudConfig) error {
 	buf.WriteString("Tethering=false\n")
 
 	if buf.Len() > 0 {
-		if err := os.MkdirAll("/var/lib/connman", 0o755); err != nil {
+		if err := a.FS.MkdirAll("/var/lib/connman", 0o755); err != nil {
 			return fmt.Errorf("failed to mkdir /var/lib/connman: %w", err)
 		}
-		if err := os.WriteFile("/var/lib/connman/settings", buf.Bytes(), 0o644); err != nil {
+		if err := a.FS.WriteFile("/var/lib/connman/settings", buf.Bytes(), 0o644); err != nil {
 			return fmt.Errorf("failed to write to /var/lib/connman/settings: %w", err)
 		}
 	}
@@ -246,13 +295,14 @@ func ApplyWifi(cfg *config.CloudConfig) error {
 	}
 
 	if buf.Len() > 0 {
-		return os.WriteFile("/var/lib/connman/cloud-config.config", buf.Bytes(), 0o644)
+		return a.FS.WriteFile("/var/lib/connman/cloud-config.config", buf.Bytes(), 0o644)
 	}
 
 	return nil
 }
 
-func ApplyDataSource(cfg *config.CloudConfig) error {
+// ApplyDataSource writes configured cloud-config data source arguments.
+func (a *Applier) ApplyDataSource(cfg *config.CloudConfig) error {
 	if len(cfg.K3OS.DataSources) == 0 {
 		return nil
 	}
@@ -264,19 +314,20 @@ func ApplyDataSource(cfg *config.CloudConfig) error {
 	buf.WriteString(args)
 	buf.WriteString("\"\n")
 
-	if err := os.WriteFile("/etc/conf.d/cloud-config", buf.Bytes(), 0o644); err != nil {
+	if err := a.FS.WriteFile("/etc/conf.d/cloud-config", buf.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("failed to write to /etc/conf.d/cloud-config: %w", err)
 	}
 
 	return nil
 }
 
-func ApplyEnvironment(cfg *config.CloudConfig) error {
+// ApplyEnvironment merges configured environment variables into /etc/environment.
+func (a *Applier) ApplyEnvironment(cfg *config.CloudConfig) error {
 	if len(cfg.K3OS.Environment) == 0 {
 		return nil
 	}
 	env := make(map[string]string, len(cfg.K3OS.Environment))
-	if buf, err := os.ReadFile("/etc/environment"); err == nil {
+	if buf, err := a.FS.ReadFile("/etc/environment"); err == nil {
 		scanner := bufio.NewScanner(bytes.NewReader(buf))
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -309,7 +360,7 @@ func ApplyEnvironment(cfg *config.CloudConfig) error {
 		buf.WriteString(strconv.Quote(val))
 		buf.WriteString("\n")
 	}
-	if err := os.WriteFile("/etc/environment", buf.Bytes(), 0o644); err != nil {
+	if err := a.FS.WriteFile("/etc/environment", buf.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("failed to write to /etc/environment: %w", err)
 	}
 

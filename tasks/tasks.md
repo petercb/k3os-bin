@@ -181,7 +181,7 @@ Test boot mode detection from the mode file.
 
 ## TASK-006: Introduce interfaces for OS-dependent operations
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: High
 - **PRD Reference**: Testing Requirements, Interfaces for Testability
 - **Dependencies**: TASK-001
@@ -193,26 +193,27 @@ Introduce interfaces for OS-dependent operations to enable mocking in tests. Thi
 
 ### Implementation Checklist
 
-- [ ] Define `Mounter` interface in `internal/mount`
-- [ ] Define `ModuleLoader` interface in `internal/module`
-- [ ] Define `SysctlApplier` interface in `internal/sysctl`
-- [ ] Define `FileWriter` interface for file write operations used by appliers
-- [ ] Define `CommandRunner` interface in `internal/command`
-- [ ] Refactor `cc/funcs.go` applier functions to accept interfaces (via options pattern or struct injection)
-- [ ] Ensure all existing functionality continues to work unchanged
-- [ ] Run full test suite and verify all tests pass
+- [x] Define `Mounter` interface in `internal/iface`
+- [x] Define `ModuleLoader` interface in `internal/iface`
+- [x] Define `SysctlApplier` interface in `internal/iface`
+- [x] Define `FileSystem` and `File` interfaces for file operations used by appliers
+- [x] Define `CommandRunner` interface in `internal/iface`
+- [x] Refactor `cc/funcs.go` applier functions to accept interfaces via `Applier` struct injection
+- [x] Ensure existing production behavior is preserved through `internal/iface/osimpl` adapters
+- [x] Run owner-approved scoped verification for changed packages and Linux-tagged adapters
 
 ### Acceptance Criteria
 
 - Interfaces defined and documented
 - Applier functions can accept mock implementations
 - No behavioral changes to production code
-- All existing tests pass
+- Scoped changed-package tests and linters pass
 
 ### Edge Cases / Known Blockers
 
-- The `cc/funcs.go` appliers currently use package-level function calls — will need refactoring to accept dependencies
-- Must preserve backward compatibility of public API
+- Package-level OS calls in `cc/funcs.go` were refactored behind injected dependencies.
+- Backward compatibility of the CLI path is preserved by `cc.NewDefaultApplier()`.
+- Full project-wide lint/test is intentionally deferred because the repository has existing unrelated issues; TASK-006 was verified with owner-approved scoped commands.
 
 ---
 

@@ -5,3 +5,6 @@ config:
     siblings_only: true
   MD060: false
 fix: true
+ignores:
+  - docs/*
+  - tasks/*

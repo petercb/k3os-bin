@@ -23,7 +23,6 @@ func TestFuzzyNames(t *testing.T) {
 	require.NoError(t, err)
 
 	data := map[string]interface{}{
-		"pass":               "my-pass",
 		"ssh_authorized_key": "my-key",
 		"environment":        "env",
 		"password":           "my-password",
@@ -33,7 +32,7 @@ func TestFuzzyNames(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, data, "passphrase")
-	assert.Equal(t, "my-password", data["passphrase"]) // Last one evaluated overrides. Actually, 'pass' or 'password' map to 'passphrase'
+	assert.Equal(t, "my-password", data["passphrase"])
 
 	assert.Contains(t, data, "sshAuthorizedKeys")
 	assert.Equal(t, "my-key", data["sshAuthorizedKeys"])

@@ -1,3 +1,6 @@
+//go:build linux
+// +build linux
+
 package enterchroot
 
 import (
@@ -40,7 +43,7 @@ func mknod(path string, mode uint32, major, minor int) error {
 		return nil
 	}
 
-	dev := int((major << 8) | (minor & 0xff) | ((minor & 0xfff00) << 12))
+	dev := (major << 8) | (minor & 0xff) | ((minor & 0xfff00) << 12)
 	logrus.Debugf("mknod %s", path)
 	return unix.Mknod(path, mode, dev)
 }

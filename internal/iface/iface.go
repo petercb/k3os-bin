@@ -1,0 +1,60 @@
+// Package iface defines injectable operating-system boundaries.
+package iface
+
+import (
+	"io"
+	"os"
+)
+
+// File abstracts read/write/close/name operations on a single file handle.
+type File interface {
+	io.ReadWriteCloser
+	Name() string
+}
+
+// FileSystem abstracts file I/O operations used by appliers.
+type FileSystem interface {
+	WriteFile(name string, data []byte, perm os.FileMode) error
+	ReadFile(name string) ([]byte, error)
+	MkdirAll(path string, perm os.FileMode) error
+	Stat(name string) (os.FileInfo, error)
+	Open(name string) (File, error)
+	Create(name string) (File, error)
+	CreateTemp(dir, pattern string) (File, error)
+	Chown(name string, uid, gid int) error
+	Chmod(name string, mode os.FileMode) error
+	Rename(oldpath, newpath string) error
+	Remove(name string) error
+	Hostname() (string, error)
+}
+
+// CommandRunner abstracts shell command execution.
+type CommandRunner interface {
+	Run(name string, args ...string) error
+	RunWithStdin(stdin string, name string, args ...string) error
+	RunShell(command string) error
+	RunWithEnv(env []string, name string, args ...string) error
+}
+
+// ModuleLoader abstracts kernel module loading.
+type ModuleLoader interface {
+	LoadedModules() (map[string]bool, error)
+	LoadModule(name string, params string) error
+}
+
+// SysctlApplier abstracts sysctl configuration.
+type SysctlApplier interface {
+	Set(key string, value string) error
+}
+
+// Mounter abstracts filesystem mount operations.
+type Mounter interface {
+	Mount(device, target, mType, options string) error
+	ForceMount(device, target, mType, options string) error
+	Mounted(target string) (bool, error)
+}
+
+// HostnameSetter abstracts the syscall to set the system hostname.
+type HostnameSetter interface {
+	SetHostname(name string) error
+}

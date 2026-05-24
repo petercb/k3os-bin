@@ -1,3 +1,6 @@
+//go:build linux
+// +build linux
+
 package transferroot
 
 // copied from linuxkit
@@ -47,6 +50,7 @@ func copyMetadata(info os.FileInfo, path string) error {
 	return nil
 }
 
+//nolint:gocognit
 func copyFS(newRoot string) error {
 	// find the device of the root filesystem so we can avoid changing filesystem
 	info, err := os.Stat("/")

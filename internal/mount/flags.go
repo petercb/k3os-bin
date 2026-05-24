@@ -1,3 +1,6 @@
+//go:build linux
+// +build linux
+
 // borrowed and condenced from https://github.com/moby/moby/tree/v1.13.1/pkg/mount
 
 package mount

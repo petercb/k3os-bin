@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/petercb/k3os-bin/internal/config"
-	"github.com/petercb/k3os-bin/internal/util"
+	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,8 +21,9 @@ const (
 	authorizedFile = "authorized_keys"
 )
 
-func SetAuthorizedKeys(cfg *config.CloudConfig, withNet bool) error {
-	bytes, err := os.ReadFile("/etc/passwd")
+// SetAuthorizedKeys writes configured SSH authorized keys for the rancher user.
+func SetAuthorizedKeys(cfg *config.CloudConfig, withNet bool, fs iface.FileSystem) error {
+	bytes, err := fs.ReadFile("/etc/passwd")
 	if err != nil {
 		return err
 	}
@@ -31,19 +32,19 @@ func SetAuthorizedKeys(cfg *config.CloudConfig, withNet bool) error {
 		return err
 	}
 	userSSHDir := path.Join(homeDir, sshDir)
-	if _, err := os.Stat(userSSHDir); os.IsNotExist(err) {
-		if err = os.Mkdir(userSSHDir, 0o700); err != nil {
+	if _, statErr := fs.Stat(userSSHDir); os.IsNotExist(statErr) {
+		if err = fs.MkdirAll(userSSHDir, 0o700); err != nil {
 			return err
 		}
-	} else if err != nil {
-		return err
+	} else if statErr != nil {
+		return statErr
 	}
-	if err = os.Chown(userSSHDir, uid, gid); err != nil {
+	if err = fs.Chown(userSSHDir, uid, gid); err != nil {
 		return err
 	}
 	userAuthorizedFile := path.Join(userSSHDir, authorizedFile)
 	for _, key := range cfg.SSHAuthorizedKeys {
-		if err = authorizeSSHKey(key, userAuthorizedFile, uid, gid, withNet); err != nil {
+		if err = authorizeSSHKey(key, userAuthorizedFile, uid, gid, withNet, fs); err != nil {
 			logrus.Errorf("failed to authorize SSH key %s: %v", key, err)
 		}
 	}
@@ -92,32 +93,33 @@ func getKey(key string, withNet bool) (string, error) {
 	return string(bytes), err
 }
 
-func authorizeSSHKey(key, file string, uid, gid int, withNet bool) error {
+func authorizeSSHKey(key, file string, uid, gid int, withNet bool, fs iface.FileSystem) error {
 	key, err := getKey(key, withNet)
 	if err != nil || key == "" {
 		return err
 	}
 
-	info, err := os.Stat(file)
+	info, err := fs.Stat(file)
 	if os.IsNotExist(err) {
-		f, err := os.Create(file)
-		if err != nil {
-			return err
+		f, createErr := fs.Create(file)
+		if createErr != nil {
+			return createErr
 		}
-		if err = f.Chmod(0o600); err != nil {
+		if err = fs.Chmod(file, 0o600); err != nil {
+			_ = f.Close()
 			return err
 		}
 		if err = f.Close(); err != nil {
 			return err
 		}
-		info, err = os.Stat(file)
+		info, err = fs.Stat(file)
 		if err != nil {
 			return err
 		}
 	} else if err != nil {
 		return err
 	}
-	bytes, err := os.ReadFile(file)
+	bytes, err := fs.ReadFile(file)
 	if err != nil {
 		return err
 	}
@@ -126,10 +128,32 @@ func authorizeSSHKey(key, file string, uid, gid int, withNet bool) error {
 		bytes = append(bytes, '\n')
 	}
 	perm := info.Mode().Perm()
-	if err = util.WriteFileAtomic(file, bytes, perm); err != nil {
+	if err = writeFileAtomic(fs, file, bytes, perm); err != nil {
 		return err
 	}
-	return os.Chown(file, uid, gid)
+	return fs.Chown(file, uid, gid)
+}
+
+func writeFileAtomic(fs iface.FileSystem, filename string, data []byte, perm os.FileMode) error {
+	dir, file := path.Split(filename)
+	tempFile, err := fs.CreateTemp(dir, "."+file)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = fs.Remove(tempFile.Name())
+	}()
+	if _, err := tempFile.Write(data); err != nil {
+		_ = tempFile.Close()
+		return err
+	}
+	if err := tempFile.Close(); err != nil {
+		return err
+	}
+	if err := fs.Chmod(tempFile.Name(), perm); err != nil {
+		return err
+	}
+	return fs.Rename(tempFile.Name(), filename)
 }
 
 func findUserHomeDir(bytes []byte, username string) (uid, gid int, homeDir string, err error) {

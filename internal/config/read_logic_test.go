@@ -30,7 +30,7 @@ func TestReadCmdline(t *testing.T) {
 
 		// Write simulated kernel cmdline
 		cmdlineContent := `k3os.hostname=myhost k3os.password="pass" k3os.dns=8.8.8.8 k3os.dns=1.1.1.1 some_other_param=foo`
-		err := os.WriteFile(cmdlinePath, []byte(cmdlineContent), 0644)
+		err := os.WriteFile(cmdlinePath, []byte(cmdlineContent), 0o644)
 		require.NoError(t, err)
 
 		cmdlineFile = cmdlinePath
@@ -72,7 +72,7 @@ k3os:
   dns:
     - 8.8.8.8
 `
-		err := os.WriteFile(yamlPath, []byte(yamlContent), 0644)
+		err := os.WriteFile(yamlPath, []byte(yamlContent), 0o644)
 		require.NoError(t, err)
 
 		data, err := readFile(yamlPath)
@@ -92,7 +92,7 @@ k3os:
   - invalid-yaml-structure
   hostname:
 `
-		err := os.WriteFile(badYamlPath, []byte(badYamlContent), 0644)
+		err := os.WriteFile(badYamlPath, []byte(badYamlContent), 0o644)
 		require.NoError(t, err)
 
 		_, err = readFile(badYamlPath)
@@ -193,7 +193,7 @@ func TestReadLocalConfigs(t *testing.T) {
 		tempDir := t.TempDir()
 		localConfigs = tempDir
 		readers := readLocalConfigs()
-		assert.Len(t, readers, 0)
+		assert.Empty(t, readers)
 	})
 
 	t.Run("valid config.d files", func(t *testing.T) {
@@ -203,14 +203,14 @@ func TestReadLocalConfigs(t *testing.T) {
 		err := os.WriteFile(filepath.Join(tempDir, "01-config.yaml"), []byte(`
 k3os:
   hostname: host1
-`), 0644)
+`), 0o644)
 		require.NoError(t, err)
 
 		// Create file 2
 		err = os.WriteFile(filepath.Join(tempDir, "02-config.yaml"), []byte(`
 k3os:
   hostname: host2
-`), 0644)
+`), 0o644)
 		require.NoError(t, err)
 
 		localConfigs = tempDir
@@ -311,7 +311,7 @@ func TestReadConfig(t *testing.T) {
 	oldLocalConfigs := localConfigs
 	oldCmdlineFile := cmdlineFile
 	oldHostnameFile := hostnameFile
-	oldSshFile := sshFile
+	oldSSHFile := sshFile
 	oldUserdataFile := userdataFile
 
 	defer func() {
@@ -320,7 +320,7 @@ func TestReadConfig(t *testing.T) {
 		localConfigs = oldLocalConfigs
 		cmdlineFile = oldCmdlineFile
 		hostnameFile = oldHostnameFile
-		sshFile = oldSshFile
+		sshFile = oldSSHFile
 		userdataFile = oldUserdataFile
 	}()
 
@@ -334,14 +334,14 @@ k3os:
   dnsNameservers:
     - 8.8.8.8
 `
-	err := os.WriteFile(sysPath, []byte(sysContent), 0644)
+	err := os.WriteFile(sysPath, []byte(sysContent), 0o644)
 	require.NoError(t, err)
 	SystemConfig = sysPath
 
 	// 2. Setup Cmdline
 	cmdlinePath := filepath.Join(tempDir, "cmdline")
 	cmdlineContent := `k3os.password=cmdline-password k3os.install.silent=true`
-	err = os.WriteFile(cmdlinePath, []byte(cmdlineContent), 0644)
+	err = os.WriteFile(cmdlinePath, []byte(cmdlineContent), 0o644)
 	require.NoError(t, err)
 	cmdlineFile = cmdlinePath
 
@@ -351,30 +351,30 @@ k3os:
 k3os:
   password: "local-password"
 `
-	err = os.WriteFile(localPath, []byte(localContent), 0644)
+	err = os.WriteFile(localPath, []byte(localContent), 0o644)
 	require.NoError(t, err)
 	LocalConfig = localPath
 
 	// 4. Setup localConfigs (config.d)
 	configDDir := filepath.Join(tempDir, "config.d")
-	err = os.Mkdir(configDDir, 0755)
+	err = os.Mkdir(configDDir, 0o755)
 	require.NoError(t, err)
 	err = os.WriteFile(filepath.Join(configDDir, "99-custom.yaml"), []byte(`
 k3os:
   dnsNameservers:
     - 1.1.1.1
-`), 0644)
+`), 0o644)
 	require.NoError(t, err)
 	localConfigs = configDDir
 
 	// 5. Setup CloudConfig paths
 	hostPath := filepath.Join(tempDir, "local_hostname")
-	err = os.WriteFile(hostPath, []byte("cloud-host"), 0644)
+	err = os.WriteFile(hostPath, []byte("cloud-host"), 0o644)
 	require.NoError(t, err)
 	hostnameFile = hostPath
 
 	sshKeysPath := filepath.Join(tempDir, "authorized_keys")
-	err = os.WriteFile(sshKeysPath, []byte("ssh-rsa AAAA-custom-key"), 0644)
+	err = os.WriteFile(sshKeysPath, []byte("ssh-rsa AAAA-custom-key"), 0o644)
 	require.NoError(t, err)
 	sshFile = sshKeysPath
 
@@ -385,7 +385,7 @@ k3os:
   k3sArgs:
     - --server
 `
-	err = os.WriteFile(usrDataPath, []byte(usrDataContent), 0644)
+	err = os.WriteFile(usrDataPath, []byte(usrDataContent), 0o644)
 	require.NoError(t, err)
 	userdataFile = usrDataPath
 
@@ -431,7 +431,7 @@ func TestReadUserData(t *testing.T) {
 		err := os.WriteFile(path, []byte(`
 k3os:
   password: "cool-password"
-`), 0644)
+`), 0o644)
 		require.NoError(t, err)
 		userdataFile = path
 
@@ -449,7 +449,7 @@ k3os:
 		scriptContent := `#!/bin/sh
 echo "hello world"
 `
-		err := os.WriteFile(path, []byte(scriptContent), 0644)
+		err := os.WriteFile(path, []byte(scriptContent), 0o644)
 		require.NoError(t, err)
 		userdataFile = path
 
@@ -477,7 +477,7 @@ echo "hello world"
 		tempDir := t.TempDir()
 		path := filepath.Join(tempDir, "userdata")
 		binaryContent := []byte{0x7f, 'E', 'L', 'F', 0, 1, 2, 3}
-		err := os.WriteFile(path, binaryContent, 0644)
+		err := os.WriteFile(path, binaryContent, 0o644)
 		require.NoError(t, err)
 		userdataFile = path
 

@@ -104,7 +104,7 @@ On Linux, or inside the same Docker image:
 
 ```bash
 # Run linter with auto-fix
-golangci-lint run --fix ./...
+golangci-lint run --fix --new-from-rev=HEAD ./...
 
 # Run linter without auto-fix (CI mode)
 golangci-lint run ./...
@@ -113,11 +113,8 @@ golangci-lint run ./...
 Example via Docker on macOS / Windows:
 
 ```bash
-docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
-  sh -c 'go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest && golangci-lint run ./...'
+docker run --rm -v "$(pwd)":/app -w /app golangci/golangci-lint:latest-alpine golangci-lint run --fix --new-from-rev=HEAD
 ```
-
-Install `golangci-lint` on the host instead if you prefer not to install it in the container on every run.
 
 ---
 

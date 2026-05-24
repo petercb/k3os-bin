@@ -3,6 +3,7 @@
 ## Completed Features
 
 - TASK-001: Add testify dependency and test infrastructure (`github.com/stretchr/testify` v1.11.1, migrated `read_test.go`, added `version` smoke tests)
+- TASK-006: Introduce interfaces for OS-dependent operations
 - TASK-002: Add unit tests for `internal/system` package
 - TASK-003: Add unit tests for `internal/config` (model, write, coerce)
 - TASK-004: Add unit tests for `internal/config` (read, merge)
@@ -22,7 +23,6 @@
 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config
 - TASK-005: Add unit tests for `internal/mode` package
-- TASK-006: Introduce interfaces for OS-dependent operations
 - TASK-007: Add unit tests for `internal/cc` applier functions
 - TASK-008: Add unit tests for `internal/module` and `internal/sysctl`
 - TASK-009: Replace `pkg/errors` with `fmt.Errorf` + `%w`
@@ -41,6 +41,10 @@
 - Uses deprecated `github.com/moby/moby/pkg/reexec`
 - `rc` package uses `log` (stdlib) instead of `logrus` for consistency
 - Go 1.21.9 is nearing end of support
+
+## Process Violations
+
+- 2026-05-23 22:59 - TASK-006 - Verification found TASK-006 marked `Done` while its implementation checklist remained unchecked and changed-package lint still failed. Resolved at 2026-05-23 23:43: checklist updated and scoped changed-package lint/tests pass.
 
 ## Decision History
 
