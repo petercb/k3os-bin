@@ -13,7 +13,7 @@
 | TASK-007 | Add unit tests for `internal/cc` applier functions | Done | High | TASK-006 |
 | TASK-008 | Remove dead standalone packages and add integration tests for osimpl module/sysctl adapters | Done | High | TASK-006 |
 | TASK-009 | Replace `pkg/errors` with `fmt.Errorf` + `%w` | Done | Medium | TASK-001 |
-| TASK-010 | Upgrade Go version to ≥1.22 | Planned | Medium | TASK-009 |
+| TASK-010 | Upgrade Go version to ≥1.22 | Done | Medium | TASK-009 |
 | TASK-011 | Migrate `urfave/cli` v1 → v3 | Planned | Medium | TASK-010 |
 | TASK-012 | Migrate `reexec` package to `github.com/moby/sys/reexec` | Planned | Medium | TASK-010 |
 | TASK-013 | Add `linux/riscv64` to GoReleaser build matrix | Planned | Low | TASK-010 |
@@ -321,7 +321,7 @@ Replace all uses of `github.com/pkg/errors` (`errors.Wrap`, `errors.Wrapf`, `err
 
 ## TASK-010: Upgrade Go version to ≥1.22
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: Medium
 - **PRD Reference**: Modernization Requirements
 - **Dependencies**: TASK-009
@@ -333,13 +333,13 @@ Upgrade the Go version in `go.mod` and CI configuration.
 
 ### Implementation Checklist
 
-- [ ] Update `go.mod` to `go 1.22` (or latest stable)
-- [ ] Update CircleCI config to use matching Go version
-- [ ] Update GoReleaser if needed
-- [ ] Run `go mod tidy`
-- [ ] Run all tests and verify pass
-- [ ] Run linter and fix any new warnings from updated linters
-- [ ] Verify binary builds and runs correctly
+- [x] Update `go.mod` to `go 1.24`
+- [x] Update CircleCI config to use matching Go version
+- [x] Update GoReleaser if needed (not needed, no Go version specified)
+- [x] Run `go mod tidy`
+- [x] Run all tests and verify pass
+- [x] Run linter and fix any new warnings from updated linters
+- [x] Verify binary builds and runs correctly
 
 ### Acceptance Criteria
 

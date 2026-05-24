@@ -10,7 +10,7 @@ The `k3os-bin` project is a Go application that produces a single, statically-li
 
 | Component | Technology | Version |
 |-----------|-----------|---------|
-| Language | Go | 1.21.9 (target: ≥1.22) |
+| Language | Go | 1.24 |
 | CLI Framework | `urfave/cli` | v1.22.9 (target: v3) |
 | YAML | `ghodss/yaml` | v1.0.0 |
 | Config Schema | `rancher/mapper` | v0 |

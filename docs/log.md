@@ -240,6 +240,56 @@ TASK-004 completed. Added comprehensive unit tests for `internal/config` (read, 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config
 - TASK-008: Add unit tests for `internal/module` and `internal/sysctl`
 
+## 2026-05-25 — TASK-010
+
+### Context
+
+TASK-010: Upgrade Go version from 1.21.9 to 1.24. Work performed on branch `feature/task-010-upgrade-go-version`.
+
+### Actions
+
+1. Created feature branch and committed execution plan (`tasks/TASK-010_plan.md`).
+2. Wrote regression test (`internal/cc/loop_capture_test.go`) verifying closure isolation in `runApplies` loop -- documents expected behavior under Go 1.22+ loop variable semantics.
+3. Updated `go.mod` from `go 1.21.9` to `go 1.24`, ran `go mod tidy`. No `toolchain` directive was auto-added.
+4. Verified all tests pass with race detector and build succeeds with production flags.
+5. Ran `golangci-lint run ./...` -- all 87 issues are pre-existing (confirmed identical on master). No new warnings surfaced by Go 1.24.
+6. Updated `.circleci/config.yml`: executor tag `'1.21'` to `'1.24'` in both `test` and `release` jobs.
+7. Updated `.devcontainer/devcontainer.json`: image from `go:1.21` to `go:1.24`.
+8. Final verification: all tests pass, build succeeds, `go mod tidy` produces no diff.
+9. Updated documentation: `docs/technical.md`, `docs/unit_testing_guideline.md`, `docs/status.md`, `tasks/tasks.md`, `docs/log.md`.
+
+### Key Findings
+
+- Go 1.24 upgrade was clean: no new lint warnings, no test failures, no behavior changes.
+- The 87 pre-existing lint issues (errcheck, revive, govet shadow) exist on master and are unrelated to this upgrade.
+- No `toolchain` directive was auto-added by `go mod tidy` (Go 1.25.1 host, targeting `go 1.24`).
+
+### Files Changed
+
+| Action | File |
+|--------|------|
+| Created | `tasks/TASK-010_plan.md` |
+| Created | `internal/cc/loop_capture_test.go` |
+| Modified | `go.mod` |
+| Modified | `.circleci/config.yml` |
+| Modified | `.devcontainer/devcontainer.json` |
+| Modified | `docs/technical.md` |
+| Modified | `docs/unit_testing_guideline.md` |
+| Modified | `docs/status.md` |
+| Modified | `tasks/tasks.md` |
+| Modified | `docs/log.md` |
+
+### Retrospective
+
+- What went well: The upgrade was seamless with zero code changes required beyond version numbers. TDD regression test confirmed existing code handles loop variables correctly.
+- What broke: Nothing. The `for i := range count` syntax in the initial regression test required Go 1.22+, so it was rewritten as a traditional `for` loop to compile under the pre-upgrade go.mod before the version bump.
+- What to change: For future version upgrades, always write the regression test using syntax compatible with the current (pre-upgrade) Go version.
+
+### Next
+
+- TASK-016: Fix flaky TestFuzzyNames test in internal/config
+- TASK-011: Migrate `urfave/cli` v1 to v3
+
 ## 2026-05-24 — TASK-009
 
 ### Context
