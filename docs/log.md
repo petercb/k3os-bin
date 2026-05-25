@@ -371,3 +371,48 @@ TASK-008: Add integration tests for `internal/iface/osimpl` module and sysctl ad
 ### Next
 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config
+
+## 2025-07-14 -- TASK-012
+
+### Context
+
+TASK-012: Migrate `reexec` package from deprecated `github.com/moby/moby/pkg/reexec` to `github.com/moby/sys/reexec`. Work performed on branch `feature/task-012-reexec-migration`.
+
+### Actions
+
+1. Created execution plan (`tasks/TASK-012_plan.md`) documenting the critical API difference between old and new packages.
+2. **TDD RED**: Added contract tests in `internal/enterchroot/reexec_contract_test.go` verifying: (a) `reexec.Self()` returns an absolute path, (b) basename-only registration does not panic, (c) `filepath.Base` maps both `/init` and `/sbin/init` to `"init"`.
+3. **TDD GREEN**: Replaced `github.com/moby/moby/pkg/reexec` imports with `github.com/moby/sys/reexec` in `main.go` and `internal/enterchroot/enter.go`. Consolidated two `Register` calls (`"/init"`, `"/sbin/init"`) into a single `Register("init", initrd)`.
+4. **TDD IMPROVE**: Ran `go mod tidy`, verified no old imports remain, confirmed all tests pass with `-race` and binary builds with `CGO_ENABLED=0`.
+5. Note: `github.com/moby/moby` remains in `go.mod` because `internal/modalias/modalias.go` still uses `github.com/moby/moby/pkg/parsers/kernel`.
+
+### Key Findings
+
+- The new `reexec.Register()` panics if the name contains a path separator -- this is the breaking change that required consolidating two registrations into one.
+- The new `reexec.Init()` uses `filepath.Base(os.Args[0])` for matching instead of the full `os.Args[0]`, so `/init` and `/sbin/init` both resolve to basename `"init"`.
+- `reexec.Self()` API is unchanged between old and new packages.
+
+### Files Changed
+
+| Action | File |
+|--------|------|
+| Created | `tasks/TASK-012_plan.md` |
+| Created | `internal/enterchroot/reexec_contract_test.go` |
+| Modified | `main.go` |
+| Modified | `internal/enterchroot/enter.go` |
+| Modified | `go.mod` |
+| Modified | `go.sum` |
+| Modified | `tasks/tasks.md` |
+| Modified | `docs/status.md` |
+| Modified | `docs/log.md` |
+
+### Retrospective
+
+- What went well: The migration was clean -- the new package is API-compatible except for the path component restriction. Contract tests caught the basename requirement before implementation.
+- What broke: Nothing. All existing tests pass unchanged.
+- What to change: For future dependency migrations, always check for breaking API changes in the new package before starting implementation.
+
+### Next
+
+- TASK-011: Migrate `urfave/cli` v1 to v3
+- TASK-013: Add `linux/riscv64` to GoReleaser build matrix

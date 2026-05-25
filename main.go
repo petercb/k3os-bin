@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/moby/moby/pkg/reexec"
+	"github.com/moby/sys/reexec"
 	"github.com/petercb/k3os-bin/internal/cli/app"
 	"github.com/petercb/k3os-bin/internal/enterchroot"
 	"github.com/petercb/k3os-bin/internal/mount"
@@ -16,8 +16,7 @@ import (
 )
 
 func main() {
-	reexec.Register("/init", initrd)      // mode=live
-	reexec.Register("/sbin/init", initrd) // mode=local
+	reexec.Register("init", initrd) // covers both /init (live) and /sbin/init (local)
 	reexec.Register("enter-root", enterchroot.Enter)
 
 	if !reexec.Init() {

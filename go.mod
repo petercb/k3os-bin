@@ -6,6 +6,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/mattn/go-isatty v0.0.16
 	github.com/moby/moby v20.10.17+incompatible
+	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.7.0
 	github.com/rancher/mapper v0.0.0-20190814232720-058a8b7feb99
 	github.com/ryanuber/go-glob v1.0.0

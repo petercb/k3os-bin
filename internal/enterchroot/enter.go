@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/freddierice/go-losetup/v2"
-	"github.com/moby/moby/pkg/reexec"
+	"github.com/moby/sys/reexec"
 	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
