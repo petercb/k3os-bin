@@ -416,3 +416,49 @@ TASK-012: Migrate `reexec` package from deprecated `github.com/moby/moby/pkg/ree
 
 - TASK-011: Migrate `urfave/cli` v1 to v3
 - TASK-013: Add `linux/riscv64` to GoReleaser build matrix
+
+## 2025-07-14 -- TASK-017
+
+### Context
+
+TASK-017: Add comprehensive unit tests for `internal/util/decode.go`, `internal/hostname`, `internal/writefile`, and `internal/ssh` (findUserHomeDir). Work performed on branch `add-unit-tests-coverage`.
+
+### Actions
+
+1. Created `internal/util/decode_test.go` with table-driven tests covering all encoding/decoding paths: DecodeBase64Content (valid, invalid, empty), DecodeGzipContent (valid, invalid), DecompressGzip (valid, invalid, empty), DecodeContent (empty encoding passthrough, base64 variants, gzip variants, gz+base64 combined, unsupported encoding error).
+2. Created `internal/hostname/hostname_mock_test.go` with MockFileSystem, MockFile, and MockHostnameSetter implementations following the pattern from `internal/cc/`.
+3. Created `internal/hostname/hostname_test.go` with 9 test cases covering SetHostname (empty hostname no-op, syscall error propagation, successful set triggers syncHostname) and syncHostname (Hostname() empty is no-op, full sync writes /etc/hostname and updates /etc/hosts, Hostname() error, WriteFile error, Open error, hosts file with no 127.0.1.1 line).
+4. Created `internal/writefile/writefile_mock_test.go` with MockFileSystem, MockFile, MockCommandRunner, and mockFileInfo implementations.
+5. Created `internal/writefile/writefile_test.go` with 12 test cases covering ensureDirectoryExists (exists, not dir, Stat error, MkdirAll error), WriteFile (full success, encoding error, CreateTemp/Write/Close/Chmod/Rename errors, owner chown), WriteFiles (multiple entries with decode failure continues, empty list).
+6. Created `internal/ssh/ssh_test.go` with 8 table-driven tests for findUserHomeDir (valid user, multiple users, not found, malformed line, non-numeric uid/gid, empty input).
+
+### Coverage Results
+
+| Package/Function | Coverage |
+|-----------------|----------|
+| `internal/hostname/hostname.go` | 100% |
+| `internal/util` decode functions | 80-100% |
+| `internal/writefile` functions | 76-100% |
+| `internal/ssh` findUserHomeDir | 100% |
+
+### Key Files Created
+
+| Action | File |
+|--------|------|
+| Created | `internal/util/decode_test.go` |
+| Created | `internal/hostname/hostname_mock_test.go` |
+| Created | `internal/hostname/hostname_test.go` |
+| Created | `internal/writefile/writefile_mock_test.go` |
+| Created | `internal/writefile/writefile_test.go` |
+| Created | `internal/ssh/ssh_test.go` |
+
+### Retrospective
+
+- What went well: The interface-based DI pattern from TASK-006 made mocking straightforward for hostname, writefile, and ssh packages. The decode package needed no mocks since it operates on pure data. All tests passed on first run with race detector.
+- What broke: Nothing significant. All tests passed cleanly.
+- What to change: The ssh and writefile packages have additional untested functions (SetAuthorizedKeys, getKey) that involve HTTP calls and complex filesystem operations. These could be addressed in a future task with more sophisticated mocking.
+
+### Next
+
+- TASK-016: Fix flaky TestFuzzyNames test in internal/config
+- TASK-011: Migrate `urfave/cli` v1 to v3
