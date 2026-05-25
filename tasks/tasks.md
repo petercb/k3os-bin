@@ -20,6 +20,7 @@
 | TASK-014 | Integrate `whydeadcode` analysis | Planned | Low | TASK-010 |
 | TASK-015 | Create Dependabot configuration | Planned | Low | TASK-010 |
 | TASK-016 | Fix flaky TestFuzzyNames test in internal/config | Planned | High | — |
+| TASK-017 | Add unit tests for util/decode, hostname, writefile, and ssh | Done | High | TASK-006 |
 
 ---
 
@@ -516,3 +517,34 @@ Refactor the `TestFuzzyNames` test to resolve the flaky assertion caused by Go's
 
 - `TestFuzzyNames` passes 100% of the time (no flakiness)
 - Full test suite passes
+
+---
+
+## TASK-017: Add unit tests for util/decode, hostname, writefile, and ssh packages
+
+- **Status**: Done
+- **Priority**: High
+- **PRD Reference**: Testing Requirements
+- **Dependencies**: TASK-006
+- **Complexity**: Medium (M)
+
+### Description
+
+Add comprehensive table-driven unit tests for `internal/util/decode.go`, `internal/hostname`, `internal/writefile`, and `internal/ssh` (findUserHomeDir). Uses mock interfaces from TASK-006 for OS-dependent packages and standard table-driven patterns for pure functions.
+
+### Implementation Checklist
+
+- [x] Create `internal/util/decode_test.go` with table-driven tests for all encoding paths
+- [x] Create `internal/hostname/hostname_mock_test.go` with mock implementations
+- [x] Create `internal/hostname/hostname_test.go` with 9 test cases
+- [x] Create `internal/writefile/writefile_mock_test.go` with mock implementations
+- [x] Create `internal/writefile/writefile_test.go` with 12 test cases
+- [x] Create `internal/ssh/ssh_test.go` with 8 table-driven tests for findUserHomeDir
+- [x] All tests pass with `-race` flag
+- [x] Coverage meets targets (hostname 100%, decode 80%+, writefile 76%+, findUserHomeDir 100%)
+
+### Acceptance Criteria
+
+- All new tests pass with `go test -race` ✅
+- Coverage: hostname.go 100%, decode functions 80-100%, writefile functions 76-100%, findUserHomeDir 100% ✅
+- ~1200 lines of test code across 6 files ✅
