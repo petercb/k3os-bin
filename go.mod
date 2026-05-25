@@ -6,6 +6,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/mattn/go-isatty v0.0.16
 	github.com/moby/moby v20.10.17+incompatible
+	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.7.0
 	github.com/rancher/mapper v0.0.0-20190814232720-058a8b7feb99
 	github.com/ryanuber/go-glob v1.0.0
@@ -20,7 +21,6 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/mattn/go-shellwords v1.0.5 // indirect
-	github.com/moby/sys/reexec v0.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
