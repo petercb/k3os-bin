@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Add comprehensive table-driven unit tests for internal/util/decode.go, internal/hostname/hostname.go, internal/writefile/writefile.go, and internal/ssh/ssh.go (findUserHomeDir). These are all pure functions or interface-based functions testable with mocks.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create internal/util/decode_test.go with table-driven tests for DecodeBase64Content (valid base64, invalid base64, empty input), DecodeGzipContent (valid gzip string, invalid data), DecompressGzip (valid compressed bytes, invalid bytes, empty bytes), and DecodeContent (empty encoding passthrough, base64 variants, gzip variants, gz+base64 combined, unsupported encoding error). Use github.com/stretchr/testify/assert and require. Follow the table-driven pattern with t.Run sub-tests and t.Parallel() as seen in internal/cc/funcs_test.go.",
     "Create internal/hostname/hostname_mock_test.go with MockFileSystem, MockFile, and MockHostnameSetter implementations following the exact pattern in internal/cc/filesystem_mock_test.go and internal/cc/hostname_mock_test.go. Include compile-time interface checks. The package declaration must be 'package hostname' (not 'package hostname_test') since syncHostname is unexported.",
@@ -26,5 +26,5 @@
     "go test -coverprofile=/tmp/coverage.out ./internal/util/... ./internal/hostname/... ./internal/writefile/... ./internal/ssh/... && go tool cover -func=/tmp/coverage.out"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All tests pass with -race flag. Coverage: hostname.go 100%, writefile.go 82.6%, decode.go functions all 80%+, ssh.go findUserHomeDir 100%. The ssh package overall coverage is 13.5% because SetAuthorizedKeys/getKey/authorizeSSHKey are not tested (complex HTTP and filesystem operations outside scope). The util package overall is 36.7% because prompt.go and util.go functions are not in scope. WriteFile function in writefile.go is 76.9% because Write error path in the tmp.Write branch returns after closing -- the Close error scenario alone raises the path count."
 }
