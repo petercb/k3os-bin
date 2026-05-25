@@ -10,7 +10,7 @@ require (
 	github.com/otiai10/copy v1.7.0
 	github.com/rancher/mapper v0.0.0-20190814232720-058a8b7feb99
 	github.com/ryanuber/go-glob v1.0.0
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.1
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli v1.22.9
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261
@@ -33,7 +33,7 @@ require (
 require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/freddierice/go-losetup/v2 v2.0.1
-	github.com/rancher/wrangler v1.0.0 // indirect
+	github.com/rancher/wrangler v1.0.1 // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 	gotest.tools/v3 v3.3.0 // indirect
 )
