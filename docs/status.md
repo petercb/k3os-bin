@@ -12,6 +12,7 @@
 - TASK-008: Add integration tests for osimpl module/sysctl adapters, remove dead standalone packages
 - TASK-009: Replace `pkg/errors` with `fmt.Errorf` + `%w` (migrated `internal/util` and `internal/enterchroot`, removed dependency from `go.mod`)
 - TASK-010: Upgrade Go version to 1.24 (updated `go.mod`, CircleCI, devcontainer; added loop-capture regression test)
+- TASK-012: Migrate `reexec` package to `github.com/moby/sys/reexec` (consolidated `/init` + `/sbin/init` into basename-only `"init"` registration)
 
 ## In Progress
 
@@ -28,7 +29,6 @@
 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config
 - TASK-011: Migrate `urfave/cli` v1 → v3
-- TASK-012: Migrate `reexec` package to `github.com/moby/sys/reexec`
 - TASK-013: Add `linux/riscv64` to GoReleaser build matrix
 - TASK-014: Integrate `whydeadcode` analysis
 - TASK-015: Create Dependabot configuration
@@ -38,7 +38,6 @@
 - Near-zero test coverage (only 1 test file: `internal/config/read_test.go`)
 - Uses deprecated `github.com/pkg/errors` in several packages
 - `urfave/cli` v1 is unmaintained; v3 is the current version
-- Uses deprecated `github.com/moby/moby/pkg/reexec`
 - `rc` package uses `log` (stdlib) instead of `logrus` for consistency
 
 ## Process Violations

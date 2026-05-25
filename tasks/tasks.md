@@ -15,7 +15,7 @@
 | TASK-009 | Replace `pkg/errors` with `fmt.Errorf` + `%w` | Done | Medium | TASK-001 |
 | TASK-010 | Upgrade Go version to ≥1.22 | Done | Medium | TASK-009 |
 | TASK-011 | Migrate `urfave/cli` v1 → v3 | Planned | Medium | TASK-010 |
-| TASK-012 | Migrate `reexec` package to `github.com/moby/sys/reexec` | Planned | Medium | TASK-010 |
+| TASK-012 | Migrate `reexec` package to `github.com/moby/sys/reexec` | Done | Medium | TASK-010 |
 | TASK-013 | Add `linux/riscv64` to GoReleaser build matrix | Planned | Low | TASK-010 |
 | TASK-014 | Integrate `whydeadcode` analysis | Planned | Low | TASK-010 |
 | TASK-015 | Create Dependabot configuration | Planned | Low | TASK-010 |
@@ -391,7 +391,7 @@ Migrate from `urfave/cli` v1 to v3. This is a significant refactor affecting all
 
 ## TASK-012: Migrate `reexec` package to `github.com/moby/sys/reexec`
 
-- **Status**: Planned
+- **Status**: Done
 - **Priority**: Medium
 - **PRD Reference**: Modernization Requirements
 - **Dependencies**: TASK-010
@@ -403,11 +403,11 @@ Migrate from the deprecated `github.com/moby/moby/pkg/reexec` package to the mod
 
 ### Implementation Checklist
 
-- [ ] Update `go.mod` to include `github.com/moby/sys/reexec`
-- [ ] Replace imports in `main.go` and `internal/cli/app/app.go` (and any other files)
-- [ ] Run `go mod tidy`
-- [ ] Run all tests and verify pass
-- [ ] Verify binary reexec behavior functions identically
+- [x] Update `go.mod` to include `github.com/moby/sys/reexec`
+- [x] Replace imports in `main.go` and `internal/cli/app/app.go` (and any other files)
+- [x] Run `go mod tidy`
+- [x] Run all tests and verify pass
+- [x] Verify binary reexec behavior functions identically
 
 ### Acceptance Criteria
 
