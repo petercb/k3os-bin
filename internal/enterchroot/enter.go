@@ -83,6 +83,7 @@ func isDebug() bool {
 	return false
 }
 
+// Mount sets up the k3OS root filesystem and executes the enter-root process.
 func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 	if err := ensureloop(); err != nil {
 		return err

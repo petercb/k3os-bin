@@ -13,6 +13,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/util"
 )
 
+// Ask prompts the user to choose between install and server/agent configuration.
 func Ask(cfg *config.CloudConfig) (bool, error) {
 	if ok, err := isInstall(cfg); err != nil {
 		return false, err
@@ -48,6 +49,7 @@ func isInstall(_ *config.CloudConfig) (bool, error) {
 	return i == 0, nil
 }
 
+// AskInstall prompts the user for all installation configuration options.
 func AskInstall(cfg *config.CloudConfig) error {
 	if cfg.K3OS.Install.Silent {
 		return nil
@@ -82,6 +84,7 @@ func AskInstall(cfg *config.CloudConfig) error {
 	return nil
 }
 
+// AskInstallDevice prompts the user to select a target disk device for installation.
 func AskInstallDevice(cfg *config.CloudConfig) error {
 	if cfg.K3OS.Install.Device != "" {
 		return nil
@@ -101,6 +104,7 @@ func AskInstallDevice(cfg *config.CloudConfig) error {
 	return nil
 }
 
+// AskToken prompts the user for a cluster token or secret.
 func AskToken(cfg *config.CloudConfig, server bool) error {
 	var (
 		token string
@@ -145,6 +149,7 @@ func isServer(cfg *config.CloudConfig) (bool, error) {
 	return i == 0, nil
 }
 
+// AskServerAgent prompts the user to configure k3s as a server or agent.
 func AskServerAgent(cfg *config.CloudConfig) error {
 	if cfg.K3OS.ServerURL != "" {
 		return nil
@@ -168,6 +173,7 @@ func AskServerAgent(cfg *config.CloudConfig) error {
 	return AskToken(cfg, false)
 }
 
+// AskPassword prompts the user to set a password for the rancher user.
 func AskPassword(cfg *config.CloudConfig) error {
 	if len(cfg.SSHAuthorizedKeys) > 0 || cfg.K3OS.Password != "" {
 		return nil
@@ -228,6 +234,7 @@ func AskPassword(cfg *config.CloudConfig) error {
 	return scanner.Err()
 }
 
+// AskWifi prompts the user to configure WiFi network settings.
 func AskWifi(cfg *config.CloudConfig) error {
 	if len(cfg.K3OS.Wifi) > 0 {
 		return nil
@@ -261,6 +268,7 @@ func AskWifi(cfg *config.CloudConfig) error {
 	}
 }
 
+// AskGithub prompts the user to authorize GitHub users for SSH access.
 func AskGithub(cfg *config.CloudConfig) error {
 	if len(cfg.SSHAuthorizedKeys) > 0 || cfg.K3OS.Password != "" {
 		return nil
@@ -283,6 +291,7 @@ func AskGithub(cfg *config.CloudConfig) error {
 	return nil
 }
 
+// AskConfigURL prompts the user for a cloud-init configuration URL.
 func AskConfigURL(cfg *config.CloudConfig) error {
 	if cfg.K3OS.Install.ConfigURL != "" {
 		return nil

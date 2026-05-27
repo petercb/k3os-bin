@@ -1,3 +1,4 @@
+// Package command provides utilities for executing system commands and managing passwords.
 package command
 
 import (
@@ -10,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// ExecuteCommand runs a list of shell commands sequentially, stopping on first failure.
 func ExecuteCommand(commands []string) error {
 	for _, cmd := range commands {
 		logrus.Debugf("running cmd `%s`", cmd)
@@ -23,6 +25,7 @@ func ExecuteCommand(commands []string) error {
 	return nil
 }
 
+// SetPassword sets the password for the rancher user using chpasswd.
 func SetPassword(password string) error {
 	if password == "" {
 		return nil

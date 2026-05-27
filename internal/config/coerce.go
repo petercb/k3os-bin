@@ -6,6 +6,7 @@ import (
 	"github.com/rancher/mapper/mappers"
 )
 
+// Converter is a function type that converts a value to a different representation.
 type Converter func(val interface{}) interface{}
 
 type fieldConverter struct {
@@ -46,6 +47,7 @@ func (t *typeConverter) ModifySchema(schema *mapper.Schema, _ *mapper.Schemas) e
 	return nil
 }
 
+// NewTypeConverter creates a mapper that applies a converter to all fields of the given type.
 func NewTypeConverter(fieldType string, converter Converter) mapper.Mapper {
 	return &typeConverter{
 		fieldType: fieldType,
@@ -53,6 +55,7 @@ func NewTypeConverter(fieldType string, converter Converter) mapper.Mapper {
 	}
 }
 
+// NewToMap creates a mapper that converts map[string]interface{} values to map[string]string.
 func NewToMap() mapper.Mapper {
 	return NewTypeConverter("map[string]", func(val interface{}) interface{} {
 		if m, ok := val.(map[string]interface{}); ok {
@@ -66,6 +69,7 @@ func NewToMap() mapper.Mapper {
 	})
 }
 
+// NewToSlice creates a mapper that converts a single string value to a string slice.
 func NewToSlice() mapper.Mapper {
 	return NewTypeConverter("array[string]", func(val interface{}) interface{} {
 		if str, ok := val.(string); ok {
@@ -75,6 +79,7 @@ func NewToSlice() mapper.Mapper {
 	})
 }
 
+// NewToBool creates a mapper that converts string "true" values to boolean true.
 func NewToBool() mapper.Mapper {
 	return NewTypeConverter("boolean", func(val interface{}) interface{} {
 		if str, ok := val.(string); ok {
