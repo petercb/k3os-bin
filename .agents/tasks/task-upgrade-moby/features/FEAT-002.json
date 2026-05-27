@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "refactor",
   "description": "Replace github.com/moby/moby/pkg/parsers/kernel with a local implementation using golang.org/x/sys/unix.Uname(), then remove the moby/moby dependency entirely from go.mod. The moby/moby module at v20.10.17+incompatible is a legacy pre-modules version with known issues. Since v29.3.1 does not exist as a Go module (the project moved to github.com/moby/moby/v2 which only has beta releases), the correct upgrade path is to remove the dependency entirely rather than bump it. The only usage is kernel.GetKernelVersion() in internal/modalias/modalias.go which calls uname() and parses the release string - trivially replaceable.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Step 1: Create a new internal package internal/kernel/kernel.go (with //go:build linux build tag) that provides a GetKernelVersion() (string, error) function. Implementation: call unix.Uname(), extract the Release field as a string using unix.ByteSliceToString(utsname.Release[:]), and return it. This replaces the full VersionInfo parsing since modalias.go only needs the version string for path construction.",
     "Step 2: Create internal/kernel/kernel_test.go with a test that verifies GetKernelVersion() returns a non-empty string matching a kernel version pattern (e.g., contains a dot-separated version number). Use //go:build linux build tag.",
@@ -28,5 +28,5 @@
     "grep 'github.com/moby/moby' go.mod && echo 'FAIL: moby/moby still in go.mod' || echo 'PASS: moby/moby removed from go.mod'"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Successfully removed github.com/moby/moby and gotest.tools/v3 (indirect dep of moby) from go.mod/go.sum. The new internal/kernel package uses unix.Uname() directly. All tests pass, build succeeds, go vet clean. The comments in internal/mount/*.go referencing moby/moby URLs were left untouched as they are attribution comments, not imports."
 }
