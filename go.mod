@@ -5,7 +5,6 @@ go 1.24
 require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/mattn/go-isatty v0.0.16
-	github.com/moby/moby v20.10.17+incompatible
 	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.7.0
 	github.com/rancher/mapper v0.0.0-20190814232720-058a8b7feb99
@@ -35,7 +34,6 @@ require (
 	github.com/freddierice/go-losetup/v2 v2.0.1
 	github.com/rancher/wrangler v1.0.1 // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
-	gotest.tools/v3 v3.3.0 // indirect
 )
 
 replace (
