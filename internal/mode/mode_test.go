@@ -12,7 +12,7 @@ import (
 )
 
 // writeModeFile creates the directory structure expected by Get() under root
-// and writes content to the mode file. Returns the path written.
+// and writes content to the mode file.
 func writeModeFile(t *testing.T, root, content string) {
 	t.Helper()
 
