@@ -94,7 +94,7 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 	}
 
 	if logrus.GetLevel() >= logrus.DebugLevel {
-		os.Setenv("ENTER_DEBUG", "true")
+		_ = os.Setenv("ENTER_DEBUG", "true")
 	}
 
 	root, offset, err := findRoot()
@@ -102,8 +102,8 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	os.Setenv("ENTER_DATA", dataDir)
-	os.Setenv("ENTER_ROOT", root)
+	_ = os.Setenv("ENTER_DATA", dataDir)
+	_ = os.Setenv("ENTER_ROOT", root)
 
 	logrus.Debugf("Using data [%s] root [%s]", dataDir, root)
 
@@ -297,8 +297,8 @@ func run(data string) error {
 		return fmt.Errorf("failed to find /usr/init: %w", err)
 	}
 
-	os.Unsetenv("ENTER_ROOT")
-	os.Unsetenv("ENTER_DATA")
+	_ = os.Unsetenv("ENTER_ROOT")
+	_ = os.Unsetenv("ENTER_DATA")
 	os.Unsetenv("ENTER_DEVICE")
 	return syscall.Exec("/usr/init", os.Args, os.Environ())
 }

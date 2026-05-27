@@ -211,8 +211,8 @@ func AskPassword(cfg *config.CloudConfig) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = errBuffer
 
-	if err := cmd.Run(); err != nil {
-		os.Stderr.Write(errBuffer.Bytes())
+	if err = cmd.Run(); err != nil {
+		_, _ = os.Stderr.Write(errBuffer.Bytes())
 		return err
 	}
 
@@ -220,7 +220,7 @@ func AskPassword(cfg *config.CloudConfig) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {

@@ -100,7 +100,7 @@ func cgroupList() []string {
 		log.Printf("cannot open /proc/cgroups: %v", err)
 		return list
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	reader := csv.NewReader(f)
 	// tab delimited
 	reader.Comma = '\t'

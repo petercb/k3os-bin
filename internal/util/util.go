@@ -33,7 +33,7 @@ func HTTPDownloadToFile(url, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func HTTPLoadBytes(url string) ([]byte, error) {
 	var resp *http.Response
 	resp, err := http.Get(url)
 	if err == nil {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("non-200 http response: %d", resp.StatusCode)
 		}

@@ -83,7 +83,7 @@ func runInstall(cfg config.CloudConfig) error {
 		if err != nil {
 			return err
 		}
-		defer tempFile.Close()
+		defer func() { _ = tempFile.Close() }()
 
 		cfg.K3OS.Install.ConfigURL = tempFile.Name()
 	}
@@ -105,7 +105,7 @@ func runInstall(cfg config.CloudConfig) error {
 		if err := tempFile.Close(); err != nil {
 			return err
 		}
-		defer os.Remove(tempFile.Name())
+		defer func() { _ = os.Remove(tempFile.Name()) }()
 	}
 
 	cmd := exec.Command("/usr/libexec/k3os/install")

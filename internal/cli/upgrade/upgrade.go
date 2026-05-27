@@ -126,7 +126,7 @@ func Run(_ *cli.Context) {
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	defer lf.Close()
+	defer func() { _ = lf.Close() }()
 	if err = unix.Flock(int(lf.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		logrus.Fatal(err)
 	}

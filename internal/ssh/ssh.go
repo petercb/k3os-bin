@@ -84,7 +84,7 @@ func getKey(key string, withNet bool) (string, error) {
 		return "", err
 	}
 	if resp.Body != nil {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 	}
 	if resp.StatusCode/100 > 2 {
 		return "", fmt.Errorf("%s %s", resp.Proto, resp.Status)

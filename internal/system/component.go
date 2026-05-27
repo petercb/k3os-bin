@@ -72,14 +72,14 @@ func CopyComponent(src, dst string, remount bool, key string) (bool, error) {
 		return false, err
 	}
 	logrus.Debugf("created symlink: %v", dstCurrTemp)
-	defer os.Remove(dstCurrTemp) // if this fails, that means it's gone which is correct
+	defer func() { _ = os.Remove(dstCurrTemp) }() // if this fails, that means it's gone which is correct
 
 	dstTemp, err := os.MkdirTemp(filepath.Split(dstPath))
 	if err != nil {
 		return false, err
 	}
 	logrus.Debugf("created temporary dir: %v", dstTemp)
-	defer os.RemoveAll(dstTemp) // if this fails, that means it's gone which is correct
+	defer func() { _ = os.RemoveAll(dstTemp) }() // if this fails, that means it's gone which is correct
 
 	logrus.Debugf("copying: %v -> %v", srcPath, dstTemp)
 	if err := copy.Copy(srcPath, dstTemp); err != nil {
@@ -97,7 +97,7 @@ func CopyComponent(src, dst string, remount bool, key string) (bool, error) {
 			defer os.Rename(dstExist, dstPath) //nolint:errcheck
 		} else {
 			// if this fails then the rename below will fail which is the desired behavior
-			os.Remove(dstPath)
+			_ = os.Remove(dstPath)
 		}
 	}
 

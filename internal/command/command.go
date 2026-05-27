@@ -40,7 +40,7 @@ func SetPassword(password string) error {
 	cmd.Stderr = errBuffer
 	err := cmd.Run()
 	if err != nil {
-		os.Stderr.Write(errBuffer.Bytes())
+		_, _ = os.Stderr.Write(errBuffer.Bytes())
 	}
 	return err
 }
