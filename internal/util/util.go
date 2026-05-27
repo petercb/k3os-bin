@@ -50,7 +50,8 @@ func HTTPLoadBytes(url string) ([]byte, error) {
 			return nil, fmt.Errorf("non-200 http response: %d", resp.StatusCode)
 		}
 
-		bytes, err := io.ReadAll(resp.Body)
+		var bytes []byte
+		bytes, err = io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
 		}

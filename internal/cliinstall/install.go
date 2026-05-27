@@ -70,7 +70,8 @@ func runInstall(cfg config.CloudConfig) error {
 	}
 
 	if !cfg.K3OS.Install.Silent {
-		val, err := questions.PromptBool("\nConfiguration\n"+"-------------\n\n"+
+		var val bool
+		val, err = questions.PromptBool("\nConfiguration\n"+"-------------\n\n"+
 			string(installBytes)+
 			"\nYour disk will be formatted and k3OS will be installed with the above configuration.\nContinue?", false)
 		if err != nil || !val {

@@ -39,7 +39,7 @@ func Init() (ModuleAliases, error) {
 
 	lookupTable := make(map[string]string)
 
-	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+	if _, err = os.Stat(filename); errors.Is(err, os.ErrNotExist) {
 		// aliases file doesn't exist, so return empty lookupTable
 		return ModuleAliases{aliases: lookupTable}, nil
 	}
