@@ -304,7 +304,7 @@ func run(data string) error {
 
 func checkSquashfs() error {
 	if !inProcFS() {
-		return errors.New("This kernel does not support squashfs, please enable. " +
+		return errors.New("this kernel does not support squashfs, please enable. " +
 			"On Fedora you may need to run \"dnf install kernel-modules-$(uname -r)\"")
 	}
 

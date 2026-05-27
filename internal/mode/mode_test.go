@@ -13,15 +13,13 @@ import (
 
 // writeModeFile creates the directory structure expected by Get() under root
 // and writes content to the mode file. Returns the path written.
-func writeModeFile(t *testing.T, root, content string) string {
+func writeModeFile(t *testing.T, root, content string) {
 	t.Helper()
 
 	modePath := filepath.Join(root, system.StatePath("mode"))
 	require.NoError(t, os.MkdirAll(filepath.Dir(modePath), 0o755))
 
 	require.NoError(t, os.WriteFile(modePath, []byte(content), 0o644))
-
-	return modePath
 }
 
 func TestGet_LiveMode(t *testing.T) {
@@ -96,6 +94,6 @@ func TestGet_PathIsDirectory_ReturnsError(t *testing.T) {
 
 	got, err := Get(root)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Empty(t, got)
 }
