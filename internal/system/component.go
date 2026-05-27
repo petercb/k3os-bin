@@ -55,7 +55,7 @@ func CopyComponent(src, dst string, remount bool, key string) (bool, error) {
 		return false, nil
 	}
 	if remount {
-		if err := mount.ForceMount("", dst, "none", "remount,rw"); err != nil {
+		if err = mount.ForceMount("", dst, "none", "remount,rw"); err != nil {
 			return false, err
 		}
 	}
@@ -66,7 +66,7 @@ func CopyComponent(src, dst string, remount bool, key string) (bool, error) {
 	dstCurrPath := filepath.Join(dst, key, string(VersionCurrent))
 
 	dstCurrTemp := dstCurrPath + `.tmp`
-	if err := os.Symlink(filepath.Base(dstPath), dstCurrTemp); err != nil {
+	if err = os.Symlink(filepath.Base(dstPath), dstCurrTemp); err != nil {
 		return false, err
 	}
 	logrus.Debugf("created symlink: %v", dstCurrTemp)

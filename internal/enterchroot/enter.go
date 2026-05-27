@@ -223,10 +223,10 @@ func run(data string) error {
 	}
 
 	if !mounted {
-		if err := os.MkdirAll(data, 0o755); err != nil {
+		if err = os.MkdirAll(data, 0o755); err != nil {
 			return fmt.Errorf("mkdir %s: %w", data, err)
 		}
-		if err := mount.Mount(data, data, "none", "rbind"); err != nil {
+		if err = mount.Mount(data, data, "none", "rbind"); err != nil {
 			return fmt.Errorf("remounting data %s: %w", data, err)
 		}
 	}
@@ -240,7 +240,7 @@ func run(data string) error {
 	dotRoot := filepath.Join(data, ".base")
 
 	for _, d := range []string{usr, dotRoot} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
+		if err = os.MkdirAll(d, 0o755); err != nil {
 			return fmt.Errorf("failed to make dir %s: %w", data, err)
 		}
 	}
