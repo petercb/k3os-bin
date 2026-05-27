@@ -8,6 +8,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/system"
 )
 
+// Get reads the current k3OS operational mode from the state file.
 func Get(prefix ...string) (string, error) {
 	bytes, err := os.ReadFile(filepath.Join(filepath.Join(prefix...), system.StatePath("mode")))
 	if os.IsNotExist(err) {

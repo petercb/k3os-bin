@@ -10,6 +10,7 @@ import (
 	"github.com/urfave/cli"
 )
 
+// Command returns the CLI command for installing k3OS to disk.
 func Command() cli.Command {
 	mode, _ := mode.Get()
 	return cli.Command{

@@ -6,6 +6,7 @@ import (
 	"strconv"
 )
 
+// K3OS holds the k3OS-specific configuration options.
 type K3OS struct {
 	DataSources    []string          `json:"dataSources,omitempty"`
 	Modules        []string          `json:"modules,omitempty"`
@@ -23,11 +24,13 @@ type K3OS struct {
 	Install        *Install          `json:"install,omitempty"`
 }
 
+// Wifi represents a WiFi network configuration with name and passphrase.
 type Wifi struct {
 	Name       string `json:"name,omitempty"`
 	Passphrase string `json:"passphrase,omitempty"`
 }
 
+// Install holds the configuration for a k3OS disk installation.
 type Install struct {
 	ForceEFI  bool   `json:"forceEfi,omitempty"`
 	Device    string `json:"device,omitempty"`
@@ -40,6 +43,7 @@ type Install struct {
 	TTY       string `json:"tty,omitempty"`
 }
 
+// CloudConfig is the top-level cloud-init configuration structure for k3OS.
 type CloudConfig struct {
 	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
 	WriteFiles        []File   `json:"writeFiles,omitempty"`
@@ -50,6 +54,7 @@ type CloudConfig struct {
 	Initcmd           []string `json:"initCmd,omitempty"`
 }
 
+// File represents a file to be written to the filesystem during cloud-init.
 type File struct {
 	Encoding           string `json:"encoding"`
 	Content            string `json:"content"`
@@ -58,6 +63,7 @@ type File struct {
 	RawFilePermissions string `json:"permissions"`
 }
 
+// Permissions parses the raw file permissions string and returns an os.FileMode.
 func (f *File) Permissions() (os.FileMode, error) {
 	if f.RawFilePermissions == "" {
 		return os.FileMode(0o644), nil

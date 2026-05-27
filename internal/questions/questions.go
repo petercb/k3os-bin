@@ -1,3 +1,4 @@
+// Package questions provides interactive terminal prompting utilities.
 package questions
 
 import (
@@ -10,6 +11,7 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
+// PromptFormattedOptions displays numbered options and prompts the user to select one.
 func PromptFormattedOptions(text string, def int, options ...string) (int, error) {
 	var newOptions []string
 	for i := range options {
@@ -18,6 +20,7 @@ func PromptFormattedOptions(text string, def int, options ...string) (int, error
 	return PromptOptions(text+"\n", def, newOptions...)
 }
 
+// PromptOptions displays a list of options and prompts the user to select one by number.
 func PromptOptions(text string, def int, options ...string) (int, error) {
 	if len(options) == 1 {
 		return 0, nil
@@ -54,6 +57,7 @@ func PromptOptions(text string, def int, options ...string) (int, error) {
 	}
 }
 
+// PromptBool prompts the user for a yes/no answer and returns a boolean.
 func PromptBool(text string, def bool) (bool, error) {
 	msg := text + " [y/N]: "
 	defStr := "n"
@@ -79,6 +83,7 @@ func PromptBool(text string, def bool) (bool, error) {
 	}
 }
 
+// PrintToTerm prints text to the terminal, using stderr if stdout is not a TTY.
 func PrintToTerm(text ...interface{}) {
 	if isatty.IsTerminal(os.Stdout.Fd()) {
 		fmt.Print(text...)
@@ -87,6 +92,7 @@ func PrintToTerm(text ...interface{}) {
 	}
 }
 
+// PrintlnToTerm prints text with a newline to the terminal, using stderr if stdout is not a TTY.
 func PrintlnToTerm(text ...interface{}) {
 	if isatty.IsTerminal(os.Stdout.Fd()) {
 		fmt.Println(text...)
@@ -95,6 +101,7 @@ func PrintlnToTerm(text ...interface{}) {
 	}
 }
 
+// PrintfToTerm prints formatted text to the terminal, using stderr if stdout is not a TTY.
 func PrintfToTerm(msg string, format ...interface{}) {
 	if isatty.IsTerminal(os.Stdout.Fd()) {
 		fmt.Printf(msg, format...)
@@ -103,6 +110,7 @@ func PrintfToTerm(msg string, format ...interface{}) {
 	}
 }
 
+// Prompt displays text and reads a required response from stdin.
 func Prompt(text, def string) (string, error) {
 	for {
 		PrintToTerm(text)
@@ -124,6 +132,7 @@ func Prompt(text, def string) (string, error) {
 	}
 }
 
+// PromptOptional displays text and reads an optional response from stdin, returning the default if empty.
 func PromptOptional(text, def string) (string, error) {
 	PrintToTerm(text)
 	answer, err := bufio.NewReader(os.Stdin).ReadString('\n')

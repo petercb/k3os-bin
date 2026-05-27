@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Command returns the CLI command for early phase run commands and run control.
 func Command() cli.Command {
 	return cli.Command{
 		Name:  "rc",
