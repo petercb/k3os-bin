@@ -1,0 +1,23 @@
+{
+  "project_type": "Go CLI application (multi-personality binary for K3OS Linux distribution)",
+  "language": "Go 1.24",
+  "build_system": "go build with CGO_ENABLED=0, GoReleaser v2 for releases, CircleCI for CI",
+  "test_framework": "go test with testify/assert, testify/require, testify/mock",
+  "build_command": "GOOS=linux CGO_ENABLED=0 go build -ldflags \"-s -w -extldflags -static\" -tags static_build -o k3os .",
+  "test_command": "go test -race -covermode=atomic -failfast ./...",
+  "verification_instructions": "1. Run 'go test ./...' to verify all tests pass. 2. Run 'GOOS=linux CGO_ENABLED=0 go build -o k3os .' to verify build succeeds. 3. Run 'go vet ./...' for basic correctness.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "go mod download",
+  "environment_constraints": "Linux-only build target. CGO_ENABLED=0 required. golang.org/x/sys/unix already available as dependency.",
+  "contribution_requirements": "Conventional commits format. golangci-lint v2 must pass. Tests with -race flag. gofumpt + goimports formatting.",
+  "key_patterns": "Internal packages under internal/. Build tags for Linux-only code (//go:build linux). Interfaces for testability. testify mocks for OS operations. Table-driven tests preferred.",
+  "relevant_files": [
+    "internal/modalias/modalias.go",
+    "go.mod",
+    "go.sum",
+    "internal/enterchroot/enter.go",
+    "main.go",
+    ".kiro/steering/tech.md"
+  ],
+  "directory_structure": "main.go (entry point) -> internal/ (all packages): cc/ (cloud-config appliers), cli/ (CLI commands), config/ (configuration), enterchroot/ (chroot/boot), modalias/ (kernel module alias resolution), mount/ (mount operations), system/ (path constants)"
+}

@@ -1,0 +1,7 @@
+{
+  "task_id": "task-upgrade-moby",
+  "task_description": "Remove the github.com/moby/moby v20.10.17+incompatible dependency by replacing its only usage (pkg/parsers/kernel.GetKernelVersion in internal/modalias/modalias.go) with a local implementation using golang.org/x/sys/unix. There is no viable Go module at v29.3.1 - moby/moby moved to a /v2 module path with only beta releases. The cleanest resolution is complete removal of the dependency.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

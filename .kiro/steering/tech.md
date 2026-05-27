@@ -14,7 +14,7 @@
 | `github.com/sirupsen/logrus` | Structured logging |
 | `github.com/ghodss/yaml` | YAML parsing |
 | `github.com/rancher/mapper` | Schema-based config type coercion |
-| `github.com/moby/moby/pkg/reexec` | Multi-personality binary dispatch (migration target: `moby/sys/reexec`) |
+| `github.com/moby/sys/reexec` | Multi-personality binary dispatch |
 | `github.com/stretchr/testify` | Test assertions and mocking |
 | `github.com/pkg/errors` | Error wrapping (migration target: `fmt.Errorf` + `%w`) |
 | `pault.ag/go/modprobe` | Kernel module loading |

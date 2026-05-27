@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/moby/moby/pkg/parsers/kernel"
+	"github.com/petercb/k3os-bin/internal/kernel"
 	"github.com/ryanuber/go-glob"
 	"pault.ag/go/modprobe"
 )
