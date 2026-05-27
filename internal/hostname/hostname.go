@@ -37,7 +37,7 @@ func syncHostname(fs iface.FileSystem) error {
 	if err != nil {
 		return err
 	}
-	defer hosts.Close()
+	defer func() { _ = hosts.Close() }()
 
 	lines := bufio.NewScanner(hosts)
 	content := ""

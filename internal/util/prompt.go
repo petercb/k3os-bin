@@ -41,7 +41,7 @@ func MaskPassword(r *os.File, w io.Writer) ([]byte, error) {
 		}
 		defer func() {
 			term.Restore(fd, s) //nolint:errcheck
-			fmt.Fprintln(w)
+			_, _ = fmt.Fprintln(w)
 		}()
 	}
 	// Reference: ascii-table-0-127
@@ -55,7 +55,7 @@ func MaskPassword(r *os.File, w io.Writer) ([]byte, error) {
 			// Delete || Backspace
 			if l := len(p); l > 0 {
 				p = p[:l-1]
-				fmt.Fprint(w, string(bs))
+				_, _ = fmt.Fprint(w, string(bs))
 			}
 		} else if v == 13 || v == 10 {
 			// CR || LF
@@ -66,7 +66,7 @@ func MaskPassword(r *os.File, w io.Writer) ([]byte, error) {
 			break
 		} else if v != 0 {
 			p = append(p, v)
-			fmt.Fprint(w, string(mask))
+			_, _ = fmt.Fprint(w, string(mask))
 		}
 	}
 	if i > maxBytes {

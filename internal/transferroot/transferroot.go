@@ -216,7 +216,7 @@ func copyFS(newRoot string) error {
 
 func Relocate() {
 	if os.Getenv(relocated) == "true" {
-		os.Unsetenv(relocated)
+		_ = os.Unsetenv(relocated)
 		return
 	}
 

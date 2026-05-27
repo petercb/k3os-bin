@@ -46,7 +46,7 @@ func Init() (ModuleAliases, error) {
 	if err != nil {
 		return ModuleAliases{}, fmt.Errorf("could not open file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 
