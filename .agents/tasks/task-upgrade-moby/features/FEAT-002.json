@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-002",
+  "type": "refactor",
+  "description": "Replace github.com/moby/moby/pkg/parsers/kernel with a local implementation using golang.org/x/sys/unix.Uname(), then remove the moby/moby dependency entirely from go.mod. The moby/moby module at v20.10.17+incompatible is a legacy pre-modules version with known issues. Since v29.3.1 does not exist as a Go module (the project moved to github.com/moby/moby/v2 which only has beta releases), the correct upgrade path is to remove the dependency entirely rather than bump it. The only usage is kernel.GetKernelVersion() in internal/modalias/modalias.go which calls uname() and parses the release string - trivially replaceable.",
+  "status": "pending",
+  "steps": [
+    "Step 1: Create a new internal package internal/kernel/kernel.go (with //go:build linux build tag) that provides a GetKernelVersion() (string, error) function. Implementation: call unix.Uname(), extract the Release field as a string using unix.ByteSliceToString(utsname.Release[:]), and return it. This replaces the full VersionInfo parsing since modalias.go only needs the version string for path construction.",
+    "Step 2: Create internal/kernel/kernel_test.go with a test that verifies GetKernelVersion() returns a non-empty string matching a kernel version pattern (e.g., contains a dot-separated version number). Use //go:build linux build tag.",
+    "Step 3: Update internal/modalias/modalias.go to replace the import of 'github.com/moby/moby/pkg/parsers/kernel' with the new local 'github.com/petercb/k3os-bin/internal/kernel' package. Change the getAliasesFile() function: replace 'kernelVersion, err := kernel.GetKernelVersion()' followed by 'fmt.Sprintf(\"/lib/modules/%s\", kernelVersion)' with 'ver, err := kernel.GetKernelVersion()' followed by 'fmt.Sprintf(\"/lib/modules/%s\", ver)'. The new function returns a string directly instead of a *VersionInfo that gets formatted via String().",
+    "Step 4: Run 'go mod tidy' to remove github.com/moby/moby from go.mod and go.sum (it should no longer be needed by any import). Also verify that gotest.tools/v3 is removed if it was only an indirect dependency of moby/moby.",
+    "Step 5: Update .kiro/steering/tech.md to remove or update the reference to 'github.com/moby/moby/pkg/reexec' in the Key Dependencies table since moby/moby is no longer a dependency at all.",
+    "Step 6: Run 'go test ./...' to confirm all tests still pass. Run 'GOOS=linux CGO_ENABLED=0 go build -o k3os .' to confirm build still succeeds. Run 'go vet ./...' for correctness."
+  ],
+  "acceptance_criteria": [
+    "github.com/moby/moby no longer appears in go.mod",
+    "No Go source files import any package from github.com/moby/moby",
+    "internal/kernel/kernel.go exists with GetKernelVersion() (string, error) using unix.Uname()",
+    "internal/kernel/kernel_test.go exists and tests pass",
+    "internal/modalias/modalias.go uses the new internal/kernel package",
+    "'go test ./...' passes all tests",
+    "'GOOS=linux CGO_ENABLED=0 go build -o k3os .' succeeds"
+  ],
+  "verification": [
+    "go test ./...",
+    "GOOS=linux CGO_ENABLED=0 go build -o k3os .",
+    "go vet ./...",
+    "grep -r 'github.com/moby/moby' --include='*.go' . && echo 'FAIL: moby/moby still imported' || echo 'PASS: no moby/moby imports'",
+    "grep 'github.com/moby/moby' go.mod && echo 'FAIL: moby/moby still in go.mod' || echo 'PASS: moby/moby removed from go.mod'"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
