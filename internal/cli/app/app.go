@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/cli"
 )
 
+// Debug enables debug-level logging when set to true.
 var Debug bool
 
 // New CLI App

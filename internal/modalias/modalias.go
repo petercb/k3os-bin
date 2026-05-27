@@ -13,6 +13,7 @@ import (
 	"pault.ag/go/modprobe"
 )
 
+// ModuleAliases holds a mapping of kernel module alias patterns to module names.
 type ModuleAliases struct {
 	aliases map[string]string
 }
@@ -29,6 +30,7 @@ func getAliasesFile() (string, error) {
 	return filepath.Join(kernelDir, "modules.alias"), nil
 }
 
+// Init reads and parses the kernel modules.alias file into a ModuleAliases lookup table.
 func Init() (ModuleAliases, error) {
 	filename, err := getAliasesFile()
 	if err != nil {
@@ -79,6 +81,7 @@ func Init() (ModuleAliases, error) {
 	return ModuleAliases{aliases: lookupTable}, nil
 }
 
+// Lookup resolves a module alias to its actual module name using glob matching.
 func (mod ModuleAliases) Lookup(name string) string {
 	for pattern, v := range mod.aliases {
 		if glob.Glob(pattern, name) {
@@ -88,6 +91,7 @@ func (mod ModuleAliases) Lookup(name string) string {
 	return name
 }
 
+// Load resolves the given alias and loads the corresponding kernel module.
 func (mod ModuleAliases) Load(alias string) error {
 	return modprobe.Load(mod.Lookup(alias), "")
 }

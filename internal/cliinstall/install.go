@@ -10,6 +10,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/questions"
 )
 
+// Run executes the interactive k3OS installation and configuration workflow.
 func Run() error {
 	fmt.Println("\nRunning k3OS configuration")
 

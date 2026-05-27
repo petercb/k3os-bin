@@ -10,8 +10,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// VersionName represents a named version alias for system components.
 type VersionName string
 
+// Version aliases for system components.
 const (
 	VersionCurrent  VersionName = "current"
 	VersionPrevious VersionName = "previous"

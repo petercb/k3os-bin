@@ -214,6 +214,7 @@ func copyFS(newRoot string) error {
 	return os.Chdir("/")
 }
 
+// Relocate moves the root filesystem to a new tmpfs mount if currently running from ramfs or tmpfs.
 func Relocate() {
 	if os.Getenv(relocated) == "true" {
 		_ = os.Unsetenv(relocated)

@@ -8,11 +8,13 @@ import (
 	"github.com/rancher/mapper/mappers"
 )
 
+// FuzzyNames is a mapper that normalizes field names to their canonical internal form.
 type FuzzyNames struct {
 	mappers.DefaultMapper
 	names map[string]string
 }
 
+// ToInternal converts fuzzy field names in data to their canonical internal names.
 func (f *FuzzyNames) ToInternal(data map[string]interface{}) error {
 	for k, v := range data {
 		if newK, ok := f.names[k]; ok && newK != k {
@@ -28,6 +30,7 @@ func (f *FuzzyNames) addName(name, toName string) {
 	f.names[strings.ToLower(convert.ToYAMLKey(name))] = toName
 }
 
+// ModifySchema populates the fuzzy name mapping from the schema's resource fields.
 func (f *FuzzyNames) ModifySchema(schema *mapper.Schema, _ *mapper.Schemas) error {
 	f.names = map[string]string{}
 

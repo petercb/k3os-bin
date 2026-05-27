@@ -1,6 +1,8 @@
 //go:build linux
 // +build linux
 
+// Package mount provides helpers for parsing and applying Linux mount options.
+//
 // borrowed and condenced from https://github.com/moby/moby/tree/v1.13.1/pkg/mount
 
 package mount
