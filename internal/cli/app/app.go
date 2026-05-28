@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/petercb/k3os-bin/internal/cli/config"
@@ -9,44 +10,43 @@ import (
 	"github.com/petercb/k3os-bin/internal/cli/upgrade"
 	"github.com/petercb/k3os-bin/internal/version"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v3"
 )
 
 // Debug enables debug-level logging when set to true.
 var Debug bool
 
 // New CLI App
-func New() *cli.App {
-	app := cli.NewApp()
-	app.Name = "k3os"
-	app.Usage = "Booting to k3s so you don't have to"
-	app.Version = version.Version
-	cli.VersionPrinter = func(_ *cli.Context) {
-		fmt.Printf("%s CLI version %s\n", app.Name, app.Version)
-	}
-	// required flags without defaults will break symlinking to exe with name of sub-command as target
-	app.Flags = []cli.Flag{
-		cli.BoolFlag{
-			Name:        "debug",
-			Usage:       "Turn on debug logs",
-			EnvVar:      "K3OS_DEBUG",
-			Destination: &Debug,
+func New() *cli.Command {
+	cmd := &cli.Command{
+		Name:    "k3os",
+		Usage:   "Booting to k3s so you don't have to",
+		Version: version.Version,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:        "debug",
+				Usage:       "Turn on debug logs",
+				Sources:     cli.EnvVars("K3OS_DEBUG"),
+				Destination: &Debug,
+			},
+		},
+		Commands: []*cli.Command{
+			rc.Command(),
+			config.Command(),
+			install.Command(),
+			upgrade.Command(),
+		},
+		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
+			if Debug {
+				logrus.SetLevel(logrus.DebugLevel)
+			}
+			return nil, nil
 		},
 	}
 
-	app.Commands = []cli.Command{
-		rc.Command(),
-		config.Command(),
-		install.Command(),
-		upgrade.Command(),
+	cli.VersionPrinter = func(c *cli.Command) {
+		fmt.Printf("%s CLI version %s\n", c.Root().Name, c.Root().Version)
 	}
 
-	app.Before = func(_ *cli.Context) error {
-		if Debug {
-			logrus.SetLevel(logrus.DebugLevel)
-		}
-		return nil
-	}
-
-	return app
+	return cmd
 }

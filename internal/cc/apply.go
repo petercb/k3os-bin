@@ -2,10 +2,11 @@
 package cc
 
 import (
+	"errors"
+
 	"github.com/petercb/k3os-bin/internal/config"
 	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
-	"github.com/urfave/cli"
 )
 
 type applier func(cfg *config.CloudConfig) error
@@ -34,17 +35,17 @@ func NewDefaultApplier() *Applier {
 }
 
 func (a *Applier) runApplies(cfg *config.CloudConfig, appliers ...applier) error {
-	var errors []error
+	var errs []error
 
 	for _, app := range appliers {
 		err := app(cfg)
 		if err != nil {
-			errors = append(errors, err)
+			errs = append(errs, err)
 		}
 	}
 
-	if len(errors) > 0 {
-		return cli.NewMultiError(errors...)
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	return nil

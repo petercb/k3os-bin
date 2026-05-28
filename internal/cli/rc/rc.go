@@ -3,6 +3,7 @@ package rc
 // forked from https://github.com/linuxkit/linuxkit
 
 import (
+	"context"
 	"encoding/csv"
 	"errors"
 	"log"
@@ -12,29 +13,30 @@ import (
 	"strings"
 
 	"github.com/petercb/k3os-bin/internal/modalias"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v3"
 	"golang.org/x/sys/unix"
 )
 
 // Command returns the CLI command for early phase run commands and run control.
-func Command() cli.Command {
-	return cli.Command{
+func Command() *cli.Command {
+	return &cli.Command{
 		Name:  "rc",
 		Usage: "early phase \"run commands\" / \"run control\"",
 		Flags: []cli.Flag{},
-		Before: func(_ *cli.Context) error {
+		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
 			if os.Getuid() != 0 {
-				return errors.New("must be run as root")
+				return nil, errors.New("must be run as root")
 			}
-			return nil
+			return nil, nil
 		},
-		Action: func(*cli.Context) {
+		Action: func(_ context.Context, _ *cli.Command) error {
 			doMounts()
 			doHotplug()
 			doClock()
 			doLoopback()
 			doHostname()
 			doResolvConf()
+			return nil
 		},
 	}
 }

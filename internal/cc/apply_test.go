@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli"
 )
 
 // ---------------------------------------------------------------------------
@@ -76,16 +75,17 @@ func TestRunApplies_MultipleErrors_AllRun(t *testing.T) {
 	// Error must be non-nil
 	require.Error(t, err)
 
-	// Error must be a cli.MultiError
-	multiErr, ok := err.(cli.MultiError)
-	require.True(t, ok, "expected cli.MultiError, got %T", err)
+	// Error must be a joined error (errors.Join implements Unwrap() []error)
+	var joinedErr interface{ Unwrap() []error }
+	require.ErrorAs(t, err, &joinedErr)
 
 	// Must contain exactly 2 sub-errors
-	require.Len(t, multiErr.Errors, 2)
+	subErrors := joinedErr.Unwrap()
+	require.Len(t, subErrors, 2)
 
 	// Both error messages must be present
-	assert.Equal(t, "first failed", multiErr.Errors[0].Error())
-	assert.Equal(t, "third failed", multiErr.Errors[1].Error())
+	assert.Equal(t, "first failed", subErrors[0].Error())
+	assert.Equal(t, "third failed", subErrors[1].Error())
 }
 
 // ---------------------------------------------------------------------------
