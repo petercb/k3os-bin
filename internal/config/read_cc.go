@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ghodss/yaml"
+	"gopkg.in/yaml.v3"
 	"github.com/rancher/mapper/convert"
 )
 

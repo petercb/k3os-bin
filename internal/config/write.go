@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ghodss/yaml"
+	"gopkg.in/yaml.v3"
 	"github.com/rancher/mapper/convert"
 )
 
