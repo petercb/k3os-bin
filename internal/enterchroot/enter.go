@@ -123,7 +123,7 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 				logrus.Errorf("failed detaching file [%s] offset [%d]: %v", root, offset, dderr)
 			}
 		}()
-		os.Setenv("ENTER_DEVICE", dev.Path())
+		_ = os.Setenv("ENTER_DEVICE", dev.Path())
 
 		go func() {
 			// Assume that after 3 seconds loop back device has been mounted
@@ -184,7 +184,7 @@ func inFile() (string, uint64, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	buf := make([]byte, 8192)
 	test := []byte(strings.ToLower(magic))
@@ -248,8 +248,8 @@ func run(data string) error {
 
 	if device == "" {
 		logrus.Debugf("Bind mounting %s to %s", root, usr)
-		if err := mount.Mount(root, usr, "none", "bind"); err != nil {
-			return errors.New("failed to bind mount")
+		if mountErr := mount.Mount(root, usr, "none", "bind"); mountErr != nil {
+			return fmt.Errorf("failed to bind mount: %w", mountErr)
 		}
 	} else {
 		logrus.Debugf("Mounting squashfs %s to %s", device, usr)
@@ -299,7 +299,7 @@ func run(data string) error {
 
 	_ = os.Unsetenv("ENTER_ROOT")
 	_ = os.Unsetenv("ENTER_DATA")
-	os.Unsetenv("ENTER_DEVICE")
+	_ = os.Unsetenv("ENTER_DEVICE")
 	return syscall.Exec("/usr/init", os.Args, os.Environ())
 }
 

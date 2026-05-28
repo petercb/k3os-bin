@@ -1,3 +1,4 @@
+// Package modalias provides kernel module alias resolution and loading.
 package modalias
 
 import (

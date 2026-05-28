@@ -1,3 +1,4 @@
+// Package util provides common helper functions for file operations, HTTP, and encoding.
 package util
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// DecodeBase64Content decodes a base64-encoded string and returns the raw bytes.
 func DecodeBase64Content(content string) ([]byte, error) {
 	output, err := base64.StdEncoding.DecodeString(content)
 	if err != nil {
@@ -17,11 +19,13 @@ func DecodeBase64Content(content string) ([]byte, error) {
 	return output, nil
 }
 
+// DecodeGzipContent decompresses a gzip-encoded string and returns the raw bytes.
 func DecodeGzipContent(content string) ([]byte, error) {
 	byteContent := []byte(content)
 	return DecompressGzip(byteContent)
 }
 
+// DecompressGzip decompresses gzip-compressed bytes and returns the result.
 func DecompressGzip(content []byte) ([]byte, error) {
 	gzr, err := gzip.NewReader(bytes.NewReader(content))
 	if err != nil {
@@ -39,6 +43,7 @@ func DecompressGzip(content []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// DecodeContent decodes content based on the specified encoding (base64, gzip, or combined).
 func DecodeContent(content string, encoding string) ([]byte, error) {
 	switch encoding {
 	case "":

@@ -1,3 +1,4 @@
+// Package hostname provides utilities for setting and managing the system hostname.
 package hostname
 
 import (

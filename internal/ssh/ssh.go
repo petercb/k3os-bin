@@ -1,3 +1,4 @@
+// Package ssh handles SSH key management and authorized_keys file generation.
 package ssh
 
 import (

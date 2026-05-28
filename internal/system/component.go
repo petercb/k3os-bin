@@ -1,3 +1,4 @@
+// Package system provides utilities for managing k3OS system paths and components.
 package system
 
 import (

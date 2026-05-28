@@ -1,6 +1,7 @@
 //go:build linux
 // +build linux
 
+// Package transferroot handles transferring the root filesystem.
 package transferroot
 
 // copied from linuxkit

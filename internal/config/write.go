@@ -8,6 +8,7 @@ import (
 	"github.com/rancher/mapper/convert"
 )
 
+// PrintInstall marshals the install portion of a CloudConfig to YAML bytes.
 func PrintInstall(cfg CloudConfig) ([]byte, error) {
 	data, err := convert.EncodeToMap(cfg.K3OS.Install)
 	if err != nil {
@@ -18,6 +19,7 @@ func PrintInstall(cfg CloudConfig) ([]byte, error) {
 	return yaml.Marshal(data)
 }
 
+// Write serializes a CloudConfig to YAML and writes it to the given writer.
 func Write(cfg CloudConfig, writer io.Writer) error {
 	bytes, err := ToBytes(cfg)
 	if err != nil {
@@ -27,6 +29,7 @@ func Write(cfg CloudConfig, writer io.Writer) error {
 	return err
 }
 
+// ToBytes serializes a CloudConfig to YAML bytes, excluding install settings.
 func ToBytes(cfg CloudConfig) ([]byte, error) {
 	cfg.K3OS.Install = nil
 	data, err := convert.EncodeToMap(cfg)

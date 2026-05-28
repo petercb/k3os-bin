@@ -1,3 +1,4 @@
+// Package mode provides utilities for determining and managing k3OS boot modes.
 package mode
 
 import (

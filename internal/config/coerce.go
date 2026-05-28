@@ -1,3 +1,4 @@
+// Package config provides cloud-config parsing, merging, and serialization for k3OS.
 package config
 
 import (

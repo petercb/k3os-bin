@@ -1,6 +1,7 @@
 //go:build linux
 // +build linux
 
+// Package enterchroot sets up and enters the k3OS root filesystem.
 package enterchroot
 
 import (

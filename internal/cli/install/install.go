@@ -1,3 +1,4 @@
+// Package install implements the k3OS install sub-command.
 package install
 
 import (

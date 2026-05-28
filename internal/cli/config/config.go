@@ -1,3 +1,4 @@
+// Package config implements the k3OS config sub-command.
 package config
 
 import (

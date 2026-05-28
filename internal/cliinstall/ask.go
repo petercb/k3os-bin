@@ -1,3 +1,4 @@
+// Package cliinstall implements the interactive k3OS installation workflow.
 package cliinstall
 
 import (
