@@ -13,15 +13,24 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var (
-	upgradeK3OS, upgradeK3S             bool
-	upgradeKernel, upgradeRootFS        bool
-	doRemount, doSync, doReboot         bool
-	sourceDir, destinationDir, lockFile string
-)
+// upgradeOpts holds all flag destinations for the upgrade command.
+type upgradeOpts struct {
+	upgradeK3OS    bool
+	upgradeK3S     bool
+	upgradeKernel  bool
+	upgradeRootFS  bool
+	doRemount      bool
+	doSync         bool
+	doReboot       bool
+	sourceDir      string
+	destinationDir string
+	lockFile       string
+}
 
 // Command is the `upgrade` sub-command, it performs upgrades to k3OS.
 func Command() *cli.Command {
+	opts := &upgradeOpts{}
+
 	return &cli.Command{
 		Name:  "upgrade",
 		Usage: "perform upgrades",
@@ -29,87 +38,84 @@ func Command() *cli.Command {
 			&cli.BoolFlag{
 				Name:        "k3os",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_K3OS"),
-				Destination: &upgradeK3OS,
+				Destination: &opts.upgradeK3OS,
 				Hidden:      true,
 			},
 			&cli.BoolFlag{
 				Name:        "k3s",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_K3S"),
-				Destination: &upgradeK3S,
+				Destination: &opts.upgradeK3S,
 				Hidden:      true,
 			},
 			&cli.BoolFlag{
 				Name:        "kernel",
 				Usage:       "upgrade the kernel",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_KERNEL"),
-				Destination: &upgradeKernel,
+				Destination: &opts.upgradeKernel,
 			},
 			&cli.BoolFlag{
 				Name:        "rootfs",
 				Usage:       "upgrade k3os+k3s",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_ROOTFS"),
-				Destination: &upgradeRootFS,
+				Destination: &opts.upgradeRootFS,
 			},
 			&cli.BoolFlag{
 				Name:        "remount",
 				Usage:       "pre-upgrade remount?",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_REMOUNT"),
-				Destination: &doRemount,
+				Destination: &opts.doRemount,
 			},
 			&cli.BoolFlag{
 				Name:        "sync",
 				Usage:       "post-upgrade sync?",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_SYNC"),
-				Destination: &doSync,
+				Destination: &opts.doSync,
 			},
 			&cli.BoolFlag{
 				Name:        "reboot",
 				Usage:       "post-upgrade reboot?",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_REBOOT"),
-				Destination: &doReboot,
+				Destination: &opts.doReboot,
 			},
 			&cli.StringFlag{
 				Name:        "source",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_SOURCE"),
 				Value:       system.RootPath(),
 				Required:    true,
-				Destination: &sourceDir,
+				Destination: &opts.sourceDir,
 			},
 			&cli.StringFlag{
 				Name:        "destination",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_DESTINATION"),
 				Value:       system.RootPath(),
 				Required:    true,
-				Destination: &destinationDir,
+				Destination: &opts.destinationDir,
 			},
 			&cli.StringFlag{
 				Name:        "lock-file",
 				Sources:     cli.EnvVars("K3OS_UPGRADE_LOCK_FILE"),
 				Value:       system.StatePath("upgrade.lock"),
 				Hidden:      true,
-				Destination: &lockFile,
+				Destination: &opts.lockFile,
 			},
 		},
 		Before: func(_ context.Context, cmd *cli.Command) (context.Context, error) {
-			if destinationDir == sourceDir {
+			if opts.destinationDir == opts.sourceDir {
 				_ = cli.ShowSubcommandHelp(cmd)
-				logrus.Errorf("the `destination` cannot be the `source`: %s", destinationDir)
-				os.Exit(1)
+				return nil, fmt.Errorf("the `destination` cannot be the `source`: %s", opts.destinationDir)
 			}
-			if upgradeRootFS {
-				upgradeK3S = true
-				upgradeK3OS = true
+			if opts.upgradeRootFS {
+				opts.upgradeK3S = true
+				opts.upgradeK3OS = true
 			}
-			if !upgradeK3OS && !upgradeK3S && !upgradeKernel {
+			if !opts.upgradeK3OS && !opts.upgradeK3S && !opts.upgradeKernel {
 				_ = cli.ShowSubcommandHelp(cmd)
-				logrus.Error("must specify components to upgrade, e.g. `rootfs`, `kernel`")
-				os.Exit(1)
+				return nil, fmt.Errorf("must specify components to upgrade, e.g. `rootfs`, `kernel`")
 			}
 			return nil, nil
 		},
 		Action: func(_ context.Context, _ *cli.Command) error {
-			Run()
-			return nil
+			return Run(opts)
 		},
 	}
 }
@@ -117,22 +123,22 @@ func Command() *cli.Command {
 // Run the `upgrade` sub-command
 //
 //nolint:gocognit
-func Run() {
-	if err := validateSystemRoot(sourceDir); err != nil {
-		logrus.Fatal(err)
+func Run(opts *upgradeOpts) error {
+	if err := validateSystemRoot(opts.sourceDir); err != nil {
+		return err
 	}
-	if err := validateSystemRoot(destinationDir); err != nil {
-		logrus.Fatal(err)
+	if err := validateSystemRoot(opts.destinationDir); err != nil {
+		return err
 	}
 
 	// establish the lock
-	lf, err := os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+	lf, err := os.OpenFile(opts.lockFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
-		logrus.Fatal(err)
+		return err
 	}
 	defer func() { _ = lf.Close() }()
 	if err = unix.Flock(int(lf.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		logrus.Fatal(err)
+		return err
 	}
 	defer func() {
 		if unlockerr := unix.Flock(int(lf.Fd()), unix.LOCK_UN); unlockerr != nil {
@@ -142,47 +148,47 @@ func Run() {
 
 	var atLeastOneComponentCopied bool
 
-	if upgradeK3OS {
-		if copied, err := system.CopyComponent(sourceDir, destinationDir, doRemount, "k3os"); err != nil {
+	if opts.upgradeK3OS {
+		if copied, err := system.CopyComponent(opts.sourceDir, opts.destinationDir, opts.doRemount, "k3os"); err != nil {
 			logrus.Error(err)
 		} else if copied {
 			atLeastOneComponentCopied = true
-			doRemount = false
+			opts.doRemount = false
 		}
 	}
-	if upgradeK3S {
-		if copied, err := system.CopyComponent(sourceDir, destinationDir, doRemount, "k3s"); err != nil {
+	if opts.upgradeK3S {
+		if copied, err := system.CopyComponent(opts.sourceDir, opts.destinationDir, opts.doRemount, "k3s"); err != nil {
 			logrus.Error(err)
 		} else if copied {
 			atLeastOneComponentCopied = true
-			doRemount = false
+			opts.doRemount = false
 		}
 	}
-	if upgradeKernel {
-		if copied, err := system.CopyComponent(sourceDir, destinationDir, doRemount, "kernel"); err != nil {
+	if opts.upgradeKernel {
+		if copied, err := system.CopyComponent(opts.sourceDir, opts.destinationDir, opts.doRemount, "kernel"); err != nil {
 			logrus.Error(err)
 		} else if copied {
 			atLeastOneComponentCopied = true
-			doRemount = false
+			opts.doRemount = false
 		}
 	}
 
-	if atLeastOneComponentCopied && doSync {
+	if atLeastOneComponentCopied && opts.doSync {
 		unix.Sync()
 	}
 
-	if atLeastOneComponentCopied && doReboot {
+	if atLeastOneComponentCopied && opts.doReboot {
 		// nsenter -m -u -i -n -p -t 1 -- reboot
 		if _, err := exec.LookPath("nsenter"); err != nil {
 			logrus.Warn(err)
-			if destinationDir != system.RootPath() {
-				root := filepath.Clean(filepath.Join(destinationDir, "..", ".."))
+			if opts.destinationDir != system.RootPath() {
+				root := filepath.Clean(filepath.Join(opts.destinationDir, "..", ".."))
 				logrus.Debugf("attempting chroot: %v", root)
 				if err := unix.Chroot(root); err != nil {
-					logrus.Fatal(err)
+					return err
 				}
 				if err := os.Chdir("/"); err != nil {
-					logrus.Fatal(err)
+					return err
 				}
 			}
 		}
@@ -190,9 +196,11 @@ func Run() {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
 		if err := cmd.Run(); err != nil {
-			logrus.Fatal(err)
+			return err
 		}
 	}
+
+	return nil
 }
 
 func validateSystemRoot(root string) error {
