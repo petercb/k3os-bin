@@ -249,7 +249,7 @@ func run(data string) error {
 	if device == "" {
 		logrus.Debugf("Bind mounting %s to %s", root, usr)
 		if mountErr := mount.Mount(root, usr, "none", "bind"); mountErr != nil {
-			return errors.New("failed to bind mount")
+			return fmt.Errorf("failed to bind mount: %w", mountErr)
 		}
 	} else {
 		logrus.Debugf("Mounting squashfs %s to %s", device, usr)
