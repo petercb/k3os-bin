@@ -16,6 +16,7 @@ var (
 	maxBytes = 512
 )
 
+// PromptPassword prompts for a password with confirmation, returning the password and whether they match.
 func PromptPassword() (string, bool, error) {
 	fmt.Print("Please enter password for [rancher]: ")
 	p, err := MaskPassword(os.Stdin, os.Stdout)
@@ -30,6 +31,7 @@ func PromptPassword() (string, bool, error) {
 	return string(c), bytes.Equal(p, c), nil
 }
 
+// MaskPassword reads a password from the given file, masking input with asterisks.
 func MaskPassword(r *os.File, w io.Writer) ([]byte, error) {
 	var p []byte
 	var err error

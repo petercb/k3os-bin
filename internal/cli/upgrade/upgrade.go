@@ -1,3 +1,4 @@
+// Package upgrade implements the k3OS upgrade sub-command.
 package upgrade
 
 import (

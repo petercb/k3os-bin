@@ -1,3 +1,4 @@
+// Package writefile handles writing configuration files to disk.
 package writefile
 
 import (

@@ -1,6 +1,7 @@
 //go:build linux
 // +build linux
 
+// Package kernel provides utilities for querying Linux kernel information.
 package kernel
 
 import "golang.org/x/sys/unix"

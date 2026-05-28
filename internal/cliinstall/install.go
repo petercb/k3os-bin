@@ -40,13 +40,15 @@ func Run() error {
 			return err
 		}
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if _, err := f.Write(bytes); err != nil {
 		return err
 	}
 
-	f.Close()
+	if err := f.Close(); err != nil {
+		return err
+	}
 	return runCCApply()
 }
 

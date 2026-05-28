@@ -1,3 +1,4 @@
+// Package main is the entry point for the k3OS binary.
 package main
 
 // Copyright 2019 Rancher Labs, Inc.

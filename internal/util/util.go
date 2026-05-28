@@ -9,13 +9,14 @@ import (
 	"path"
 )
 
+// WriteFileAtomic writes data to a file atomically using a temporary file and rename.
 func WriteFileAtomic(filename string, data []byte, perm os.FileMode) error {
 	dir, file := path.Split(filename)
 	tempFile, err := os.CreateTemp(dir, "."+file)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tempFile.Name())
+	defer func() { _ = os.Remove(tempFile.Name()) }()
 	if _, err := tempFile.Write(data); err != nil {
 		return err
 	}
@@ -28,6 +29,7 @@ func WriteFileAtomic(filename string, data []byte, perm os.FileMode) error {
 	return os.Rename(tempFile.Name(), filename)
 }
 
+// HTTPDownloadToFile downloads a URL and writes the response body to a file atomically.
 func HTTPDownloadToFile(url, dest string) error {
 	res, err := http.Get(url)
 	if err != nil {
@@ -41,6 +43,7 @@ func HTTPDownloadToFile(url, dest string) error {
 	return WriteFileAtomic(dest, body, 0o644)
 }
 
+// HTTPLoadBytes fetches a URL and returns the response body as bytes.
 func HTTPLoadBytes(url string) ([]byte, error) {
 	var resp *http.Response
 	resp, err := http.Get(url)
@@ -62,6 +65,7 @@ func HTTPLoadBytes(url string) ([]byte, error) {
 	return nil, err
 }
 
+// ExistsAndExecutable returns true if the path exists and has executable permissions.
 func ExistsAndExecutable(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -72,6 +76,7 @@ func ExistsAndExecutable(path string) bool {
 	return mode&os.ModePerm != 0
 }
 
+// RunScript executes a script file, detecting whether it has a shebang or should use /bin/sh.
 func RunScript(path string, arg ...string) error {
 	if !ExistsAndExecutable(path) {
 		return nil
@@ -98,6 +103,7 @@ func RunScript(path string, arg ...string) error {
 	return cmd.Run()
 }
 
+// EnsureDirectoryExists creates the directory if it does not exist, or returns an error if the path is not a directory.
 func EnsureDirectoryExists(dir string) error {
 	info, err := os.Stat(dir)
 	if err == nil {

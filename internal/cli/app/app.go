@@ -1,3 +1,4 @@
+// Package app provides the top-level CLI application for k3OS.
 package app
 
 import (

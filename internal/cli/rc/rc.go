@@ -1,3 +1,4 @@
+// Package rc implements the k3OS rc (run-control) sub-command.
 package rc
 
 // forked from https://github.com/linuxkit/linuxkit

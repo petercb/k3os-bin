@@ -46,6 +46,7 @@ var (
 	}
 )
 
+// ToEnv converts a CloudConfig to a list of environment variable strings.
 func ToEnv(cfg CloudConfig) ([]string, error) {
 	data, err := convert.EncodeToMap(&cfg)
 	if err != nil {
@@ -69,6 +70,7 @@ func mapToEnv(prefix string, data map[string]interface{}) []string {
 	return result
 }
 
+// ReadConfig reads and merges all configuration sources into a CloudConfig.
 func ReadConfig() (CloudConfig, error) {
 	return readersToObject(append(readers, readLocalConfigs()...)...)
 }
