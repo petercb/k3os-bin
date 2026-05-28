@@ -1,14 +1,14 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
 
 	"github.com/petercb/k3os-bin/internal/cc"
 	"github.com/petercb/k3os-bin/internal/config"
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v3"
 )
 
 var (
@@ -20,48 +20,46 @@ var (
 )
 
 // Command `config`
-func Command() cli.Command {
-	return cli.Command{
-		Name:      "config",
-		Usage:     "configure k3OS",
-		ShortName: "cfg",
+func Command() *cli.Command {
+	return &cli.Command{
+		Name:    "config",
+		Usage:   "configure k3OS",
+		Aliases: []string{"cfg"},
 		Flags: []cli.Flag{
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "initrd",
 				Destination: &initrd,
 				Usage:       "Run initrd stage",
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "boot",
 				Destination: &bootPhase,
 				Usage:       "Run boot stage",
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "install",
 				Destination: &installPhase,
 				Usage:       "Run install stage",
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "dump",
 				Destination: &dump,
 				Usage:       "Print current configuration",
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "dump-json",
 				Destination: &dumpJSON,
 				Usage:       "Print current configuration in json",
 			},
 		},
-		Before: func(_ *cli.Context) error {
+		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
 			if os.Getuid() != 0 {
-				return errors.New("must be run as root")
+				return nil, errors.New("must be run as root")
 			}
-			return nil
+			return nil, nil
 		},
-		Action: func(*cli.Context) {
-			if err := Main(); err != nil {
-				logrus.Error(err)
-			}
+		Action: func(_ context.Context, _ *cli.Command) error {
+			return Main()
 		},
 	}
 }

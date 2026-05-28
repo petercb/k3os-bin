@@ -4,6 +4,7 @@ package main
 // SPDX-License-Identifier: Apache-2.0
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/petercb/k3os-bin/internal/transferroot"
 	"github.com/sirupsen/logrus"
+	cli "github.com/urfave/cli/v3"
 )
 
 func main() {
@@ -20,15 +22,15 @@ func main() {
 	reexec.Register("enter-root", enterchroot.Enter)
 
 	if !reexec.Init() {
-		app := app.New()
-		args := []string{app.Name}
+		cmd := app.New()
+		args := []string{cmd.Name}
 		path := filepath.Base(os.Args[0])
-		if path != app.Name && app.Command(path) != nil {
+		if path != cmd.Name && findCommand(cmd, path) != nil {
 			args = append(args, path)
 		}
 		args = append(args, os.Args[1:]...)
 		// this will bomb if the app has any non-defaulted, required flags
-		err := app.Run(args)
+		err := cmd.Run(context.Background(), args)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -44,4 +46,19 @@ func initrd() {
 	if err := enterchroot.Mount("./k3os/data", os.Args, os.Stdout, os.Stderr); err != nil {
 		logrus.Fatalf("failed to enter root: %v", err)
 	}
+}
+
+// findCommand searches the command's sub-commands for a match by name or alias.
+func findCommand(cmd *cli.Command, name string) *cli.Command {
+	for _, c := range cmd.Commands {
+		if c.Name == name {
+			return c
+		}
+		for _, a := range c.Aliases {
+			if a == name {
+				return c
+			}
+		}
+	}
+	return nil
 }

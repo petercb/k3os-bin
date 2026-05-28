@@ -1,6 +1,7 @@
 package upgrade
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,7 +9,7 @@ import (
 
 	"github.com/petercb/k3os-bin/internal/system"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v3"
 	"golang.org/x/sys/unix"
 )
 
@@ -20,78 +21,78 @@ var (
 )
 
 // Command is the `upgrade` sub-command, it performs upgrades to k3OS.
-func Command() cli.Command {
-	return cli.Command{
+func Command() *cli.Command {
+	return &cli.Command{
 		Name:  "upgrade",
 		Usage: "perform upgrades",
 		Flags: []cli.Flag{
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "k3os",
-				EnvVar:      "K3OS_UPGRADE_K3OS",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_K3OS"),
 				Destination: &upgradeK3OS,
 				Hidden:      true,
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "k3s",
-				EnvVar:      "K3OS_UPGRADE_K3S",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_K3S"),
 				Destination: &upgradeK3S,
 				Hidden:      true,
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "kernel",
 				Usage:       "upgrade the kernel",
-				EnvVar:      "K3OS_UPGRADE_KERNEL",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_KERNEL"),
 				Destination: &upgradeKernel,
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "rootfs",
 				Usage:       "upgrade k3os+k3s",
-				EnvVar:      "K3OS_UPGRADE_ROOTFS",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_ROOTFS"),
 				Destination: &upgradeRootFS,
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "remount",
 				Usage:       "pre-upgrade remount?",
-				EnvVar:      "K3OS_UPGRADE_REMOUNT",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_REMOUNT"),
 				Destination: &doRemount,
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "sync",
 				Usage:       "post-upgrade sync?",
-				EnvVar:      "K3OS_UPGRADE_SYNC",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_SYNC"),
 				Destination: &doSync,
 			},
-			cli.BoolFlag{
+			&cli.BoolFlag{
 				Name:        "reboot",
 				Usage:       "post-upgrade reboot?",
-				EnvVar:      "K3OS_UPGRADE_REBOOT",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_REBOOT"),
 				Destination: &doReboot,
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "source",
-				EnvVar:      "K3OS_UPGRADE_SOURCE",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_SOURCE"),
 				Value:       system.RootPath(),
 				Required:    true,
 				Destination: &sourceDir,
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "destination",
-				EnvVar:      "K3OS_UPGRADE_DESTINATION",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_DESTINATION"),
 				Value:       system.RootPath(),
 				Required:    true,
 				Destination: &destinationDir,
 			},
-			cli.StringFlag{
+			&cli.StringFlag{
 				Name:        "lock-file",
-				EnvVar:      "K3OS_UPGRADE_LOCK_FILE",
+				Sources:     cli.EnvVars("K3OS_UPGRADE_LOCK_FILE"),
 				Value:       system.StatePath("upgrade.lock"),
 				Hidden:      true,
 				Destination: &lockFile,
 			},
 		},
-		Before: func(c *cli.Context) error {
+		Before: func(_ context.Context, cmd *cli.Command) (context.Context, error) {
 			if destinationDir == sourceDir {
-				cli.ShowSubcommandHelp(c) //nolint:errcheck
+				_ = cli.ShowSubcommandHelp(cmd)
 				logrus.Errorf("the `destination` cannot be the `source`: %s", destinationDir)
 				os.Exit(1)
 			}
@@ -100,20 +101,23 @@ func Command() cli.Command {
 				upgradeK3OS = true
 			}
 			if !upgradeK3OS && !upgradeK3S && !upgradeKernel {
-				cli.ShowSubcommandHelp(c) //nolint:errcheck
+				_ = cli.ShowSubcommandHelp(cmd)
 				logrus.Error("must specify components to upgrade, e.g. `rootfs`, `kernel`")
 				os.Exit(1)
 			}
+			return nil, nil
+		},
+		Action: func(_ context.Context, _ *cli.Command) error {
+			Run()
 			return nil
 		},
-		Action: Run,
 	}
 }
 
 // Run the `upgrade` sub-command
 //
 //nolint:gocognit
-func Run(_ *cli.Context) {
+func Run() {
 	if err := validateSystemRoot(sourceDir); err != nil {
 		logrus.Fatal(err)
 	}

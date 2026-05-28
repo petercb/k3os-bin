@@ -4,7 +4,6 @@
 package kernel
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,5 +14,5 @@ func TestGetKernelVersion(t *testing.T) {
 	version, err := GetKernelVersion()
 	require.NoError(t, err)
 	assert.NotEmpty(t, version)
-	assert.True(t, strings.Contains(version, "."), "kernel version should contain at least one dot: %s", version)
+	assert.Contains(t, version, ".", "kernel version should contain at least one dot: %s", version)
 }

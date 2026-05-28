@@ -11,8 +11,8 @@ import (
 
 // Compile-time interface checks.
 var (
-	_ iface.FileSystem   = (*MockFileSystem)(nil)
-	_ iface.File         = (*MockFile)(nil)
+	_ iface.FileSystem    = (*MockFileSystem)(nil)
+	_ iface.File          = (*MockFile)(nil)
 	_ iface.CommandRunner = (*MockCommandRunner)(nil)
 )
 

@@ -1,33 +1,31 @@
 package install
 
 import (
+	"context"
 	"errors"
 	"os"
 
 	"github.com/petercb/k3os-bin/internal/cliinstall"
 	"github.com/petercb/k3os-bin/internal/mode"
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v3"
 )
 
 // Command returns the CLI command for installing k3OS to disk.
-func Command() cli.Command {
-	mode, _ := mode.Get()
-	return cli.Command{
+func Command() *cli.Command {
+	m, _ := mode.Get()
+	return &cli.Command{
 		Name:  "install",
 		Usage: "install k3OS",
 		Flags: []cli.Flag{},
-		Before: func(_ *cli.Context) error {
+		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
 			if os.Getuid() != 0 {
-				return errors.New("must be run as root")
+				return nil, errors.New("must be run as root")
 			}
-			return nil
+			return nil, nil
 		},
-		Action: func(*cli.Context) {
-			if err := cliinstall.Run(); err != nil {
-				logrus.Error(err)
-			}
+		Action: func(_ context.Context, _ *cli.Command) error {
+			return cliinstall.Run()
 		},
-		Hidden: mode == "local",
+		Hidden: m == "local",
 	}
 }
