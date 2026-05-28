@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ghodss/yaml"
+	"gopkg.in/yaml.v3"
 	"github.com/petercb/k3os-bin/internal/system"
 	"github.com/rancher/mapper"
 	"github.com/rancher/mapper/convert"
