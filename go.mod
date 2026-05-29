@@ -5,7 +5,7 @@ go 1.24
 require (
 	dario.cat/mergo v1.0.2
 	github.com/go-viper/mapstructure/v2 v2.5.0
-	github.com/mattn/go-isatty v0.0.16
+	github.com/mattn/go-isatty v0.0.22
 	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.7.0
 	github.com/stretchr/testify v1.11.1
