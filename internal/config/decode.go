@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"reflect"
 	"strings"
 
 	"dario.cat/mergo"
@@ -53,59 +51,12 @@ func matchName(mapKey, fieldName string) bool {
 	return false
 }
 
-func stringToBoolHookFunc() mapstructure.DecodeHookFuncType {
-	return func(from reflect.Type, to reflect.Type, data interface{}) (interface{}, error) {
-		if from.Kind() != reflect.String || to.Kind() != reflect.Bool {
-			return data, nil
-		}
-		str, _ := data.(string)
-		return strings.EqualFold(str, "true"), nil
-	}
-}
-
-func stringToSliceHookFunc() mapstructure.DecodeHookFuncType {
-	return func(from reflect.Type, to reflect.Type, data interface{}) (interface{}, error) {
-		if from.Kind() != reflect.String {
-			return data, nil
-		}
-		if to.Kind() != reflect.Slice || to.Elem().Kind() != reflect.String {
-			return data, nil
-		}
-		return []string{data.(string)}, nil
-	}
-}
-
-func mapToStringMapHookFunc() mapstructure.DecodeHookFuncType {
-	return func(from reflect.Type, to reflect.Type, data interface{}) (interface{}, error) {
-		if from.Kind() != reflect.Map || from.Key().Kind() != reflect.String {
-			return data, nil
-		}
-		if to.Kind() != reflect.Map || to.Key().Kind() != reflect.String || to.Elem().Kind() != reflect.String {
-			return data, nil
-		}
-		m, ok := data.(map[string]interface{})
-		if !ok {
-			return data, nil
-		}
-		result := make(map[string]string, len(m))
-		for k, v := range m {
-			result[k] = fmt.Sprint(v)
-		}
-		return result, nil
-	}
-}
-
-// decodeToObj decodes a map into a struct using mapstructure with custom hooks.
+// decodeToObj decodes a map into a struct using mapstructure with weak type coercion.
 func decodeToObj(data interface{}, result interface{}) error {
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		Result:    result,
-		TagName:   "json",
-		MatchName: matchName,
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			stringToBoolHookFunc(),
-			stringToSliceHookFunc(),
-			mapToStringMapHookFunc(),
-		),
+		Result:           result,
+		TagName:          "json",
+		MatchName:        matchName,
 		WeaklyTypedInput: true,
 	})
 	if err != nil {
