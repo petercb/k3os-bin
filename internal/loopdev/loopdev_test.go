@@ -16,6 +16,7 @@ import (
 type mockSyscaller struct {
 	openCalls  []openCall
 	openIdx    int
+	closeMu    sync.Mutex
 	closeCalls []int
 
 	ioctlRetIntFn      func(fd int, req uint) (int, error)
@@ -43,7 +44,9 @@ func (m *mockSyscaller) Open(path string, _ int, _ uint32) (int, error) {
 }
 
 func (m *mockSyscaller) Close(fd int) error {
+	m.closeMu.Lock()
 	m.closeCalls = append(m.closeCalls, fd)
+	m.closeMu.Unlock()
 	return nil
 }
 

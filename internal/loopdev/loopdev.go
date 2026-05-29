@@ -22,8 +22,8 @@ const (
 	loopSetStatus64  = 0x4C04
 	loopGetStatus64  = 0x4C05
 	loopCtlGetFree   = 0x4C82
-	flagReadOnly     = 1
-	flagAutoclear    = 4
+	flagReadOnly     = 1 // LO_FLAGS_READ_ONLY (1 << 0), see linux/loop.h
+	flagAutoclear    = 4 // LO_FLAGS_AUTOCLEAR (1 << 2), see linux/loop.h
 	loopControlPath  = "/dev/loop-control"
 	loopDevicePrefix = "/dev/loop"
 )
@@ -71,19 +71,11 @@ func (realSyscaller) Close(fd int) error {
 }
 
 func (realSyscaller) IoctlRetInt(fd int, req uint) (int, error) {
-	r, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), 0)
-	if errno != 0 {
-		return 0, errno
-	}
-	return int(r), nil
+	return unix.IoctlRetInt(fd, req)
 }
 
 func (realSyscaller) IoctlSetInt(fd int, req uint, val int) error {
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(val))
-	if errno != 0 {
-		return errno
-	}
-	return nil
+	return unix.IoctlSetInt(fd, req, val)
 }
 
 func (realSyscaller) IoctlLoopGetStatus64(fd int, info *loopInfo64) error {
@@ -202,7 +194,10 @@ func (d *Device) Detach() error {
 		d.closed.Store(false) // revert on failure so retry is possible
 		return fmt.Errorf("LOOP_CLR_FD on %s: %w", d.path, err)
 	}
-	return d.sc.Close(d.fd)
+	if err := d.sc.Close(d.fd); err != nil {
+		return fmt.Errorf("closing loop device fd %s: %w", d.path, err)
+	}
+	return nil
 }
 
 // SetAutoclear sets the LO_FLAGS_AUTOCLEAR flag on the loop device so the
