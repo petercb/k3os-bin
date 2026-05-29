@@ -4,6 +4,8 @@ package loopdev
 
 import (
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -208,6 +210,7 @@ func TestDetach_Error(t *testing.T) {
 	err := d.Detach()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "LOOP_CLR_FD")
+	// closed is reverted to false on failure so retry is possible
 	assert.False(t, d.closed.Load())
 }
 
@@ -344,4 +347,81 @@ func TestAttach_SetStatus64Failure_CleansUp(t *testing.T) {
 	assert.Contains(t, err.Error(), "LOOP_SET_STATUS64")
 	assert.True(t, clrFdCalled, "LOOP_CLR_FD should be called during cleanup")
 	assert.Contains(t, mock.closeCalls, 12, "loop device fd should be closed during cleanup")
+}
+
+func TestDetach_ConcurrentCalls(t *testing.T) {
+	t.Parallel()
+
+	var ioctlCalls atomic.Int32
+	var closeCalls atomic.Int32
+
+	mock := &mockSyscaller{
+		ioctlSetIntFn: func(_ int, req uint, _ int) error {
+			if req == loopClrFd {
+				ioctlCalls.Add(1)
+			}
+			return nil
+		},
+	}
+	// Override Close to count calls atomically.
+	countingMock := &concurrentMockSyscaller{
+		mockSyscaller: mock,
+		closeCalls:    &closeCalls,
+	}
+
+	d := &Device{path: "/dev/loop0", fd: 5, sc: countingMock}
+
+	const goroutines = 10
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	errs := make([]error, goroutines)
+
+	for i := range goroutines {
+		go func(idx int) {
+			defer wg.Done()
+			errs[idx] = d.Detach()
+		}(i)
+	}
+	wg.Wait()
+
+	// Exactly one goroutine should have issued LOOP_CLR_FD.
+	assert.Equal(t, int32(1), ioctlCalls.Load(), "LOOP_CLR_FD should be called exactly once")
+	// Exactly one goroutine should have closed the fd.
+	assert.Equal(t, int32(1), closeCalls.Load(), "Close should be called exactly once")
+	// All calls should succeed (no errors, no panics).
+	for _, err := range errs {
+		require.NoError(t, err)
+	}
+	assert.True(t, d.closed.Load())
+}
+
+// concurrentMockSyscaller wraps mockSyscaller with atomic close counting for concurrent tests.
+type concurrentMockSyscaller struct {
+	mockSyscaller *mockSyscaller
+	closeCalls    *atomic.Int32
+}
+
+func (c *concurrentMockSyscaller) Open(path string, flags int, perm uint32) (int, error) {
+	return c.mockSyscaller.Open(path, flags, perm)
+}
+
+func (c *concurrentMockSyscaller) Close(_ int) error {
+	c.closeCalls.Add(1)
+	return nil
+}
+
+func (c *concurrentMockSyscaller) IoctlRetInt(fd int, req uint) (int, error) {
+	return c.mockSyscaller.IoctlRetInt(fd, req)
+}
+
+func (c *concurrentMockSyscaller) IoctlSetInt(fd int, req uint, val int) error {
+	return c.mockSyscaller.IoctlSetInt(fd, req, val)
+}
+
+func (c *concurrentMockSyscaller) IoctlLoopGetStatus64(fd int, info *loopInfo64) error {
+	return c.mockSyscaller.IoctlLoopGetStatus64(fd, info)
+}
+
+func (c *concurrentMockSyscaller) IoctlLoopSetStatus64(fd int, info *loopInfo64) error {
+	return c.mockSyscaller.IoctlLoopSetStatus64(fd, info)
 }

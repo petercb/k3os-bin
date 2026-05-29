@@ -195,13 +195,13 @@ func (d *Device) Path() string {
 
 // Detach removes the association between the loop device and its backing file.
 func (d *Device) Detach() error {
-	if d.closed.Load() {
+	if !d.closed.CompareAndSwap(false, true) {
 		return nil
 	}
 	if err := d.sc.IoctlSetInt(d.fd, loopClrFd, 0); err != nil {
+		d.closed.Store(false) // revert on failure so retry is possible
 		return fmt.Errorf("LOOP_CLR_FD on %s: %w", d.path, err)
 	}
-	d.closed.Store(true)
 	return d.sc.Close(d.fd)
 }
 
