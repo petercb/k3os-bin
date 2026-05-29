@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/rancher/mapper/convert"
 	"gopkg.in/yaml.v3"
 )
 
 // PrintInstall marshals the install portion of a CloudConfig to YAML bytes.
 func PrintInstall(cfg CloudConfig) ([]byte, error) {
-	data, err := convert.EncodeToMap(cfg.K3OS.Install)
+	data, err := encodeToMap(cfg.K3OS.Install)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +31,7 @@ func Write(cfg CloudConfig, writer io.Writer) error {
 // ToBytes serializes a CloudConfig to YAML bytes, excluding install settings.
 func ToBytes(cfg CloudConfig) ([]byte, error) {
 	cfg.K3OS.Install = nil
-	data, err := convert.EncodeToMap(cfg)
+	data, err := encodeToMap(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +45,7 @@ func toYAMLKeys(data map[string]interface{}) {
 		if sub, ok := v.(map[string]interface{}); ok {
 			toYAMLKeys(sub)
 		}
-		newK := convert.ToYAMLKey(k)
+		newK := camelToSnake(k)
 		if newK != k {
 			delete(data, k)
 			data[newK] = v

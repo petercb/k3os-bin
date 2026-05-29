@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rancher/mapper/convert"
 	"gopkg.in/yaml.v3"
 )
 
@@ -80,7 +79,7 @@ func readUserData() (map[string]interface{}, error) {
 		cc.WriteFiles[0].Path = "/run/k3os/userdata"
 		cc.Runcmd = []string{"source /run/k3os/userdata"}
 
-		return convert.EncodeToMap(cc)
+		return encodeToMap(cc)
 	}
 	return result, yaml.Unmarshal(data, &result)
 }

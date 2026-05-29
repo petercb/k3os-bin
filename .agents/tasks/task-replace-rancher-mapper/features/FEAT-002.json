@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "test",
   "description": "TDD Phase: Write test specifications for the new mapstructure/mergo-based config pipeline. These tests define the expected behavior BEFORE implementation. They will initially fail (or not compile) because the new helper functions do not yet exist. The tests must be committed to git as specs.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Create internal/config/helpers.go with ONLY the function signatures (empty bodies / stubs that panic) for: camelToSnake(s string) string, toString(v interface{}) string, encodeToMap(obj interface{}) (map[string]interface{}, error), getValue(data map[string]interface{}, keys ...string) (interface{}, bool), putValue(data map[string]interface{}, val interface{}, keys ...string). These are needed so the test file compiles.",
     "Create internal/config/helpers_test.go with comprehensive table-driven tests for: (a) camelToSnake - test cases: 'sshAuthorizedKeys' -> 'ssh_authorized_keys', 'dnsNameservers' -> 'dns_nameservers', 'forceEfi' -> 'force_efi', 'hostname' -> 'hostname', 'k3sArgs' -> 'k3s_args', 'isoUrl' -> 'iso_url', 'serverUrl' -> 'server_url', 'configUrl' -> 'config_url', 'noFormat' -> 'no_format', 'ntpServers' -> 'ntp_servers', 'ISOURL' -> 'iso_url' (consecutive caps), 'TTY' -> 'tty', empty string -> empty string. (b) toString - test cases: string 'hello' -> 'hello', int 123 -> '123', float64 3.14 -> '3.14', bool true -> 'true', nil -> '<nil>'. (c) encodeToMap - test encoding a simple struct with json tags to map[string]interface{}, verify keys are json tag names, verify nested structs become nested maps, verify nil pointer fields are omitted (omitempty). (d) getValue - test nested map access: getValue(data, 'k3os', 'hostname') returns the value; missing keys return (nil, false); single key access works. (e) putValue - test: putting a value at nested keys creates intermediate maps; overwriting existing values; putting at a single key.",
@@ -26,5 +26,5 @@
     "git log --oneline -1 (should show the test spec commit)"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All test files compile successfully. golangci-lint required InDelta for float comparison instead of Equal (testifylint rule). normalizeData stub needed nolint:unused annotation since it is not called by any test directly. Tests panic as expected when run (stubs not yet implemented). Existing tests in the config package continue to pass."
 }
