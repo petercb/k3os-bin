@@ -1,0 +1,4 @@
+hostname: e2e-test-host
+k3os:
+  dns_nameservers:
+    - 8.8.8.8

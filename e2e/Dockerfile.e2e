@@ -1,0 +1,29 @@
+FROM golang:1.24-bookworm AS builder
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o /k3os .
+
+FROM golang:1.24-bookworm
+
+# Install the binary
+COPY --from=builder /k3os /usr/local/bin/k3os
+
+# Set up minimal k3os config at expected path
+RUN mkdir -p /k3os/system
+COPY e2e/testdata/config.yaml /k3os/system/config.yaml
+
+# Create a non-root test user for permission tests
+RUN useradd -m testuser
+
+# Set up test workspace
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY e2e/ ./e2e/
+
+# Run E2E tests as root first, then as non-root user
+CMD go test -tags e2e -v -count=1 ./e2e/... && \
+    su testuser -c "go test -tags e2e -v -count=1 -run TestConfigRequiresRoot ./e2e/..."

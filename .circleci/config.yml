@@ -36,10 +36,25 @@ jobs:
       - run: go build ./
       - run: ./k3os-bin
 
+  e2e:
+    machine:
+      image: ubuntu-2404:current
+    steps:
+      - checkout
+      - run:
+          name: Build E2E Docker Image
+          command: docker build -f e2e/Dockerfile.e2e -t k3os-e2e .
+      - run:
+          name: Run E2E Tests
+          command: docker run --rm --privileged k3os-e2e
+
 workflows:
   continuous:
     jobs:
       - test
+      - e2e:
+          requires:
+            - test
       - release:
           context: github
           filters:
@@ -48,3 +63,4 @@ workflows:
                 - master
           requires:
             - test
+            - e2e
