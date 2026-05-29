@@ -1,0 +1,25 @@
+{
+  "project_type": "Go Linux system utility - single static binary for K3OS boot",
+  "language": "Go 1.24",
+  "build_system": "GoReleaser v2, go build with CGO_ENABLED=0 -tags static_build",
+  "test_framework": "go test with stretchr/testify (assert, require, mock), table-driven tests preferred",
+  "build_command": "GOOS=linux CGO_ENABLED=0 go build -ldflags \"-s -w -extldflags -static\" -tags static_build -o k3os .",
+  "test_command": "go test -race -covermode=atomic -failfast ./...",
+  "verification_instructions": "1. Run 'go test ./...' (all tests pass). 2. Run 'GOOS=linux CGO_ENABLED=0 go build -o /dev/null .' (static build succeeds). 3. Run 'golangci-lint run ./...' (no lint errors).",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "go mod download",
+  "environment_constraints": "OPEN_INTERNET network - can install packages. Go 1.25.1 available via mise (project uses go 1.24). Linux sandbox so tests run directly. No root access for actual loop device testing - must use interface-based mocking.",
+  "contribution_requirements": "Conventional commits required. golangci-lint v2 with gofumpt/goimports. TDD approach. Feature branches: feature/<task-id>-<short-slug>. Documentation must be kept in sync.",
+  "key_patterns": "Interface-based DI for OS operations (see internal/iface/iface.go). Mocks via testify/mock in *_mock_test.go files. Linux-only build tags (//go:build linux). Error wrapping with fmt.Errorf + %w. Packages under internal/ are single-concern.",
+  "relevant_files": [
+    "internal/enterchroot/enter.go",
+    "internal/enterchroot/ensureloop.go",
+    "internal/enterchroot/enter_test.go",
+    "internal/iface/iface.go",
+    "go.mod",
+    "go.sum",
+    "docs/technical.md",
+    ".kiro/steering/tech.md"
+  ],
+  "directory_structure": "internal/enterchroot/ - chroot/pivot-root boot logic using loop devices. internal/iface/ - interfaces for OS operations. internal/iface/osimpl/ - real OS implementations. docs/ - project documentation. .kiro/steering/ - steering rules."
+}
