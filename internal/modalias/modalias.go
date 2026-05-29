@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/petercb/k3os-bin/internal/kernel"
-	"github.com/ryanuber/go-glob"
 	"pault.ag/go/modprobe"
 )
 
@@ -85,7 +85,11 @@ func Init() (ModuleAliases, error) {
 // Lookup resolves a module alias to its actual module name using glob matching.
 func (mod ModuleAliases) Lookup(name string) string {
 	for pattern, v := range mod.aliases {
-		if glob.Glob(pattern, name) {
+		matched, err := path.Match(pattern, name)
+		if err != nil {
+			continue
+		}
+		if matched {
 			return v
 		}
 	}
