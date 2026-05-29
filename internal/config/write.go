@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"gopkg.in/yaml.v3"
 	"github.com/rancher/mapper/convert"
+	"gopkg.in/yaml.v3"
 )
 
 // PrintInstall marshals the install portion of a CloudConfig to YAML bytes.
