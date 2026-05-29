@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/petercb/k3os-bin/internal/cli/config"
 	"github.com/petercb/k3os-bin/internal/cli/install"
@@ -39,7 +40,9 @@ func New() *cli.Command {
 		},
 		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
 			if Debug {
-				slog.SetLogLoggerLevel(slog.LevelDebug)
+				slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+					Level: slog.LevelDebug,
+				})))
 			}
 			return nil, nil
 		},

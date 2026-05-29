@@ -9,7 +9,6 @@ package transferroot
 import (
 	"errors"
 	"io"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -234,15 +233,18 @@ func Relocate() {
 		const newRoot = "/mnt"
 
 		if err := os.MkdirAll(newRoot, 0o755); err != nil {
-			log.Fatalf("Failed to mkdir %s", newRoot)
+			slog.Error("failed to mkdir", "path", newRoot, "error", err)
+			os.Exit(1)
 		}
 		if err := copyFS(newRoot); err != nil {
-			log.Fatalf("Copy root failed: %v", err)
+			slog.Error("copy root failed", "error", err)
+			os.Exit(1)
 		}
 
 		// exec /sbin/init
 		if err := syscall.Exec(nextInit, []string{nextInit}, append(os.Environ(), "K3OS_RELOCATED=true")); err != nil {
-			log.Fatalf("Cannot exec /sbin/init")
+			slog.Error("cannot exec /sbin/init", "error", err)
+			os.Exit(1)
 		}
 	}
 }

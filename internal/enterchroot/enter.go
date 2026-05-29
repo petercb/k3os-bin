@@ -36,7 +36,9 @@ var (
 // Enter the k3OS root
 func Enter() {
 	if os.Getenv("ENTER_DEBUG") == "true" {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})))
 	}
 
 	setResourceLimit(unix.RLIMIT_NOFILE, 1048576, 1048576)
@@ -91,7 +93,9 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 	}
 
 	if isDebug() {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})))
 		_ = os.Setenv("ENTER_DEBUG", "true")
 	}
 
