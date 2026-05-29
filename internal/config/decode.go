@@ -54,21 +54,16 @@ func matchName(mapKey, fieldName string) bool {
 	return false
 }
 
-// stringToBoolHookFunc converts string "true"/"false" to bool.
+// stringToBoolHookFunc converts string values to bool for bool-typed fields.
+// Matches the old rancher/mapper behavior: only "true" (case-insensitive)
+// produces true; any other string produces false.
 func stringToBoolHookFunc() mapstructure.DecodeHookFuncType {
 	return func(from reflect.Type, to reflect.Type, data interface{}) (interface{}, error) {
 		if from.Kind() != reflect.String || to.Kind() != reflect.Bool {
 			return data, nil
 		}
 		str, _ := data.(string)
-		switch strings.ToLower(str) {
-		case "true":
-			return true, nil
-		case "false":
-			return false, nil
-		default:
-			return data, nil
-		}
+		return strings.EqualFold(str, "true"), nil
 	}
 }
 
@@ -125,10 +120,25 @@ func decodeToObj(data interface{}, result interface{}) error {
 	return decoder.Decode(data)
 }
 
-// normalizeData applies fuzzy name normalization to raw config map data.
-// With mapstructure's MatchName function, normalization happens during decode.
-// This function exists for any future pre-processing needs.
-func normalizeData(_ map[string]interface{}) {
+// normalizeData applies key normalization to raw config map data,
+// converting all keys to lowercase snake_case so that different
+// key spellings for the same field merge correctly.
+func normalizeData(data map[string]interface{}) {
+	if data == nil {
+		return
+	}
+	for key, val := range data {
+		// Recursively normalize nested maps
+		if subMap, ok := val.(map[string]interface{}); ok {
+			normalizeData(subMap)
+		}
+		// Normalize key to lowercase snake_case
+		normalized := strings.ToLower(camelToSnake(key))
+		if normalized != key {
+			delete(data, key)
+			data[normalized] = val
+		}
+	}
 }
 
 // mergeData merges src into dst with override semantics.
