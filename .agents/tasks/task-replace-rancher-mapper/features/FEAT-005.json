@@ -2,7 +2,7 @@
   "id": "FEAT-005",
   "type": "fix",
   "description": "Address semantic review findings: implement pre-merge key normalization, fix bool coercion to match old behavior, add nil guard, and add test coverage for multi-source conflicting key merge",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Implement normalizeData in decode.go with nil guard and recursive key normalization to lowercase snake_case",
     "Update stringToBoolHookFunc to match old behavior: any string that is not 'true' (case-insensitive) produces false",
@@ -29,5 +29,5 @@
     "CGO_ENABLED=0 go build"
   ],
   "blocked_reason": null,
-  "findings": null
+  "findings": "All 4 review issues addressed in a single commit. normalizeData recursively normalizes keys to lowercase snake_case before merge. stringToBoolHookFunc simplified to use strings.EqualFold for strict true-only matching. Tests verify multi-source conflicting key merge, nil guard, and non-boolean string coercion. All existing tests continue to pass."
 }
