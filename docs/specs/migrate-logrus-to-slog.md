@@ -23,7 +23,7 @@
 | `logrus.Errorf(format, args...)` | `slog.Error(msg, key, value, ...)` (use structured attrs instead of formatting) |
 | `logrus.Fatal(err)` | `slog.Error(msg, ...); os.Exit(1)` |
 | `logrus.Fatalf(format, args...)` | `slog.Error(msg, key, value, ...); os.Exit(1)` |
-| `logrus.SetLevel(logrus.DebugLevel)` | `slog.SetLogLoggerLevel(slog.LevelDebug)` |
+| `logrus.SetLevel(logrus.DebugLevel)` | `slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))` |
 | `logrus.GetLevel() >= logrus.DebugLevel` | Check environment variable or package-level debug flag |
 
 ### Notes on Fatal
@@ -31,6 +31,14 @@
 `log/slog` intentionally omits a Fatal-level function. The recommended pattern is to
 log at Error level and then call `os.Exit(1)` explicitly. This keeps the logging
 library free of process-lifecycle side effects.
+
+### Notes on Level Control
+
+`slog.SetLogLoggerLevel` only controls the level threshold for messages routed through
+the standard library `log` package bridge. It does NOT affect the level of slog's own
+default handler. To change the minimum level for `slog.Debug`, `slog.Info`, etc., you
+must replace the default handler by calling `slog.SetDefault` with a new handler that
+has the desired `Level` set in its `HandlerOptions`.
 
 ### Notes on Formatted Messages
 
