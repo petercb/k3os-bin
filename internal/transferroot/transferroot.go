@@ -9,12 +9,10 @@ package transferroot
 import (
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"syscall"
-
-	"github.com/sirupsen/logrus"
 
 	"golang.org/x/sys/unix"
 )
@@ -112,7 +110,7 @@ func copyFS(newRoot string) error {
 			return filepath.SkipDir
 		}
 		dest := filepath.Join(newRoot, path)
-		logrus.Debugf("Moving %s => %s", path, dest)
+		slog.Debug("moving", "src", path, "dst", dest)
 		switch {
 		case info.Mode().IsDir():
 			// already done the directories
@@ -226,7 +224,8 @@ func Relocate() {
 	// we could be booting off ISO, disk where we do not need this
 	var sfs unix.Statfs_t
 	if err := unix.Statfs(".", &sfs); err != nil {
-		logrus.Fatalf("Cannot statfs cwd: %v", err)
+		slog.Error("cannot statfs cwd", "error", err)
+		os.Exit(1)
 	}
 	const ramfsMagic = -2054924042
 	const tmpfsMagic = 0x01021994
@@ -234,15 +233,18 @@ func Relocate() {
 		const newRoot = "/mnt"
 
 		if err := os.MkdirAll(newRoot, 0o755); err != nil {
-			log.Fatalf("Failed to mkdir %s", newRoot)
+			slog.Error("failed to mkdir", "path", newRoot, "error", err)
+			os.Exit(1)
 		}
 		if err := copyFS(newRoot); err != nil {
-			log.Fatalf("Copy root failed: %v", err)
+			slog.Error("copy root failed", "error", err)
+			os.Exit(1)
 		}
 
 		// exec /sbin/init
 		if err := syscall.Exec(nextInit, []string{nextInit}, append(os.Environ(), "K3OS_RELOCATED=true")); err != nil {
-			log.Fatalf("Cannot exec /sbin/init")
+			slog.Error("cannot exec /sbin/init", "error", err)
+			os.Exit(1)
 		}
 	}
 }

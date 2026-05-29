@@ -15,7 +15,7 @@ The `k3os-bin` project is a Go application that produces a single, statically-li
 | YAML | `gopkg.in/yaml.v3` | v3.0.1 |
 | Config Decode | `go-viper/mapstructure/v2` | v2.5.0 |
 | Config Merge | `dario.cat/mergo` | v1.0.2 |
-| Logging | `sirupsen/logrus` | v1.9.0 |
+| Logging | `log/slog` (stdlib) | - |
 | Module Loading | `pault.ag/go/modprobe` | v0.1.2 |
 | Container Reexec | `moby/moby/pkg/reexec` | v20.10.17 (target: `moby/sys/reexec`) |
 | File Copy | `otiai10/copy` | v1.7.0 |
@@ -167,10 +167,10 @@ Workflow: continuous
 
 ### Logging
 
-- Use `logrus` for structured logging throughout
+- Use `log/slog` (Go stdlib) for structured logging throughout
 - Debug-level for detailed operational info
-- Error/Fatal for unrecoverable failures
-- The `rc` package uses `log` (stdlib) since it runs before logrus initialization — this should be migrated
+- Error-level for unrecoverable failures (followed by `os.Exit(1)` where fatal)
+- Debug logging is enabled via the `--debug` flag in the CLI app
 
 ### Error Handling Patterns
 

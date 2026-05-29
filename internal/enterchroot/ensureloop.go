@@ -6,10 +6,10 @@ package enterchroot
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/petercb/k3os-bin/internal/mount"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -17,11 +17,11 @@ func mountProc() error {
 	if ok, err := mount.Mounted("/proc"); ok && err == nil {
 		return nil
 	}
-	logrus.Debug("mkdir /proc")
+	slog.Debug("mkdir /proc")
 	if err := os.MkdirAll("/proc", 0o755); err != nil {
 		return err
 	}
-	logrus.Debug("mount /proc")
+	slog.Debug("mount /proc")
 	return mount.ForceMount("proc", "/proc", "proc", "")
 }
 
@@ -29,22 +29,22 @@ func mountDev() error {
 	if files, err := os.ReadDir("/dev"); err == nil && len(files) > 2 {
 		return nil
 	}
-	logrus.Debug("mkdir /dev")
+	slog.Debug("mkdir /dev")
 	if err := os.MkdirAll("/dev", 0o755); err != nil {
 		return err
 	}
-	logrus.Debug("mounting /dev")
+	slog.Debug("mounting /dev")
 	return mount.ForceMount("none", "/dev", "devtmpfs", "")
 }
 
 func mknod(path string, mode uint32, major, minor int) error {
 	if fi, err := os.Stat(path); err == nil {
-		logrus.Debugf("mknod: %s exists [%s,%d]", path, fi.Name(), fi.Mode())
+		slog.Debug("mknod: already exists", "path", path, "name", fi.Name(), "mode", fi.Mode())
 		return nil
 	}
 
 	dev := (major << 8) | (minor & 0xff) | ((minor & 0xfff00) << 12)
-	logrus.Debugf("mknod %s", path)
+	slog.Debug("mknod", "path", path)
 	return unix.Mknod(path, mode, dev)
 }
 

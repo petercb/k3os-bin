@@ -3,12 +3,12 @@ package writefile
 
 import (
 	"fmt"
+	"log/slog"
 	"path"
 
 	"github.com/petercb/k3os-bin/internal/config"
 	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/petercb/k3os-bin/internal/util"
-	"github.com/sirupsen/logrus"
 )
 
 // WriteFiles writes all configured write_files entries.
@@ -16,17 +16,17 @@ func WriteFiles(cfg *config.CloudConfig, fs iface.FileSystem, cmd iface.CommandR
 	for i, f := range cfg.WriteFiles {
 		c, err := util.DecodeContent(f.Content, f.Encoding)
 		if err != nil {
-			logrus.Errorf("failed to decode content from write_files item [%d]: %v", i, err)
+			slog.Error("failed to decode content from write_files item", "index", i, "error", err)
 			continue
 		}
 		f.Content = string(c)
 		f.Encoding = ""
 		p, err := WriteFile(&f, "/", fs, cmd)
 		if err != nil {
-			logrus.WithFields(logrus.Fields{"err": err, "path": p}).Errorln("failed to write file")
+			slog.Error("failed to write file", "path", p, "error", err)
 			continue
 		}
-		logrus.Infof("wrote file %s to filesystem", p)
+		slog.Info("wrote file to filesystem", "path", p)
 	}
 }
 
@@ -37,7 +37,7 @@ func WriteFile(f *config.File, root string, fs iface.FileSystem, cmd iface.Comma
 	}
 	p := path.Join(root, f.Path)
 	d := path.Dir(p)
-	logrus.Infof("writing file to %q", d)
+	slog.Info("writing file", "dir", d)
 	if err := ensureDirectoryExists(fs, d); err != nil {
 		return "", err
 	}

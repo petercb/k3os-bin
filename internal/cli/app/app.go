@@ -4,13 +4,14 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/petercb/k3os-bin/internal/cli/config"
 	"github.com/petercb/k3os-bin/internal/cli/install"
 	"github.com/petercb/k3os-bin/internal/cli/rc"
 	"github.com/petercb/k3os-bin/internal/cli/upgrade"
 	"github.com/petercb/k3os-bin/internal/version"
-	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v3"
 )
 
@@ -39,7 +40,9 @@ func New() *cli.Command {
 		},
 		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
 			if Debug {
-				logrus.SetLevel(logrus.DebugLevel)
+				slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+					Level: slog.LevelDebug,
+				})))
 			}
 			return nil, nil
 		},
