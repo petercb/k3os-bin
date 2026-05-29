@@ -10,7 +10,7 @@ require (
 	github.com/otiai10/copy v1.7.0
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v3 v3.9.0
-	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261
+	golang.org/x/sys v0.33.0
 	gopkg.in/yaml.v3 v3.0.1
 	pault.ag/go/modprobe v0.1.2
 )
@@ -24,7 +24,4 @@ require (
 	pault.ag/go/topsort v0.0.0-20160530003732-f98d2ad46e1a // indirect
 )
 
-require (
-	github.com/freddierice/go-losetup/v2 v2.0.1
-	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
-)
+require golang.org/x/term v0.32.0

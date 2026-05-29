@@ -18,7 +18,7 @@
 | `github.com/stretchr/testify` | Test assertions and mocking |
 | `github.com/pkg/errors` | Error wrapping (migration target: `fmt.Errorf` + `%w`) |
 | `pault.ag/go/modprobe` | Kernel module loading |
-| `github.com/freddierice/go-losetup/v2` | Loop device management |
+| `internal/loopdev` (uses `golang.org/x/sys/unix`) | Loop device management |
 | `golang.org/x/sys` | Linux syscalls |
 
 ## Build & Release

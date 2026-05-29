@@ -58,3 +58,15 @@ type Mounter interface {
 type HostnameSetter interface {
 	SetHostname(name string) error
 }
+
+// LoopDevice abstracts a single attached loop device.
+type LoopDevice interface {
+	Path() string
+	Detach() error
+	SetAutoclear() error
+}
+
+// LoopAttacher abstracts loop device attachment operations.
+type LoopAttacher interface {
+	Attach(backingFile string, offset uint64, readOnly bool) (LoopDevice, error)
+}

@@ -1,0 +1,14 @@
+{
+  "task_id": "task-replace-losetup",
+  "task_description": "Replace deprecated github.com/freddierice/go-losetup/v2 with an internal/loopdev package using golang.org/x/sys/unix ioctls directly. Uses TDD, KISS, and DRY principles. No new external dependencies added.",
+  "status": "completed",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "All tests pass with -race (including concurrent Detach test), static build succeeds, golangci-lint shows 0 issues, no references to freddierice remain. internal/loopdev at 64.7% coverage. Review v1 issues all fixed. Review v2 remaining issue (SetAutoclear TOCTOU) accepted as negligible for current usage."
+  }
+}

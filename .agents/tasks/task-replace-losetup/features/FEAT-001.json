@@ -1,0 +1,36 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create internal/loopdev package as a thin wrapper around golang.org/x/sys/unix ioctls, replacing github.com/freddierice/go-losetup/v2. Define a LoopAttacher interface in internal/iface/iface.go for testability, write tests first (TDD), then implement.",
+  "status": "completed",
+  "steps": [
+    "Step 1 - Add LoopAttacher interface to internal/iface/iface.go: Add a LoopAttacher interface with methods: Attach(backingFile string, offset uint64, readOnly bool) (LoopDevice, error). Also add a LoopDevice interface with methods: Path() string, Detach() error, SetAutoclear() error. This follows the existing interface pattern (Mounter, ModuleLoader, etc.).",
+    "Step 2 - Create internal/loopdev/loopdev.go with build tag //go:build linux: Define constants for loop ioctls (LOOP_SET_FD=0x4C00, LOOP_CLR_FD=0x4C01, LOOP_SET_STATUS64=0x4C04, LOOP_GET_STATUS64=0x4C05, LOOP_CTL_GET_FREE=0x4C82). Define loopInfo64 struct matching Linux struct loop_info64 (Device uint64, INode uint64, RDevice uint64, Offset uint64, SizeLimit uint64, Number uint32, EncryptType uint32, EncryptKeySize uint32, Flags uint32, FileName [64]byte, CryptName [64]byte, EncryptKey [32]byte, Init [2]uint64). Define flag constants: FlagReadOnly=1, FlagAutoclear=4. Implement Attacher struct that satisfies iface.LoopAttacher. Implement Device struct that satisfies iface.LoopDevice. The Attach method: opens the backing file, calls LOOP_CTL_GET_FREE on /dev/loop-control to get a free device number, opens /dev/loopN, calls LOOP_SET_FD ioctl with the backing file fd, then LOOP_SET_STATUS64 to set offset and read-only flag. Detach calls LOOP_CLR_FD. SetAutoclear calls LOOP_GET_STATUS64 then LOOP_SET_STATUS64 with FlagAutoclear OR'd in.",
+    "Step 3 - Create internal/loopdev/loopdev_test.go with build tag //go:build linux: Write unit tests using an interface for the underlying syscall operations so tests don't need root. Use table-driven tests covering: Attach happy path (mock syscalls), Attach with file open error, Attach with LOOP_CTL_GET_FREE error, Detach happy path, Detach error, SetAutoclear happy path. Since actual ioctl calls require root and real loop devices, test the logic flow by extracting the ioctl calls behind a small internal interface (syscaller) that can be mocked. Alternatively, test the public interface integration at a higher level by verifying the wiring in enter.go works through the iface.LoopAttacher mock.",
+    "Step 4 - Update internal/enterchroot/enter.go: Replace the import of github.com/freddierice/go-losetup/v2 with the new internal/loopdev package. Change the Mount function signature or add a package-level variable of type iface.LoopAttacher (defaulting to loopdev.Attacher{}) so tests can inject a mock. Replace losetup.Attach(root, offset, true) with the LoopAttacher.Attach call. Replace dev.Path(), dev.Detach(), dev.GetInfo()/dev.SetInfo() with the LoopDevice interface methods (Path, Detach, SetAutoclear).",
+    "Step 5 - Update internal/enterchroot/enter_test.go: Add tests for the Mount function's loop device path using a mock LoopAttacher. Test scenarios: successful attach and detach, attach failure returns error, SetAutoclear is called after delay (can test via mock expectations).",
+    "Step 6 - Update go.mod: Remove github.com/freddierice/go-losetup/v2 from require. Upgrade golang.org/x/sys to latest stable (v0.45.0 or latest). Run 'go mod tidy' to clean up go.sum.",
+    "Step 7 - Update documentation: In docs/technical.md, replace the 'Loop Devices | freddierice/go-losetup/v2 | v2.0.1' row with 'Loop Devices | internal/loopdev (golang.org/x/sys/unix ioctls) | - '. In .kiro/steering/tech.md, replace the '| github.com/freddierice/go-losetup/v2 | Loop device management |' row with '| internal/loopdev (uses golang.org/x/sys/unix) | Loop device management |'.",
+    "Step 8 - Create docs/specs/replace-go-losetup.md: Write a spec document describing the migration rationale (unmaintained dep, KISS - use existing golang.org/x/sys/unix, no new external deps), the approach (thin ioctl wrapper), and the interface design."
+  ],
+  "acceptance_criteria": [
+    "No import of github.com/freddierice/go-losetup/v2 anywhere in the codebase",
+    "go.mod does not contain github.com/freddierice/go-losetup/v2",
+    "'go test ./...' passes with no failures",
+    "'GOOS=linux CGO_ENABLED=0 go build -o /dev/null .' succeeds (static build)",
+    "'golangci-lint run ./...' passes with no errors",
+    "internal/loopdev package exists with LoopInfo64-based ioctl implementation",
+    "iface.LoopAttacher and iface.LoopDevice interfaces exist in internal/iface/iface.go",
+    "internal/enterchroot/enter.go uses iface.LoopAttacher for loop device operations",
+    "Tests in internal/loopdev/ and internal/enterchroot/ cover the new code paths",
+    "docs/technical.md and .kiro/steering/tech.md reference internal/loopdev instead of go-losetup"
+  ],
+  "verification": [
+    "go test -race -covermode=atomic -failfast ./...",
+    "GOOS=linux CGO_ENABLED=0 go build -ldflags '-s -w -extldflags -static' -tags static_build -o /dev/null .",
+    "golangci-lint run ./...",
+    "grep -r 'freddierice' . --include='*.go' --include='go.mod' | grep -v '.git' | wc -l (should be 0)"
+  ],
+  "blocked_reason": null,
+  "findings": "golang.org/x/sys upgraded to v0.33.0 (latest stable at time of implementation). The race detector in Go 1.25 has strict checkptr validation which required the syscaller interface to use typed methods (IoctlRetInt, IoctlSetInt, IoctlLoopGetStatus64, IoctlLoopSetStatus64) rather than a generic Ioctl(fd, req, uintptr) to avoid unsafe pointer arithmetic in tests. golang.org/x/term was also upgraded to v0.32.0 as a transitive dependency. Review fixes applied: Device.closed changed from bool to sync/atomic.Bool, SetAutoclear guarded with closed check, LOOP_CLR_FD cleanup error logged via slog. v2 review fix: Detach now uses CompareAndSwap(false, true) to prevent double-call TOCTOU, with revert on ioctl failure. TestDetach_ConcurrentCalls added to verify only one goroutine issues LOOP_CLR_FD."
+}

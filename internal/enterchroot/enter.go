@@ -16,8 +16,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/freddierice/go-losetup/v2"
 	"github.com/moby/sys/reexec"
+	"github.com/petercb/k3os-bin/internal/iface"
+	"github.com/petercb/k3os-bin/internal/loopdev"
 	"github.com/petercb/k3os-bin/internal/mount"
 	"golang.org/x/sys/unix"
 )
@@ -31,6 +32,10 @@ var (
 	// DebugCmdline is the kernel cmdline parameter that enables debug logging.
 	DebugCmdline        = ""
 	procFilesystemsPath = "/proc/filesystems"
+	// loopAttacher is the default LoopAttacher implementation; override in tests.
+	loopAttacher iface.LoopAttacher = loopdev.NewAttacher()
+	// ensureLoopFn is the default ensureloop implementation; override in tests.
+	ensureLoopFn = ensureloop
 )
 
 // Enter the k3OS root
@@ -88,7 +93,7 @@ func isDebug() bool {
 
 // Mount sets up the k3OS root filesystem and executes the enter-root process.
 func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
-	if err := ensureloop(); err != nil {
+	if err := ensureLoopFn(); err != nil {
 		return err
 	}
 
@@ -116,7 +121,7 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 
 	if !stat.IsDir() {
 		slog.Debug("attaching file", "root", root, "offset", offset)
-		dev, err := losetup.Attach(root, offset, true)
+		dev, err := loopAttacher.Attach(root, offset, true)
 		if err != nil {
 			return fmt.Errorf("creating loopback device: %w", err)
 		}
@@ -130,15 +135,8 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 		go func() {
 			// Assume that after 3 seconds loop back device has been mounted
 			time.Sleep(3 * time.Second)
-			info, err := dev.GetInfo()
-			if err != nil {
-				return
-			}
-
-			info.Flags |= losetup.FlagsAutoClear
-			err = dev.SetInfo(info)
-			if err != nil {
-				return
+			if err := dev.SetAutoclear(); err != nil {
+				slog.Error("failed to set autoclear", "device", dev.Path(), "error", err)
 			}
 		}()
 	}
