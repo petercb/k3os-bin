@@ -457,12 +457,12 @@ echo "hello world"
 		require.NoError(t, err)
 		require.NotNil(t, res)
 
-		// Verification: converted to writeFiles map
-		runCmd, ok := res["runCmd"].([]interface{})
+		// Verification: converted to write_files map (yaml tag names from round-trip)
+		runCmd, ok := res["run_cmd"].([]interface{})
 		require.True(t, ok)
 		assert.Contains(t, runCmd, "source /run/k3os/userdata")
 
-		writeFiles, ok := res["writeFiles"].([]interface{})
+		writeFiles, ok := res["write_files"].([]interface{})
 		require.True(t, ok)
 		require.Len(t, writeFiles, 1)
 
@@ -485,11 +485,11 @@ echo "hello world"
 		require.NoError(t, err)
 		require.NotNil(t, res)
 
-		runCmd, ok := res["runCmd"].([]interface{})
+		runCmd, ok := res["run_cmd"].([]interface{})
 		require.True(t, ok)
 		assert.Contains(t, runCmd, "source /run/k3os/userdata")
 
-		writeFiles, ok := res["writeFiles"].([]interface{})
+		writeFiles, ok := res["write_files"].([]interface{})
 		require.True(t, ok)
 		require.Len(t, writeFiles, 1)
 

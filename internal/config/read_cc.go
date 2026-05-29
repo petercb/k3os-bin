@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
-	"github.com/rancher/mapper/convert"
 )
 
 var (
@@ -80,7 +79,20 @@ func readUserData() (map[string]interface{}, error) {
 		cc.WriteFiles[0].Path = "/run/k3os/userdata"
 		cc.Runcmd = []string{"source /run/k3os/userdata"}
 
-		return convert.EncodeToMap(cc)
+		return encodeCloudConfigToMap(cc)
 	}
 	return result, yaml.Unmarshal(data, &result)
+}
+
+// encodeCloudConfigToMap converts a CloudConfig to a map via YAML round-trip.
+func encodeCloudConfigToMap(cc CloudConfig) (map[string]interface{}, error) {
+	raw, err := yaml.Marshal(cc)
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]interface{}{}
+	if err := yaml.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

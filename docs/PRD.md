@@ -108,7 +108,7 @@ CLI Usage (user mode):
 | Migrate `urfave/cli` v1 → v3 | Medium |
 | Replace `github.com/pkg/errors` with `fmt.Errorf` + `%w` | Medium |
 | Migrate `moby/moby/pkg/reexec` to `github.com/moby/sys/reexec` | Medium |
-| Evaluate replacing `github.com/rancher/mapper` with standard alternatives | Low |
+| Evaluate replacing `github.com/rancher/mapper` with standard alternatives | Done |
 
 ### Future Enhancements
 

@@ -5,9 +5,9 @@ import (
 	"os"
 	"os/exec"
 
-	"gopkg.in/yaml.v3"
 	"github.com/petercb/k3os-bin/internal/config"
 	"github.com/petercb/k3os-bin/internal/questions"
+	"gopkg.in/yaml.v3"
 )
 
 // Run executes the interactive k3OS installation and configuration workflow.
