@@ -3,39 +3,27 @@ package config
 import (
 	"testing"
 
-	"github.com/rancher/mapper"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestFuzzyNames(t *testing.T) {
-	f := &FuzzyNames{}
-	schema := &mapper.Schema{
-		ResourceFields: map[string]mapper.Field{
-			"passphrases":       {},
-			"sshAuthorizedKeys": {},
-			"environments":      {},
-		},
-	}
-	require.NoError(t, f.ModifySchema(schema, nil))
-
+func TestMatchName_Aliases(t *testing.T) {
 	tests := []struct {
 		name      string
-		input     map[string]interface{}
-		wantKey   string
-		wantValue interface{}
+		mapKey    string
+		fieldName string
+		expected  bool
 	}{
-		{"password maps to passphrase", map[string]interface{}{"password": "my-password"}, "passphrase", "my-password"},
-		{"pass maps to passphrase", map[string]interface{}{"pass": "my-pass"}, "passphrase", "my-pass"},
-		{"ssh_authorized_key maps to plural", map[string]interface{}{"ssh_authorized_key": "k"}, "sshAuthorizedKeys", "k"},
-		{"environment maps to environments", map[string]interface{}{"environment": "env"}, "environments", "env"},
+		{"password maps to passphrase", "password", "passphrase", true},
+		{"pass maps to passphrase", "pass", "passphrase", true},
+		{"ssh_authorized_key maps to sshAuthorizedKeys", "ssh_authorized_key", "sshAuthorizedKeys", true},
+		{"environment maps to environments", "environment", "environments", true},
+		{"unrelated field does not match", "hostname", "password", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, f.ToInternal(tt.input))
-			assert.Contains(t, tt.input, tt.wantKey)
-			assert.Equal(t, tt.wantValue, tt.input[tt.wantKey])
+			result := matchName(tt.mapKey, tt.fieldName)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "refactor",
   "description": "Implement the rancher/mapper replacement: swap all usages with go-viper/mapstructure/v2 and dario.cat/mergo. Make all TDD specs pass. Remove the rancher/mapper dependency entirely.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Run 'go get github.com/go-viper/mapstructure/v2' and 'go get dario.cat/mergo' to add the new dependencies",
     "Implement internal/config/helpers.go fully: (a) camelToSnake - iterate runes, insert underscore before uppercase that follows lowercase or before uppercase followed by lowercase when preceded by uppercase (handle consecutive caps like 'ISOURL' -> 'iso_url', 'TTY' -> 'tty', 'DNS' -> 'dns'). (b) toString - use fmt.Sprint(v). (c) encodeToMap - JSON marshal then unmarshal into map[string]interface{} with json.Number support (UseNumber), matching the existing convert.EncodeToMap behavior. (d) getValue - walk nested maps by keys, return (value, true) or (nil, false). (e) putValue - walk/create nested maps by keys, set final value.",

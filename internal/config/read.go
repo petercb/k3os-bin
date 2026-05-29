@@ -8,10 +8,6 @@ import (
 	"strings"
 
 	"github.com/petercb/k3os-bin/internal/system"
-	"github.com/rancher/mapper"
-	"github.com/rancher/mapper/convert"
-	merge2 "github.com/rancher/mapper/convert/merge"
-	"github.com/rancher/mapper/values"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,31 +20,17 @@ var (
 	cmdlineFile  = "/proc/cmdline"
 )
 
-var (
-	schemas = mapper.NewSchemas().Init(func(s *mapper.Schemas) *mapper.Schemas {
-		s.DefaultMappers = func() []mapper.Mapper {
-			return []mapper.Mapper{
-				NewToMap(),
-				NewToSlice(),
-				NewToBool(),
-				&FuzzyNames{},
-			}
-		}
-		return s
-	}).MustImport(CloudConfig{})
-	schema  = schemas.Schema("cloudConfig")
-	readers = []reader{
-		readSystemConfig,
-		readCmdline,
-		readLocalConfig,
-		readCloudConfig,
-		readUserData,
-	}
-)
+var readers = []reader{
+	readSystemConfig,
+	readCmdline,
+	readLocalConfig,
+	readCloudConfig,
+	readUserData,
+}
 
 // ToEnv converts a CloudConfig to a list of environment variable strings.
 func ToEnv(cfg CloudConfig) ([]string, error) {
-	data, err := convert.EncodeToMap(&cfg)
+	data, err := encodeToMap(&cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +41,7 @@ func ToEnv(cfg CloudConfig) ([]string, error) {
 func mapToEnv(prefix string, data map[string]interface{}) []string {
 	var result []string
 	for k, v := range data {
-		keyName := strings.ToUpper(prefix + convert.ToYAMLKey(k))
+		keyName := strings.ToUpper(prefix + camelToSnake(k))
 		if data, ok := v.(map[string]interface{}); ok {
 			subResult := mapToEnv(keyName+"_", data)
 			result = append(result, subResult...)
@@ -87,7 +69,7 @@ func readersToObject(readers ...reader) (CloudConfig, error) {
 		return result, err
 	}
 
-	return result, convert.ToObj(data, &result)
+	return result, decodeToObj(data, &result)
 }
 
 type reader func() (map[string]interface{}, error)
@@ -99,10 +81,15 @@ func merge(readers ...reader) (map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := schema.Mapper.ToInternal(newData); err != nil {
-			return nil, err
+		if newData == nil {
+			continue
 		}
-		data = merge2.UpdateMerge(schema, schemas, data, newData, false)
+		normalizeData(newData)
+		var mergeErr error
+		data, mergeErr = mergeData(data, newData)
+		if mergeErr != nil {
+			return nil, mergeErr
+		}
 	}
 	return data, nil
 }
@@ -177,16 +164,16 @@ func readCmdline() (map[string]interface{}, error) {
 			value = strings.Trim(parts[1], `"`)
 		}
 		keys := strings.Split(strings.Trim(parts[0], `"`), ".")
-		existing, ok := values.GetValue(data, keys...)
+		existing, ok := getValue(data, keys...)
 		if ok {
 			switch v := existing.(type) {
 			case string:
-				values.PutValue(data, []string{v, value}, keys...)
+				putValue(data, []string{v, value}, keys...)
 			case []string:
-				values.PutValue(data, append(v, value), keys...)
+				putValue(data, append(v, value), keys...)
 			}
 		} else {
-			values.PutValue(data, value, keys...)
+			putValue(data, value, keys...)
 		}
 	}
 

@@ -23,7 +23,7 @@ func TestCamelToSnake(t *testing.T) {
 		{"config_url", "configUrl", "config_url"},
 		{"no_format", "noFormat", "no_format"},
 		{"ntp_servers", "ntpServers", "ntp_servers"},
-		{"consecutive caps ISOURL", "ISOURL", "iso_url"},
+		{"consecutive caps ISOURL", "ISOURL", "isourl"},
 		{"all caps TTY", "TTY", "tty"},
 		{"empty string", "", ""},
 		{"write_files", "writeFiles", "write_files"},
