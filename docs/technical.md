@@ -12,8 +12,9 @@ The `k3os-bin` project is a Go application that produces a single, statically-li
 |-----------|-----------|---------|
 | Language | Go | 1.24 |
 | CLI Framework | `urfave/cli` | v1.22.9 (target: v3) |
-| YAML | `ghodss/yaml` | v1.0.0 |
-| Config Schema | `rancher/mapper` | v0 |
+| YAML | `gopkg.in/yaml.v3` | v3.0.1 |
+| Config Decode | `go-viper/mapstructure/v2` | v2.5.0 |
+| Config Merge | `dario.cat/mergo` | v1.0.2 |
 | Logging | `sirupsen/logrus` | v1.9.0 |
 | Module Loading | `pault.ag/go/modprobe` | v0.1.2 |
 | Container Reexec | `moby/moby/pkg/reexec` | v20.10.17 (target: `moby/sys/reexec`) |
@@ -321,7 +322,7 @@ Configuration is read from multiple sources and merged in priority order:
 4. Cloud-config data sources
 5. Kernel command line parameters (`k3os.*`)
 
-The `rancher/mapper` library provides schema-based type coercion (string→bool, string→[]string, fuzzy field names).
+The `go-viper/mapstructure/v2` library provides struct decoding with custom hooks for type coercion (string to bool, string to []string, map normalization) and fuzzy field name matching. `dario.cat/mergo` handles deep map merging with override semantics.
 
 ### Component Version Management
 
