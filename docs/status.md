@@ -39,7 +39,7 @@
 - Near-zero test coverage (only 1 test file: `internal/config/read_test.go`)
 - Uses deprecated `github.com/pkg/errors` in several packages
 - `urfave/cli` v1 is unmaintained; v3 is the current version
-- `rc` package uses `log` (stdlib) instead of `logrus` for consistency
+- `rc` package uses `log` (stdlib) instead of `log/slog` for consistency
 
 ## Process Violations
 
