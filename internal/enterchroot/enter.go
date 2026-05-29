@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +19,6 @@ import (
 	"github.com/freddierice/go-losetup/v2"
 	"github.com/moby/sys/reexec"
 	"github.com/petercb/k3os-bin/internal/mount"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -36,7 +36,7 @@ var (
 // Enter the k3OS root
 func Enter() {
 	if os.Getenv("ENTER_DEBUG") == "true" {
-		logrus.SetLevel(logrus.DebugLevel)
+		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
 
 	setResourceLimit(unix.RLIMIT_NOFILE, 1048576, 1048576)
@@ -45,10 +45,11 @@ func Enter() {
 	// https://github.com/golang/go/wiki/LinuxKernelSignalVectorBug
 	setResourceLimit(unix.RLIMIT_MEMLOCK, 67108864, 67108864)
 
-	logrus.Debug("Running bootstrap")
+	slog.Debug("running bootstrap")
 	err := run(os.Getenv("ENTER_DATA"))
 	if err != nil {
-		logrus.Fatal(err)
+		slog.Error("bootstrap failed", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -90,10 +91,7 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 	}
 
 	if isDebug() {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
-
-	if logrus.GetLevel() >= logrus.DebugLevel {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
 		_ = os.Setenv("ENTER_DEBUG", "true")
 	}
 
@@ -105,7 +103,7 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 	_ = os.Setenv("ENTER_DATA", dataDir)
 	_ = os.Setenv("ENTER_ROOT", root)
 
-	logrus.Debugf("Using data [%s] root [%s]", dataDir, root)
+	slog.Debug("using data and root", "data", dataDir, "root", root)
 
 	stat, err := os.Stat(root)
 	if err != nil {
@@ -113,14 +111,14 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 	}
 
 	if !stat.IsDir() {
-		logrus.Debugf("Attaching file [%s] offset [%d]", root, offset)
+		slog.Debug("attaching file", "root", root, "offset", offset)
 		dev, err := losetup.Attach(root, offset, true)
 		if err != nil {
 			return fmt.Errorf("creating loopback device: %w", err)
 		}
 		defer func() {
 			if dderr := dev.Detach(); dderr != nil {
-				logrus.Errorf("failed detaching file [%s] offset [%d]: %v", root, offset, dderr)
+				slog.Error("failed detaching file", "root", root, "offset", offset, "error", dderr)
 			}
 		}()
 		_ = os.Setenv("ENTER_DEVICE", dev.Path())
@@ -141,7 +139,7 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 		}()
 	}
 
-	logrus.Debugf("Running enter-root %v", os.Args[1:])
+	slog.Debug("running enter-root", "args", os.Args[1:])
 	if os.Getpid() == 1 {
 		if err := syscall.Exec(os.Args[0], append([]string{"enter-root"}, args[1:]...), os.Environ()); err != nil {
 			return fmt.Errorf("failed to exec enter-root: %w", err)
@@ -235,7 +233,7 @@ func run(data string) error {
 	root := os.Getenv("ENTER_ROOT")
 	device := os.Getenv("ENTER_DEVICE")
 
-	logrus.Debugf("Using root %s %s", root, device)
+	slog.Debug("using root", "root", root, "device", device)
 
 	usr := filepath.Join(data, "usr")
 	dotRoot := filepath.Join(data, ".base")
@@ -247,12 +245,12 @@ func run(data string) error {
 	}
 
 	if device == "" {
-		logrus.Debugf("Bind mounting %s to %s", root, usr)
+		slog.Debug("bind mounting", "src", root, "dst", usr)
 		if mountErr := mount.Mount(root, usr, "none", "bind"); mountErr != nil {
 			return fmt.Errorf("failed to bind mount: %w", mountErr)
 		}
 	} else {
-		logrus.Debugf("Mounting squashfs %s to %s", device, usr)
+		slog.Debug("mounting squashfs", "device", device, "dst", usr)
 		squashErr := checkSquashfs()
 		err = mount.Mount(device, usr, "squashfs", "ro")
 		if err != nil {
@@ -276,7 +274,7 @@ func run(data string) error {
 		}
 	}
 
-	logrus.Debugf("pivoting to . .base")
+	slog.Debug("pivoting to . .base")
 	if err := syscall.PivotRoot(".", ".base"); err != nil {
 		return fmt.Errorf("pivot_root failed: %w", err)
 	}
@@ -315,7 +313,7 @@ func checkSquashfs() error {
 func inProcFS() bool {
 	bytes, err := os.ReadFile(procFilesystemsPath)
 	if err != nil {
-		logrus.Errorf("Failed to read %s: %v", procFilesystemsPath, err)
+		slog.Error("failed to read filesystem list", "path", procFilesystemsPath, "error", err)
 		return false
 	}
 	return strings.Contains(string(bytes), "squashfs")

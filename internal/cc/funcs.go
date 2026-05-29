@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,7 +15,6 @@ import (
 	"github.com/petercb/k3os-bin/internal/ssh"
 	"github.com/petercb/k3os-bin/internal/version"
 	"github.com/petercb/k3os-bin/internal/writefile"
-	"github.com/sirupsen/logrus"
 )
 
 // ApplyModules loads configured kernel modules.
@@ -28,11 +28,11 @@ func (a *Applier) ApplyModules(cfg *config.CloudConfig) error {
 			continue
 		}
 		params := strings.Split(m, " ")
-		logrus.Debugf("module %s with parameters [%s] is loading", m, params)
+		slog.Debug("module loading", "module", m, "parameters", params)
 		if err := a.Modules.LoadModule(params[0], strings.Join(params[1:], " ")); err != nil {
 			return fmt.Errorf("could not load module %s with parameters [%s], err %w", m, params, err)
 		}
-		logrus.Debugf("module %s is loaded", m)
+		slog.Debug("module loaded", "module", m)
 	}
 	return nil
 }
@@ -68,7 +68,7 @@ func (a *Applier) ApplyPassword(cfg *config.CloudConfig) error {
 // ApplyRuncmd executes configured run commands.
 func (a *Applier) ApplyRuncmd(cfg *config.CloudConfig) error {
 	for _, cmd := range cfg.Runcmd {
-		logrus.Debugf("running cmd `%s`", cmd)
+		slog.Debug("running command", "cmd", cmd)
 		if err := a.Cmd.RunShell(cmd); err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func (a *Applier) ApplyRuncmd(cfg *config.CloudConfig) error {
 // ApplyBootcmd executes configured boot commands.
 func (a *Applier) ApplyBootcmd(cfg *config.CloudConfig) error {
 	for _, cmd := range cfg.Bootcmd {
-		logrus.Debugf("running cmd `%s`", cmd)
+		slog.Debug("running command", "cmd", cmd)
 		if err := a.Cmd.RunShell(cmd); err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func (a *Applier) ApplyBootcmd(cfg *config.CloudConfig) error {
 // ApplyInitcmd executes configured init commands.
 func (a *Applier) ApplyInitcmd(cfg *config.CloudConfig) error {
 	for _, cmd := range cfg.Initcmd {
-		logrus.Debugf("running cmd `%s`", cmd)
+		slog.Debug("running command", "cmd", cmd)
 		if err := a.Cmd.RunShell(cmd); err != nil {
 			return err
 		}
@@ -205,7 +205,7 @@ func (a *Applier) ApplyK3S(cfg *config.CloudConfig, restart, install bool) error
 		args = append(args, "--kubelet-arg", "register-with-taints="+taint)
 	}
 
-	logrus.Debugf("Running /usr/libexec/k3os/k3s-install.sh %v %v", args, vars)
+	slog.Debug("running k3s install", "args", args, "vars", vars)
 
 	return a.Cmd.RunWithEnv(vars, "/usr/libexec/k3os/k3s-install.sh", args...)
 }

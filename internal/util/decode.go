@@ -6,8 +6,7 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"fmt"
-
-	"github.com/sirupsen/logrus"
+	"log/slog"
 )
 
 // DecodeBase64Content decodes a base64-encoded string and returns the raw bytes.
@@ -33,7 +32,7 @@ func DecompressGzip(content []byte) ([]byte, error) {
 	}
 	defer func() {
 		if err := gzr.Close(); err != nil {
-			logrus.Errorf("unable to close gzip reader: %q", err)
+			slog.Error("unable to close gzip reader", "error", err)
 		}
 	}()
 	buf := new(bytes.Buffer)

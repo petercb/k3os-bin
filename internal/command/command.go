@@ -4,17 +4,16 @@ package command
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
 // ExecuteCommand runs a list of shell commands sequentially, stopping on first failure.
 func ExecuteCommand(commands []string) error {
 	for _, cmd := range commands {
-		logrus.Debugf("running cmd `%s`", cmd)
+		slog.Debug("running command", "cmd", cmd)
 		c := exec.Command("sh", "-c", cmd)
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr

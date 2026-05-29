@@ -10,11 +10,10 @@ import (
 	"errors"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"syscall"
-
-	"github.com/sirupsen/logrus"
 
 	"golang.org/x/sys/unix"
 )
@@ -112,7 +111,7 @@ func copyFS(newRoot string) error {
 			return filepath.SkipDir
 		}
 		dest := filepath.Join(newRoot, path)
-		logrus.Debugf("Moving %s => %s", path, dest)
+		slog.Debug("moving", "src", path, "dst", dest)
 		switch {
 		case info.Mode().IsDir():
 			// already done the directories
@@ -226,7 +225,8 @@ func Relocate() {
 	// we could be booting off ISO, disk where we do not need this
 	var sfs unix.Statfs_t
 	if err := unix.Statfs(".", &sfs); err != nil {
-		logrus.Fatalf("Cannot statfs cwd: %v", err)
+		slog.Error("cannot statfs cwd", "error", err)
+		os.Exit(1)
 	}
 	const ramfsMagic = -2054924042
 	const tmpfsMagic = 0x01021994

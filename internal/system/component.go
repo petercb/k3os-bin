@@ -3,12 +3,12 @@ package system
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/otiai10/copy"
 	"github.com/petercb/k3os-bin/internal/mount"
-	"github.com/sirupsen/logrus"
 )
 
 // VersionName represents a named version alias for system components.
@@ -54,7 +54,7 @@ func CopyComponent(src, dst string, remount bool, key string) (bool, error) {
 	}
 	dstInfo, _ := StatComponentVersion(dst, key, VersionCurrent)
 	if dstInfo != nil && dstInfo.Name() == srcInfo.Name() {
-		logrus.Infof("skipping %q because destination version matches source: %s", key, dstInfo.Name())
+		slog.Info("skipping component", "component", key, "reason", "destination version matches source", "version", dstInfo.Name())
 		return false, nil
 	}
 	if remount {
@@ -72,17 +72,17 @@ func CopyComponent(src, dst string, remount bool, key string) (bool, error) {
 	if err = os.Symlink(filepath.Base(dstPath), dstCurrTemp); err != nil {
 		return false, err
 	}
-	logrus.Debugf("created symlink: %v", dstCurrTemp)
+	slog.Debug("created symlink", "path", dstCurrTemp)
 	defer func() { _ = os.Remove(dstCurrTemp) }() // if this fails, that means it's gone which is correct
 
 	dstTemp, err := os.MkdirTemp(filepath.Split(dstPath))
 	if err != nil {
 		return false, err
 	}
-	logrus.Debugf("created temporary dir: %v", dstTemp)
+	slog.Debug("created temporary dir", "path", dstTemp)
 	defer func() { _ = os.RemoveAll(dstTemp) }() // if this fails, that means it's gone which is correct
 
-	logrus.Debugf("copying: %v -> %v", srcPath, dstTemp)
+	slog.Debug("copying", "src", srcPath, "dst", dstTemp)
 	if err := copy.Copy(srcPath, dstTemp); err != nil {
 		return false, err
 	}
@@ -102,27 +102,27 @@ func CopyComponent(src, dst string, remount bool, key string) (bool, error) {
 		}
 	}
 
-	logrus.Debugf("renaming: %v -> %v", dstTemp, dstPath)
+	slog.Debug("renaming", "src", dstTemp, "dst", dstPath)
 	if err := os.Rename(dstTemp, dstPath); err != nil {
 		return false, err
 	}
 
-	logrus.Debugf("chmod %s %s", srcInfo.Mode(), dstPath)
+	slog.Debug("chmod", "mode", srcInfo.Mode(), "path", dstPath)
 	if err := os.Chmod(dstPath, srcInfo.Mode()); err != nil {
-		logrus.Error(err)
+		slog.Error("chmod failed", "path", dstPath, "error", err)
 	}
 
-	logrus.Debugf("removing: %v", dstPrevPath)
+	slog.Debug("removing", "path", dstPrevPath)
 	if err := os.Remove(dstPrevPath); err != nil {
-		logrus.Warn(err)
+		slog.Warn("remove failed", "path", dstPrevPath, "error", err)
 	}
 
-	logrus.Debugf("copying: %v -> %v", dstCurrPath, dstPrevPath)
+	slog.Debug("copying", "src", dstCurrPath, "dst", dstPrevPath)
 	if err := copy.Copy(dstCurrPath, dstPrevPath); err != nil {
-		logrus.Error(err)
+		slog.Error("copy failed", "src", dstCurrPath, "dst", dstPrevPath, "error", err)
 	}
 
-	logrus.Debugf("renaming: %v -> %v", dstCurrTemp, dstCurrPath)
+	slog.Debug("renaming", "src", dstCurrTemp, "dst", dstCurrPath)
 	if err := os.Rename(dstCurrTemp, dstCurrPath); err != nil {
 		return false, err
 	}

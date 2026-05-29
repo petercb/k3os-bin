@@ -4,12 +4,12 @@ package upgrade
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/petercb/k3os-bin/internal/system"
-	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v3"
 	"golang.org/x/sys/unix"
 )
@@ -143,7 +143,7 @@ func Run(opts *upgradeOpts) error {
 	}
 	defer func() {
 		if unlockerr := unix.Flock(int(lf.Fd()), unix.LOCK_UN); unlockerr != nil {
-			logrus.Error(unlockerr)
+			slog.Error("failed to unlock", "error", unlockerr)
 		}
 	}()
 
@@ -151,7 +151,7 @@ func Run(opts *upgradeOpts) error {
 
 	if opts.upgradeK3OS {
 		if copied, err := system.CopyComponent(opts.sourceDir, opts.destinationDir, opts.doRemount, "k3os"); err != nil {
-			logrus.Error(err)
+			slog.Error("component upgrade failed", "component", "k3os", "error", err)
 		} else if copied {
 			atLeastOneComponentCopied = true
 			opts.doRemount = false
@@ -159,7 +159,7 @@ func Run(opts *upgradeOpts) error {
 	}
 	if opts.upgradeK3S {
 		if copied, err := system.CopyComponent(opts.sourceDir, opts.destinationDir, opts.doRemount, "k3s"); err != nil {
-			logrus.Error(err)
+			slog.Error("component upgrade failed", "component", "k3s", "error", err)
 		} else if copied {
 			atLeastOneComponentCopied = true
 			opts.doRemount = false
@@ -167,7 +167,7 @@ func Run(opts *upgradeOpts) error {
 	}
 	if opts.upgradeKernel {
 		if copied, err := system.CopyComponent(opts.sourceDir, opts.destinationDir, opts.doRemount, "kernel"); err != nil {
-			logrus.Error(err)
+			slog.Error("component upgrade failed", "component", "kernel", "error", err)
 		} else if copied {
 			atLeastOneComponentCopied = true
 			opts.doRemount = false
@@ -181,10 +181,10 @@ func Run(opts *upgradeOpts) error {
 	if atLeastOneComponentCopied && opts.doReboot {
 		// nsenter -m -u -i -n -p -t 1 -- reboot
 		if _, err := exec.LookPath("nsenter"); err != nil {
-			logrus.Warn(err)
+			slog.Warn("nsenter not found", "error", err)
 			if opts.destinationDir != system.RootPath() {
 				root := filepath.Clean(filepath.Join(opts.destinationDir, "..", ".."))
-				logrus.Debugf("attempting chroot: %v", root)
+				slog.Debug("attempting chroot", "root", root)
 				if err := unix.Chroot(root); err != nil {
 					return err
 				}

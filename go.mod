@@ -8,7 +8,6 @@ require (
 	github.com/mattn/go-isatty v0.0.16
 	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.7.0
-	github.com/sirupsen/logrus v1.9.1
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v3 v3.9.0
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261

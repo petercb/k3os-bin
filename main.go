@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/petercb/k3os-bin/internal/enterchroot"
 	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/petercb/k3os-bin/internal/transferroot"
-	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v3"
 )
 
@@ -33,7 +33,8 @@ func main() {
 		// this will bomb if the app has any non-defaulted, required flags
 		err := cmd.Run(context.Background(), args)
 		if err != nil {
-			logrus.Fatal(err)
+			slog.Error("fatal error", "error", err)
+			os.Exit(1)
 		}
 	}
 }
@@ -42,10 +43,11 @@ func initrd() {
 	enterchroot.DebugCmdline = "k3os.debug"
 	transferroot.Relocate()
 	if err := mount.Mount("", "/", "none", "rw,remount"); err != nil {
-		logrus.Errorf("failed to remount root as rw: %v", err)
+		slog.Error("failed to remount root as rw", "error", err)
 	}
 	if err := enterchroot.Mount("./k3os/data", os.Args, os.Stdout, os.Stderr); err != nil {
-		logrus.Fatalf("failed to enter root: %v", err)
+		slog.Error("failed to enter root", "error", err)
+		os.Exit(1)
 	}
 }
 

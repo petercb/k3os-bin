@@ -4,6 +4,7 @@ package ssh
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/petercb/k3os-bin/internal/config"
 	"github.com/petercb/k3os-bin/internal/iface"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -46,7 +46,7 @@ func SetAuthorizedKeys(cfg *config.CloudConfig, withNet bool, fs iface.FileSyste
 	userAuthorizedFile := path.Join(userSSHDir, authorizedFile)
 	for _, key := range cfg.SSHAuthorizedKeys {
 		if err = authorizeSSHKey(key, userAuthorizedFile, uid, gid, withNet, fs); err != nil {
-			logrus.Errorf("failed to authorize SSH key %s: %v", key, err)
+			slog.Error("failed to authorize SSH key", "key", key, "error", err)
 		}
 	}
 	return nil
