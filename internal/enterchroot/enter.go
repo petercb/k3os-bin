@@ -34,6 +34,8 @@ var (
 	procFilesystemsPath = "/proc/filesystems"
 	// loopAttacher is the default LoopAttacher implementation; override in tests.
 	loopAttacher iface.LoopAttacher = loopdev.NewAttacher()
+	// ensureLoopFn is the default ensureloop implementation; override in tests.
+	ensureLoopFn = ensureloop
 )
 
 // Enter the k3OS root
@@ -91,7 +93,7 @@ func isDebug() bool {
 
 // Mount sets up the k3OS root filesystem and executes the enter-root process.
 func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
-	if err := ensureloop(); err != nil {
+	if err := ensureLoopFn(); err != nil {
 		return err
 	}
 

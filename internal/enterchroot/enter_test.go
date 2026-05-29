@@ -110,6 +110,11 @@ func TestInProcFS_Property(t *testing.T) {
 }
 
 func TestMount_AttachFailure_ReturnsError(t *testing.T) {
+	// Override ensureLoopFn to skip privileged operations in CI.
+	origEnsureLoop := ensureLoopFn
+	ensureLoopFn = func() error { return nil }
+	t.Cleanup(func() { ensureLoopFn = origEnsureLoop })
+
 	// Create a temp file to act as a non-directory root (triggers loop attach).
 	tmpFile, err := os.CreateTemp(t.TempDir(), "root")
 	require.NoError(t, err)
@@ -129,6 +134,11 @@ func TestMount_AttachFailure_ReturnsError(t *testing.T) {
 }
 
 func TestMount_AttachSuccess_SetsEnvDevice(t *testing.T) {
+	// Override ensureLoopFn to skip privileged operations in CI.
+	origEnsureLoop := ensureLoopFn
+	ensureLoopFn = func() error { return nil }
+	t.Cleanup(func() { ensureLoopFn = origEnsureLoop })
+
 	// Create a temp file to act as a non-directory root (triggers loop attach).
 	tmpFile, err := os.CreateTemp(t.TempDir(), "root")
 	require.NoError(t, err)
