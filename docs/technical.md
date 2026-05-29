@@ -11,12 +11,13 @@ The `k3os-bin` project is a Go application that produces a single, statically-li
 | Component | Technology | Version |
 |-----------|-----------|---------|
 | Language | Go | 1.24 |
-| CLI Framework | `urfave/cli` | v1.22.9 (target: v3) |
-| YAML | `ghodss/yaml` | v1.0.0 |
-| Config Schema | `rancher/mapper` | v0 |
+| CLI Framework | `urfave/cli` | v3 |
+| YAML | `gopkg.in/yaml.v3` | v3.0.1 |
+| Config Decode | `go-viper/mapstructure` | v2 |
+| Config Merge | `dario.cat/mergo` | v1 |
 | Logging | `sirupsen/logrus` | v1.9.0 |
 | Module Loading | `pault.ag/go/modprobe` | v0.1.2 |
-| Container Reexec | `moby/moby/pkg/reexec` | v20.10.17 (target: `moby/sys/reexec`) |
+| Container Reexec | `moby/sys/reexec` | v0.1.0 |
 | File Copy | `otiai10/copy` | v1.7.0 |
 | Loop Devices | `freddierice/go-losetup/v2` | v2.0.1 |
 | Glob Matching | `ryanuber/go-glob` | v1.0.0 |
@@ -84,8 +85,8 @@ k3os-bin/
 │   │   ├── read_cc.go               # Cloud-config data source reading
 │   │   ├── read_test.go             # Existing test
 │   │   ├── write.go                 # Config serialization
-│   │   ├── coerce.go                # Type coercion mappers
-│   │   └── rename.go                # Field name mapping
+│   │   ├── decode.go                # Decode hooks + name matching
+│   │   └── helpers.go               # camelToSnake, encodeToMap, getValue, putValue
 │   ├── enterchroot/                 # Chroot/pivot-root for boot
 │   │   ├── enter.go                 # Main enter logic, squashfs mount
 │   │   └── ensureloop.go            # Loop device setup
@@ -321,7 +322,7 @@ Configuration is read from multiple sources and merged in priority order:
 4. Cloud-config data sources
 5. Kernel command line parameters (`k3os.*`)
 
-The `rancher/mapper` library provides schema-based type coercion (string→bool, string→[]string, fuzzy field names).
+The `go-viper/mapstructure/v2` library provides struct decoding with custom decode hooks for type coercion (string to bool, string to []string, map[string]interface{} to map[string]string) and a fuzzy name matching function (singular/plural normalization, camelCase/snake_case equivalence, aliases like password to passphrase). Deep merging of configuration maps uses `dario.cat/mergo` with override semantics, where later sources override earlier ones for scalar values and slices.
 
 ### Component Version Management
 

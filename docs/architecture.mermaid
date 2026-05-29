@@ -31,8 +31,8 @@ graph TD
         CFG_READ["config/read.go<br/>ReadConfig()<br/>cmdline + merge"]
         CFG_READCC["config/read_cc.go<br/>cloud-config sources"]
         CFG_WRITE["config/write.go<br/>Write() ToBytes()"]
-        CFG_COERCE["config/coerce.go<br/>type coercion"]
-        CFG_RENAME["config/rename.go<br/>field mapping"]
+        CFG_DECODE["config/decode.go<br/>decode hooks + name matching"]
+        CFG_HELPERS["config/helpers.go<br/>camelToSnake encodeToMap<br/>getValue putValue"]
     end
 
     subgraph "System Services"
@@ -73,8 +73,8 @@ graph TD
     CMD_CFG --> CFG_READ
     CFG_READ --> CFG_MODEL
     CFG_READ --> CFG_READCC
-    CFG_READ --> CFG_COERCE
-    CFG_READ --> CFG_RENAME
+    CFG_READ --> CFG_DECODE
+    CFG_READ --> CFG_HELPERS
     CMD_CFG -->|"--initrd"| CC_APPLY
     CMD_CFG -->|"--boot"| CC_APPLY
     CMD_CFG -->|"--install"| CC_APPLY
@@ -127,6 +127,6 @@ graph TD
     class TR,MNT_INIT,EC,EL boot
     class APP,CMD_RC,CMD_CFG,CMD_INST,CMD_UPG cli
     class CC_APPLY,CC_FUNCS cc
-    class CFG_MODEL,CFG_READ,CFG_READCC,CFG_WRITE,CFG_COERCE,CFG_RENAME config
+    class CFG_MODEL,CFG_READ,CFG_READCC,CFG_WRITE,CFG_DECODE,CFG_HELPERS config
     class SYS,COMP,MOD,MODAL,SYSCTL,HOST,SSH,WF,CMD service
     class MOUNT,MODE,VER,UTIL,QUEST,CLIINST util
