@@ -462,3 +462,42 @@ TASK-017: Add comprehensive unit tests for `internal/util/decode.go`, `internal/
 
 - TASK-016: Fix flaky TestFuzzyNames test in internal/config
 - TASK-011: Migrate `urfave/cli` v1 to v3
+
+## 2025-07-15 -- Upgrade otiai10/copy v1.7.0 to v1.14.1
+
+### Context
+
+Dependency upgrade for `github.com/otiai10/copy` from v1.7.0 to v1.14.1. The API is backwards-compatible so no source code changes were needed beyond the dependency update. TDD approach used to ensure the upgrade does not break anything.
+
+### Actions
+
+1. **TDD RED**: Created `internal/system/component_test.go` with:
+   - Contract tests for `copy.Copy` validating recursive file/directory copy and permission preservation (4 test cases).
+   - Unit tests for `StatComponentVersion` validating symlink resolution and error cases (4 test cases).
+   - Integration tests for `CopyComponent` with `remount=false` covering: successful copy with symlink update, skip on matching versions, error on missing source, copy to destination with no existing version (4 test cases).
+2. **TDD GREEN**: Updated `go.mod` from v1.7.0 to v1.14.1, ran `go mod tidy`. All tests pass.
+3. **TDD IMPROVE**: Ran `golangci-lint run --fix ./internal/system/...` to fix unused parameter warnings. Zero issues remaining.
+4. Updated documentation: `docs/technical.md`, `docs/status.md`, `docs/log.md`.
+
+### Key Findings
+
+- The upgrade is clean: no API changes, no test failures, no new lint warnings.
+- `golang.org/x/sync` was added as a transitive dependency by v1.14.1.
+- `github.com/otiai10/mint` was upgraded from v1.3.3 to v1.6.3 (test dependency of the copy package).
+
+### Files Changed
+
+| Action | File |
+|--------|------|
+| Created | `internal/system/component_test.go` |
+| Modified | `go.mod` |
+| Modified | `go.sum` |
+| Modified | `docs/technical.md` |
+| Modified | `docs/status.md` |
+| Modified | `docs/log.md` |
+
+### Retrospective
+
+- What went well: The backwards-compatible API meant no source changes were needed. TDD tests provided confidence the upgrade is safe.
+- What broke: Nothing. All tests pass cleanly with the new version.
+- What to change: Nothing notable for this type of minor dependency upgrade.
