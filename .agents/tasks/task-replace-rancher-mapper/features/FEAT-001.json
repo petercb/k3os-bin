@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Verify baseline: ensure the project builds and all existing tests pass before making changes",
+  "status": "completed",
+  "steps": [
+    "Run 'go mod download' to fetch all dependencies",
+    "Run 'go test ./...' and confirm all tests pass",
+    "Run 'golangci-lint run --fix ./...' and confirm zero issues",
+    "Run 'CGO_ENABLED=0 go build' and confirm successful build"
+  ],
+  "acceptance_criteria": [
+    "All tests pass with zero failures",
+    "golangci-lint reports zero issues",
+    "Binary builds successfully with CGO_ENABLED=0"
+  ],
+  "verification": [
+    "go test ./...",
+    "golangci-lint run --fix ./...",
+    "CGO_ENABLED=0 go build"
+  ],
+  "blocked_reason": null,
+  "findings": "Baseline verified on branch migrate-to-yaml-v3 at commit e51c0a9. All 11 test packages pass (8 with no test files skipped). golangci-lint 0 issues. CGO_ENABLED=0 build succeeds. Go 1.25.1 runtime compatible with go 1.24 module directive."
+}

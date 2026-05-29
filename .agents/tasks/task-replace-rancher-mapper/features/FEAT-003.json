@@ -1,0 +1,50 @@
+{
+  "id": "FEAT-003",
+  "type": "refactor",
+  "description": "Implement the rancher/mapper replacement: swap all usages with go-viper/mapstructure/v2 and dario.cat/mergo. Make all TDD specs pass. Remove the rancher/mapper dependency entirely.",
+  "status": "pending",
+  "steps": [
+    "Run 'go get github.com/go-viper/mapstructure/v2' and 'go get dario.cat/mergo' to add the new dependencies",
+    "Implement internal/config/helpers.go fully: (a) camelToSnake - iterate runes, insert underscore before uppercase that follows lowercase or before uppercase followed by lowercase when preceded by uppercase (handle consecutive caps like 'ISOURL' -> 'iso_url', 'TTY' -> 'tty', 'DNS' -> 'dns'). (b) toString - use fmt.Sprint(v). (c) encodeToMap - JSON marshal then unmarshal into map[string]interface{} with json.Number support (UseNumber), matching the existing convert.EncodeToMap behavior. (d) getValue - walk nested maps by keys, return (value, true) or (nil, false). (e) putValue - walk/create nested maps by keys, set final value.",
+    "Implement internal/config/decode.go: (a) Create a decodeHookFunc that composes: StringToSliceHookFunc (string -> []string), StringToBoolHookFunc (string 'true'/'false' -> bool), MapStringInterfaceToMapStringStringHookFunc (map[string]interface{} -> map[string]string with toString). (b) Create a matchName function that implements fuzzy name matching: normalize both field name and map key to lowercase snake_case for comparison; handle singular/plural (strip trailing 's' or 'es'); handle special aliases ('pass' -> 'passphrase', 'password' -> 'passphrase'). The matchName function signature must be func(mapKey, fieldName string) bool for use in mapstructure.DecoderConfig.MatchName. (c) Create a decodeToObj(data interface{}, result interface{}) error function that uses mapstructure.NewDecoder with the decode hooks and matchName, with TagName set to 'json' (to match existing behavior where json tags are used for field resolution). (d) Create a normalizeData(data map[string]interface{}) function that runs the fuzzy name normalization pass on raw map data before decode (this replaces the schema.Mapper.ToInternal call).",
+    "Rewrite internal/config/read.go: (a) Remove all imports from github.com/rancher/mapper, github.com/rancher/mapper/convert, github.com/rancher/mapper/convert/merge, github.com/rancher/mapper/values. (b) Remove the 'schemas' and 'schema' package-level variables. (c) In the merge() function: replace 'schema.Mapper.ToInternal(newData)' with a call to normalizeData(newData). Replace 'merge2.UpdateMerge(schema, schemas, data, newData, false)' with 'mergo.Merge(&data, newData, mergo.WithOverride)' (import dario.cat/mergo). (d) In readersToObject(): replace 'convert.ToObj(data, &result)' with 'decodeToObj(data, &result)'. (e) In ToEnv(): replace 'convert.EncodeToMap(&cfg)' with 'encodeToMap(&cfg)'. (f) In mapToEnv(): replace 'convert.ToYAMLKey(k)' with 'camelToSnake(k)'. (g) Replace 'values.GetValue' and 'values.PutValue' in readCmdline() with the local getValue/putValue helpers.",
+    "Rewrite internal/config/write.go: (a) Remove import of github.com/rancher/mapper/convert. (b) Replace 'convert.EncodeToMap(...)' with 'encodeToMap(...)'. (c) Replace 'convert.ToYAMLKey(k)' in toYAMLKeys() with 'camelToSnake(k)'.",
+    "Rewrite internal/config/read_cc.go: (a) Remove import of github.com/rancher/mapper/convert. (b) Replace 'convert.EncodeToMap(cc)' with 'encodeToMap(cc)'.",
+    "Remove internal/config/coerce.go entirely - its functionality is replaced by decode hooks in decode.go",
+    "Remove internal/config/rename.go entirely - its functionality is replaced by the matchName function in decode.go",
+    "Update internal/config/coerce_test.go: Rewrite tests to verify the new decode hook behavior. Instead of testing mapper.Mapper interface methods (NewToMap, NewToSlice, NewToBool with ModifySchema+ToInternal), test the decodeHookFunc directly or test via decodeToObj. Keep equivalent coverage: string->bool, string->[]string, map[string]interface{}->map[string]string.",
+    "Update internal/config/rename_test.go: Rewrite tests to verify the matchName function behavior. Test the same scenarios: 'password' -> matches 'passphrase' field, 'pass' -> matches 'passphrase' field, 'ssh_authorized_key' -> matches 'sshAuthorizedKeys' field, 'environment' -> matches 'environments' field. Test via matchName directly.",
+    "Run 'go mod tidy' to clean up go.mod and go.sum (should remove rancher/mapper, rancher/wrangler, ghodss/yaml, and all their transitive deps including the k8s.io replace directives)",
+    "Remove ALL replace directives from go.mod (the k8s.io/* replacements were only needed by rancher/mapper's transitive deps)",
+    "Run 'go mod tidy' again after removing replace directives",
+    "Run 'go test ./...' and fix any failures until all tests pass (including the TDD specs from FEAT-002)",
+    "Run 'golangci-lint run --fix ./...' and fix any issues",
+    "Run 'CGO_ENABLED=0 go build' to verify the build succeeds",
+    "Commit with message: 'refactor: replace rancher/mapper with mapstructure/v2 and mergo'"
+  ],
+  "acceptance_criteria": [
+    "go.mod no longer contains github.com/rancher/mapper as a dependency (direct or indirect)",
+    "go.mod no longer contains github.com/rancher/wrangler as a dependency",
+    "go.mod no longer contains github.com/ghodss/yaml as a dependency",
+    "go.mod no longer contains any k8s.io/* replace directives",
+    "go.mod contains github.com/go-viper/mapstructure/v2 as a direct dependency",
+    "go.mod contains dario.cat/mergo as a direct dependency",
+    "No file in the project imports from github.com/rancher/mapper or any sub-package",
+    "internal/config/coerce.go no longer exists (functionality moved to decode.go)",
+    "internal/config/rename.go no longer exists (functionality moved to decode.go)",
+    "internal/config/decode.go exists with decode hooks and matchName",
+    "internal/config/helpers.go exists with utility functions",
+    "'go test ./...' passes with zero failures",
+    "'golangci-lint run --fix ./...' reports zero issues",
+    "'CGO_ENABLED=0 go build' succeeds"
+  ],
+  "verification": [
+    "go test ./...",
+    "golangci-lint run --fix ./...",
+    "CGO_ENABLED=0 go build",
+    "grep -r 'rancher/mapper' --include='*.go' . (should return nothing)",
+    "grep 'rancher/mapper' go.mod (should return nothing)"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

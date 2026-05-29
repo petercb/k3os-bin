@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-002",
+  "type": "test",
+  "description": "TDD Phase: Write test specifications for the new mapstructure/mergo-based config pipeline. These tests define the expected behavior BEFORE implementation. They will initially fail (or not compile) because the new helper functions do not yet exist. The tests must be committed to git as specs.",
+  "status": "pending",
+  "steps": [
+    "Create internal/config/helpers.go with ONLY the function signatures (empty bodies / stubs that panic) for: camelToSnake(s string) string, toString(v interface{}) string, encodeToMap(obj interface{}) (map[string]interface{}, error), getValue(data map[string]interface{}, keys ...string) (interface{}, bool), putValue(data map[string]interface{}, val interface{}, keys ...string). These are needed so the test file compiles.",
+    "Create internal/config/helpers_test.go with comprehensive table-driven tests for: (a) camelToSnake - test cases: 'sshAuthorizedKeys' -> 'ssh_authorized_keys', 'dnsNameservers' -> 'dns_nameservers', 'forceEfi' -> 'force_efi', 'hostname' -> 'hostname', 'k3sArgs' -> 'k3s_args', 'isoUrl' -> 'iso_url', 'serverUrl' -> 'server_url', 'configUrl' -> 'config_url', 'noFormat' -> 'no_format', 'ntpServers' -> 'ntp_servers', 'ISOURL' -> 'iso_url' (consecutive caps), 'TTY' -> 'tty', empty string -> empty string. (b) toString - test cases: string 'hello' -> 'hello', int 123 -> '123', float64 3.14 -> '3.14', bool true -> 'true', nil -> '<nil>'. (c) encodeToMap - test encoding a simple struct with json tags to map[string]interface{}, verify keys are json tag names, verify nested structs become nested maps, verify nil pointer fields are omitted (omitempty). (d) getValue - test nested map access: getValue(data, 'k3os', 'hostname') returns the value; missing keys return (nil, false); single key access works. (e) putValue - test: putting a value at nested keys creates intermediate maps; overwriting existing values; putting at a single key.",
+    "Create internal/config/decode_test.go with tests for the new mapstructure-based decode pipeline: (a) Test that a map with string 'true'/'false' for boolean fields decodes correctly to struct with bool fields (replaces NewToBool behavior). (b) Test that a map with a single string value for a []string field decodes as a single-element slice (replaces NewToSlice behavior). (c) Test that a map with map[string]interface{} for a map[string]string field decodes correctly with values converted to strings (replaces NewToMap behavior). (d) Test fuzzy name matching: 'ssh_authorized_key' -> 'ssh_authorized_keys' (singular to plural), 'password' -> maps to the Password field via yaml tag, 'pass' -> maps to Password field, 'dns_nameserver' -> 'dns_nameservers', camelCase and snake_case variants both work. (e) Test full CloudConfig decode from a raw map (integration-level): provide a map with mixed key styles, type coercions needed, and verify the resulting CloudConfig struct is correct.",
+    "Create internal/config/merge_test.go with tests for the new mergo-based merge: (a) Test that merging two flat maps with WithOverride causes the second to override the first. (b) Test that merging nested maps (map within map) deep-merges correctly - new keys are added, existing keys are overridden. (c) Test that merging slices: the new slice fully replaces the old slice (matches current UpdateMerge behavior where slices are overridden). (d) Test merging with nil/empty source returns the destination unchanged. (e) Test merging with nil/empty destination returns the source.",
+    "Run 'golangci-lint run --fix ./...' on the new test files to fix formatting",
+    "Commit the test specs with message: 'test: add TDD specs for mapstructure/mergo migration'",
+    "Verify tests compile (they should, since stubs exist) but some may fail since stubs panic - that is expected and acceptable at this stage"
+  ],
+  "acceptance_criteria": [
+    "internal/config/helpers.go exists with stub function signatures",
+    "internal/config/helpers_test.go exists with comprehensive tests for camelToSnake, toString, encodeToMap, getValue, putValue",
+    "internal/config/decode_test.go exists with tests for decode hooks and fuzzy name matching",
+    "internal/config/merge_test.go exists with tests for mergo-based merge behavior",
+    "All new test files pass golangci-lint formatting",
+    "All new files are committed to git with conventional commit message"
+  ],
+  "verification": [
+    "golangci-lint run --fix ./internal/config/...",
+    "go build ./internal/config/...",
+    "git log --oneline -1 (should show the test spec commit)"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

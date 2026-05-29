@@ -7,12 +7,12 @@ import (
 	"regexp"
 	"strings"
 
-	"gopkg.in/yaml.v3"
 	"github.com/petercb/k3os-bin/internal/system"
 	"github.com/rancher/mapper"
 	"github.com/rancher/mapper/convert"
 	merge2 "github.com/rancher/mapper/convert/merge"
 	"github.com/rancher/mapper/values"
+	"gopkg.in/yaml.v3"
 )
 
 var (

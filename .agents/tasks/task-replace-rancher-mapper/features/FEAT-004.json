@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-004",
+  "type": "docs",
+  "description": "Update project documentation to reflect the completed rancher/mapper replacement with mapstructure/v2 and mergo",
+  "status": "pending",
+  "steps": [
+    "Update docs/technical.md Technology Stack table: (a) Remove the row for 'ghodss/yaml' (already replaced by gopkg.in/yaml.v3 in previous commit). (b) Change 'Config Schema' row from 'rancher/mapper | v0' to 'Config Decode | go-viper/mapstructure | v2'. (c) Add a new row: 'Config Merge | dario.cat/mergo | v1'. (d) Update the 'CLI Framework' version to 'v3' (urfave/cli was already migrated). (e) Update the 'Container Reexec' row from 'moby/moby/pkg/reexec | v20.10.17 (target: moby/sys/reexec)' to 'moby/sys/reexec | v0.1.0' (already migrated).",
+    "Update docs/technical.md 'Config Merging Strategy' section: Replace the paragraph about rancher/mapper providing schema-based type coercion with a description of the new approach: 'The go-viper/mapstructure/v2 library provides struct decoding with custom decode hooks for type coercion (string to bool, string to []string, map[string]interface{} to map[string]string) and fuzzy name matching (singular/plural normalization, camelCase/snake_case equivalence, aliases like password->passphrase). Deep merging of configuration maps uses dario.cat/mergo with override semantics.'",
+    "Update docs/PRD.md 'Modernization Requirements' table: Change the 'Evaluate replacing github.com/rancher/mapper with standard alternatives' row priority from 'Low' to mark it as done. Change the text to 'Replace github.com/rancher/mapper with go-viper/mapstructure/v2 + dario.cat/mergo' and add a status indicator showing it is complete (e.g., checkmark or 'Done').",
+    "Update docs/architecture.mermaid: (a) Update CFG_COERCE label from 'config/coerce.go<br/>type coercion' to 'config/decode.go<br/>decode hooks + name matching'. (b) Remove CFG_RENAME node entirely since rename.go no longer exists and its functionality is in decode.go. (c) Update the edge from CFG_READ to CFG_RENAME to instead point to the renamed CFG_COERCE (now CFG_DECODE). (d) Clean up any dangling references.",
+    "Run 'golangci-lint run --fix ./...' to ensure no Go issues were introduced",
+    "Commit with message: 'docs: update documentation for mapstructure/mergo migration'"
+  ],
+  "acceptance_criteria": [
+    "docs/technical.md Technology Stack table shows go-viper/mapstructure v2 and dario.cat/mergo instead of rancher/mapper",
+    "docs/technical.md Config Merging Strategy section describes the new approach",
+    "docs/PRD.md shows the rancher/mapper replacement as completed",
+    "docs/architecture.mermaid reflects the new file structure (decode.go instead of coerce.go+rename.go)",
+    "golangci-lint passes clean"
+  ],
+  "verification": [
+    "golangci-lint run --fix ./...",
+    "go test ./...",
+    "CGO_ENABLED=0 go build"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
