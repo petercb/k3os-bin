@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "docs",
   "description": "Update project documentation to reflect the completed rancher/mapper replacement with mapstructure/v2 and mergo",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Update docs/technical.md Technology Stack table: (a) Remove the row for 'ghodss/yaml' (already replaced by gopkg.in/yaml.v3 in previous commit). (b) Change 'Config Schema' row from 'rancher/mapper | v0' to 'Config Decode | go-viper/mapstructure | v2'. (c) Add a new row: 'Config Merge | dario.cat/mergo | v1'. (d) Update the 'CLI Framework' version to 'v3' (urfave/cli was already migrated). (e) Update the 'Container Reexec' row from 'moby/moby/pkg/reexec | v20.10.17 (target: moby/sys/reexec)' to 'moby/sys/reexec | v0.1.0' (already migrated).",
     "Update docs/technical.md 'Config Merging Strategy' section: Replace the paragraph about rancher/mapper providing schema-based type coercion with a description of the new approach: 'The go-viper/mapstructure/v2 library provides struct decoding with custom decode hooks for type coercion (string to bool, string to []string, map[string]interface{} to map[string]string) and fuzzy name matching (singular/plural normalization, camelCase/snake_case equivalence, aliases like password->passphrase). Deep merging of configuration maps uses dario.cat/mergo with override semantics.'",
@@ -24,5 +24,5 @@
     "CGO_ENABLED=0 go build"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All documentation updates applied cleanly. No code changes needed - docs-only commit. Build and tests pass."
 }
