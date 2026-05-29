@@ -18,7 +18,7 @@ The `k3os-bin` project is a Go application that produces a single, statically-li
 | Logging | `log/slog` (stdlib) | - |
 | Module Loading | `pault.ag/go/modprobe` | v0.1.2 |
 | Container Reexec | `moby/moby/pkg/reexec` | v20.10.17 (target: `moby/sys/reexec`) |
-| File Copy | `otiai10/copy` | v1.7.0 |
+| File Copy | `otiai10/copy` | v1.14.1 |
 | Loop Devices | `internal/loopdev` (golang.org/x/sys/unix ioctls) | - |
 | Glob Matching | `path` (stdlib) | - |
 | Testing | `stretchr/testify` | v1.11.1 |

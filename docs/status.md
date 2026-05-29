@@ -14,6 +14,7 @@
 - TASK-010: Upgrade Go version to 1.24 (updated `go.mod`, CircleCI, devcontainer; added loop-capture regression test)
 - TASK-012: Migrate `reexec` package to `github.com/moby/sys/reexec` (consolidated `/init` + `/sbin/init` into basename-only `"init"` registration)
 - TASK-017: Add unit tests for util/decode, hostname, writefile, and ssh packages (6 files, ~1200 lines, hostname 100%, decode 80-100%, writefile 76-100%, findUserHomeDir 100%)
+- Upgrade `github.com/otiai10/copy` from v1.7.0 to v1.14.1 (TDD: contract tests + CopyComponent tests added, backwards-compatible upgrade)
 
 ## In Progress
 
