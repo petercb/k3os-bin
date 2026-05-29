@@ -3,14 +3,42 @@
 package enterchroot
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"testing"
 	"testing/quick"
 
+	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// mockLoopDevice implements iface.LoopDevice for testing.
+type mockLoopDevice struct {
+	path            string
+	detachErr       error
+	detachCalled    bool
+	autoclearErr    error
+	autoclearCalled bool
+}
+
+func (m *mockLoopDevice) Path() string        { return m.path }
+func (m *mockLoopDevice) Detach() error       { m.detachCalled = true; return m.detachErr }
+func (m *mockLoopDevice) SetAutoclear() error { m.autoclearCalled = true; return m.autoclearErr }
+
+// mockLoopAttacher implements iface.LoopAttacher for testing.
+type mockLoopAttacher struct {
+	dev *mockLoopDevice
+	err error
+}
+
+func (m *mockLoopAttacher) Attach(_ string, _ uint64, _ bool) (iface.LoopDevice, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.dev, nil
+}
 
 func writeTempFile(t *testing.T, content string) string {
 	t.Helper()
@@ -79,4 +107,44 @@ func TestInProcFS_Property(t *testing.T) {
 	if err := quick.Check(property, nil); err != nil {
 		t.Errorf("property failed: %v", err)
 	}
+}
+
+func TestMount_AttachFailure_ReturnsError(t *testing.T) {
+	// Create a temp file to act as a non-directory root (triggers loop attach).
+	tmpFile, err := os.CreateTemp(t.TempDir(), "root")
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
+
+	// Override loopAttacher to return an error.
+	origAttacher := loopAttacher
+	loopAttacher = &mockLoopAttacher{err: errors.New("attach failed")}
+	t.Cleanup(func() { loopAttacher = origAttacher })
+
+	// Override findRoot to return our temp file.
+	t.Setenv("ENTER_ROOT", tmpFile.Name())
+
+	err = Mount(t.TempDir(), []string{"test"}, os.Stdout, os.Stderr)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "creating loopback device")
+}
+
+func TestMount_AttachSuccess_SetsEnvDevice(t *testing.T) {
+	// Create a temp file to act as a non-directory root (triggers loop attach).
+	tmpFile, err := os.CreateTemp(t.TempDir(), "root")
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
+
+	dev := &mockLoopDevice{path: "/dev/loop99"}
+	origAttacher := loopAttacher
+	loopAttacher = &mockLoopAttacher{dev: dev}
+	t.Cleanup(func() { loopAttacher = origAttacher })
+
+	t.Setenv("ENTER_ROOT", tmpFile.Name())
+
+	// Mount will fail later (no reexec binary), but we can verify the
+	// loop device path was set in the environment.
+	_ = Mount(t.TempDir(), []string{"test"}, os.Stdout, os.Stderr)
+
+	assert.Equal(t, "/dev/loop99", os.Getenv("ENTER_DEVICE"))
+	assert.True(t, dev.detachCalled)
 }
