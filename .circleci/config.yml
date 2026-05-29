@@ -38,6 +38,8 @@ jobs:
 
   e2e:
     machine:
+      # Rolling tag accepted: tests are not OS-version-sensitive and we
+      # prefer automatic security patches over pinning a dated image.
       image: ubuntu-2404:current
     steps:
       - checkout
@@ -46,7 +48,8 @@ jobs:
           command: docker build -f e2e/Dockerfile.e2e -t k3os-e2e .
       - run:
           name: Run E2E Tests
-          command: docker run --rm --privileged k3os-e2e
+          # Tests only need UID 0 (root inside container); no extra capabilities required.
+          command: docker run --rm k3os-e2e
 
 workflows:
   continuous:

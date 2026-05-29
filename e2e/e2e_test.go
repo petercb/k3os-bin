@@ -25,7 +25,7 @@ func TestVersion(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 
 	require.NoError(t, err, "expected exit 0, got: %s", string(out))
-	assert.Contains(t, string(out), "version")
+	assert.Contains(t, string(out), "k3os CLI version")
 }
 
 func TestHelp(t *testing.T) {

@@ -11,6 +11,6 @@ lint:
 
 e2e:
 	docker build -f e2e/Dockerfile.e2e -t k3os-e2e .
-	docker run --rm --privileged k3os-e2e
+	docker run --rm k3os-e2e
 
 all: build test lint e2e
