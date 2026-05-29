@@ -141,6 +141,47 @@ func TestMerge(t *testing.T) {
 		assert.Equal(t, []interface{}{"1.1.1.1"}, dns)
 	})
 
+	t.Run("conflicting key spellings merge to same field", func(t *testing.T) {
+		// Source 1 uses camelCase
+		r1 := func() (map[string]interface{}, error) {
+			return map[string]interface{}{
+				"sshAuthorizedKeys": []interface{}{"key-from-source1"},
+				"k3os": map[string]interface{}{
+					"dnsNameservers": []interface{}{"8.8.8.8"},
+					"serverUrl":      "https://old-server:6443",
+				},
+			}, nil
+		}
+		// Source 2 uses snake_case for the same fields
+		r2 := func() (map[string]interface{}, error) {
+			return map[string]interface{}{
+				"ssh_authorized_keys": []interface{}{"key-from-source2"},
+				"k3os": map[string]interface{}{
+					"dns_nameservers": []interface{}{"1.1.1.1"},
+					"server_url":      "https://new-server:6443",
+				},
+			}, nil
+		}
+
+		data, err := merge(r1, r2)
+		require.NoError(t, err)
+		require.NotNil(t, data)
+
+		// After normalization, both should have collapsed into the same key
+		// and source 2 should override source 1
+		assert.Contains(t, data, "ssh_authorized_keys")
+		assert.NotContains(t, data, "sshAuthorizedKeys")
+		assert.Equal(t, []interface{}{"key-from-source2"}, data["ssh_authorized_keys"])
+
+		k3os, ok := data["k3os"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Contains(t, k3os, "dns_nameservers")
+		assert.NotContains(t, k3os, "dnsNameservers")
+		assert.Equal(t, []interface{}{"1.1.1.1"}, k3os["dns_nameservers"])
+		assert.Equal(t, "https://new-server:6443", k3os["server_url"])
+		assert.NotContains(t, k3os, "serverUrl")
+	})
+
 	t.Run("schema type coercion during merge", func(t *testing.T) {
 		r := func() (map[string]interface{}, error) {
 			return map[string]interface{}{

@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-005",
+  "type": "fix",
+  "description": "Address semantic review findings: implement pre-merge key normalization, fix bool coercion to match old behavior, add nil guard, and add test coverage for multi-source conflicting key merge",
+  "status": "in_progress",
+  "steps": [
+    "Implement normalizeData in decode.go with nil guard and recursive key normalization to lowercase snake_case",
+    "Update stringToBoolHookFunc to match old behavior: any string that is not 'true' (case-insensitive) produces false",
+    "Add test for normalizeData in decode_test.go",
+    "Add test for multi-source conflicting key merge in merge_test.go or read_logic_test.go",
+    "Update existing bool coercion tests if needed",
+    "Run go test ./...",
+    "Run golangci-lint run --fix ./...",
+    "Run CGO_ENABLED=0 go build",
+    "Commit with message: fix: implement pre-merge key normalization and strict bool coercion"
+  ],
+  "acceptance_criteria": [
+    "normalizeData recursively normalizes map keys to lowercase snake_case before merge",
+    "normalizeData has nil guard at the top",
+    "stringToBoolHookFunc treats any non-true string as false (matching old rancher/mapper behavior)",
+    "Test exists verifying multi-source conflicting key normalization works correctly",
+    "All tests pass",
+    "golangci-lint reports zero issues",
+    "CGO_ENABLED=0 go build succeeds"
+  ],
+  "verification": [
+    "go test ./...",
+    "golangci-lint run --fix ./...",
+    "CGO_ENABLED=0 go build"
+  ],
+  "blocked_reason": null,
+  "findings": null
+}

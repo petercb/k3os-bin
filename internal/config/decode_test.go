@@ -142,6 +142,99 @@ func TestDecodeToObj_MapCoercion(t *testing.T) {
 	assert.Equal(t, "123", result.Labels["key2"])
 }
 
+func TestDecodeToObj_BoolCoercion_NonBooleanStrings(t *testing.T) {
+	type Target struct {
+		A bool `json:"a"`
+		B bool `json:"b"`
+		C bool `json:"c"`
+		D bool `json:"d"`
+		E bool `json:"e"`
+	}
+
+	data := map[string]interface{}{
+		"a": "yes",
+		"b": "1",
+		"c": "",
+		"d": "anything",
+		"e": "TRUE",
+	}
+
+	var result Target
+	err := decodeToObj(data, &result)
+	require.NoError(t, err)
+	// Old behavior: only "true" (case-insensitive) is true, everything else is false
+	assert.False(t, result.A, "yes should be false")
+	assert.False(t, result.B, "1 should be false")
+	assert.False(t, result.C, "empty string should be false")
+	assert.False(t, result.D, "arbitrary string should be false")
+	assert.True(t, result.E, "TRUE should be true (case-insensitive)")
+}
+
+func TestNormalizeData(t *testing.T) {
+	t.Run("nil data does not panic", func(_ *testing.T) {
+		normalizeData(nil) // should not panic
+	})
+
+	t.Run("camelCase keys normalized to snake_case", func(t *testing.T) {
+		data := map[string]interface{}{
+			"sshAuthorizedKeys": []interface{}{"key1"},
+			"dnsNameservers":    []interface{}{"8.8.8.8"},
+			"hostname":          "myhost",
+		}
+		normalizeData(data)
+		assert.Contains(t, data, "ssh_authorized_keys")
+		assert.Contains(t, data, "dns_nameservers")
+		assert.Contains(t, data, "hostname")
+		assert.NotContains(t, data, "sshAuthorizedKeys")
+		assert.NotContains(t, data, "dnsNameservers")
+	})
+
+	t.Run("nested maps normalized recursively", func(t *testing.T) {
+		data := map[string]interface{}{
+			"k3os": map[string]interface{}{
+				"serverUrl":      "https://server:6443",
+				"dnsNameservers": []interface{}{"8.8.8.8"},
+				"install": map[string]interface{}{
+					"forceEfi": "true",
+					"isoUrl":   "http://example.com/k3os.iso",
+				},
+			},
+		}
+		normalizeData(data)
+
+		k3os, ok := data["k3os"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Contains(t, k3os, "server_url")
+		assert.Contains(t, k3os, "dns_nameservers")
+		assert.NotContains(t, k3os, "serverUrl")
+		assert.NotContains(t, k3os, "dnsNameservers")
+
+		install, ok := k3os["install"].(map[string]interface{})
+		require.True(t, ok)
+		assert.Contains(t, install, "force_efi")
+		assert.Contains(t, install, "iso_url")
+		assert.NotContains(t, install, "forceEfi")
+		assert.NotContains(t, install, "isoUrl")
+	})
+
+	t.Run("already snake_case keys unchanged", func(t *testing.T) {
+		data := map[string]interface{}{
+			"ssh_authorized_keys": []interface{}{"key1"},
+			"dns_nameservers":     []interface{}{"8.8.8.8"},
+		}
+		normalizeData(data)
+		assert.Contains(t, data, "ssh_authorized_keys")
+		assert.Contains(t, data, "dns_nameservers")
+		assert.Equal(t, []interface{}{"key1"}, data["ssh_authorized_keys"])
+	})
+
+	t.Run("empty map does not panic", func(t *testing.T) {
+		data := map[string]interface{}{}
+		normalizeData(data)
+		assert.Empty(t, data)
+	})
+}
+
 func TestDecodeToObj_FullCloudConfig(t *testing.T) {
 	raw := map[string]interface{}{
 		"hostname":           "mynode",
