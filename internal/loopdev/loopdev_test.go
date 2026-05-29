@@ -185,10 +185,10 @@ func TestDetach_HappyPath(t *testing.T) {
 		},
 	}
 
-	d := &Device{path: "/dev/loop0", fd: 5, sc: mock, closed: false}
+	d := &Device{path: "/dev/loop0", fd: 5, sc: mock}
 	err := d.Detach()
 	require.NoError(t, err)
-	assert.True(t, d.closed)
+	assert.True(t, d.closed.Load())
 	assert.Contains(t, mock.closeCalls, 5)
 }
 
@@ -204,17 +204,18 @@ func TestDetach_Error(t *testing.T) {
 		},
 	}
 
-	d := &Device{path: "/dev/loop1", fd: 6, sc: mock, closed: false}
+	d := &Device{path: "/dev/loop1", fd: 6, sc: mock}
 	err := d.Detach()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "LOOP_CLR_FD")
-	assert.False(t, d.closed)
+	assert.False(t, d.closed.Load())
 }
 
 func TestDetach_AlreadyClosed(t *testing.T) {
 	t.Parallel()
 
-	d := &Device{path: "/dev/loop0", fd: 5, sc: &mockSyscaller{}, closed: true}
+	d := &Device{path: "/dev/loop0", fd: 5, sc: &mockSyscaller{}}
+	d.closed.Store(true)
 	err := d.Detach()
 	require.NoError(t, err)
 }
@@ -234,7 +235,7 @@ func TestSetAutoclear_HappyPath(t *testing.T) {
 		},
 	}
 
-	d := &Device{path: "/dev/loop2", fd: 7, sc: mock, closed: false}
+	d := &Device{path: "/dev/loop2", fd: 7, sc: mock}
 	err := d.SetAutoclear()
 	require.NoError(t, err)
 	assert.Equal(t, uint32(flagReadOnly|flagAutoclear), setFlags)
@@ -249,7 +250,7 @@ func TestSetAutoclear_GetStatusError(t *testing.T) {
 		},
 	}
 
-	d := &Device{path: "/dev/loop3", fd: 8, sc: mock, closed: false}
+	d := &Device{path: "/dev/loop3", fd: 8, sc: mock}
 	err := d.SetAutoclear()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "LOOP_GET_STATUS64")
@@ -285,4 +286,62 @@ func TestAttach_ReadWrite(t *testing.T) {
 	assert.Equal(t, "/dev/loop0", dev.Path())
 	require.NotNil(t, capturedInfo)
 	assert.Equal(t, uint32(0), capturedInfo.Flags) // no read-only flag
+}
+
+func TestSetAutoclear_AfterDetach(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSyscaller{
+		ioctlSetIntFn: func(_ int, _ uint, _ int) error {
+			return nil
+		},
+	}
+
+	d := &Device{path: "/dev/loop0", fd: 5, sc: mock}
+
+	// Detach first.
+	err := d.Detach()
+	require.NoError(t, err)
+	assert.True(t, d.closed.Load())
+
+	// SetAutoclear after Detach should return nil (no error, no panic).
+	err = d.SetAutoclear()
+	require.NoError(t, err)
+}
+
+func TestAttach_SetStatus64Failure_CleansUp(t *testing.T) {
+	t.Parallel()
+
+	var clrFdCalled bool
+	mock := &mockSyscaller{
+		openCalls: []openCall{
+			{path: "/test/backing.img", fd: 10, err: nil},
+			{path: loopControlPath, fd: 11, err: nil},
+			{path: loopDevicePrefix + "0", fd: 12, err: nil},
+		},
+		ioctlRetIntFn: func(_ int, req uint) (int, error) {
+			if req == loopCtlGetFree {
+				return 0, nil
+			}
+			return 0, nil
+		},
+		ioctlSetIntFn: func(fd int, req uint, _ int) error {
+			if req == loopClrFd {
+				clrFdCalled = true
+				assert.Equal(t, 12, fd)
+			}
+			return nil
+		},
+		ioctlSetStatus64Fn: func(_ int, _ *loopInfo64) error {
+			return errors.New("status64 failed")
+		},
+	}
+
+	a := newAttacherWith(mock)
+	dev, err := a.Attach("/test/backing.img", 0, true)
+	require.Error(t, err)
+	assert.Nil(t, dev)
+	assert.Contains(t, err.Error(), "LOOP_SET_STATUS64")
+	assert.True(t, clrFdCalled, "LOOP_CLR_FD should be called during cleanup")
+	assert.Contains(t, mock.closeCalls, 12, "loop device fd should be closed during cleanup")
 }

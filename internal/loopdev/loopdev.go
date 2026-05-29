@@ -6,7 +6,9 @@ package loopdev
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/petercb/k3os-bin/internal/iface"
@@ -164,16 +166,17 @@ func (a *Attacher) Attach(backingFile string, offset uint64, readOnly bool) (ifa
 	}
 	if err := a.sc.IoctlLoopSetStatus64(loopFd, &info); err != nil {
 		// Clean up on failure.
-		_ = a.sc.IoctlSetInt(loopFd, loopClrFd, 0)
+		if clrErr := a.sc.IoctlSetInt(loopFd, loopClrFd, 0); clrErr != nil {
+			slog.Error("failed to clear loop device during cleanup", "device", loopPath, "error", clrErr)
+		}
 		_ = a.sc.Close(loopFd)
 		return nil, fmt.Errorf("LOOP_SET_STATUS64: %w", err)
 	}
 
 	return &Device{
-		path:   loopPath,
-		fd:     loopFd,
-		sc:     a.sc,
-		closed: false,
+		path: loopPath,
+		fd:   loopFd,
+		sc:   a.sc,
 	}, nil
 }
 
@@ -182,7 +185,7 @@ type Device struct {
 	path   string
 	fd     int
 	sc     syscaller
-	closed bool
+	closed atomic.Bool
 }
 
 // Path returns the path of the loop device (e.g., "/dev/loop0").
@@ -192,19 +195,22 @@ func (d *Device) Path() string {
 
 // Detach removes the association between the loop device and its backing file.
 func (d *Device) Detach() error {
-	if d.closed {
+	if d.closed.Load() {
 		return nil
 	}
 	if err := d.sc.IoctlSetInt(d.fd, loopClrFd, 0); err != nil {
 		return fmt.Errorf("LOOP_CLR_FD on %s: %w", d.path, err)
 	}
-	d.closed = true
+	d.closed.Store(true)
 	return d.sc.Close(d.fd)
 }
 
 // SetAutoclear sets the LO_FLAGS_AUTOCLEAR flag on the loop device so the
 // kernel automatically detaches when the last reference is dropped.
 func (d *Device) SetAutoclear() error {
+	if d.closed.Load() {
+		return nil
+	}
 	var info loopInfo64
 	if err := d.sc.IoctlLoopGetStatus64(d.fd, &info); err != nil {
 		return fmt.Errorf("LOOP_GET_STATUS64 on %s: %w", d.path, err)
