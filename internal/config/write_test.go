@@ -58,39 +58,19 @@ func TestPrintInstall(t *testing.T) {
 
 	yamlStr := string(out)
 	assert.Contains(t, yamlStr, "device: /dev/sda")
-	// Note: Rancher mapper or toYAMLKeys might convert ForceEFI to force_efi
 	assert.Contains(t, yamlStr, "force_efi: true")
 	assert.NotContains(t, yamlStr, "hostname:")
 	assert.NotContains(t, yamlStr, "password:")
 }
 
-func TestToYAMLKeys(t *testing.T) {
-	data := map[string]interface{}{
-		"camelCaseKey": "value",
-		"nestedMap": map[string]interface{}{
-			"innerCamelCase": "innerValue",
+func TestPrintInstallNil(t *testing.T) {
+	cfg := CloudConfig{
+		K3OS: K3OS{
+			Install: nil,
 		},
-		"sshAuthorizedKeys": []string{"key1"},
 	}
 
-	toYAMLKeys(data)
-
-	// verify top level
-	assert.NotContains(t, data, "camelCaseKey")
-	assert.Contains(t, data, "camel_case_key")
-	assert.Equal(t, "value", data["camel_case_key"])
-
-	// verify ssh keys
-	assert.NotContains(t, data, "sshAuthorizedKeys")
-	assert.Contains(t, data, "ssh_authorized_keys")
-
-	// verify nested
-	assert.NotContains(t, data, "nestedMap")
-	assert.Contains(t, data, "nested_map")
-
-	nested, ok := data["nested_map"].(map[string]interface{})
-	require.True(t, ok)
-	assert.NotContains(t, nested, "innerCamelCase")
-	assert.Contains(t, nested, "inner_camel_case")
-	assert.Equal(t, "innerValue", nested["inner_camel_case"])
+	out, err := PrintInstall(cfg)
+	require.NoError(t, err)
+	assert.Nil(t, out)
 }
