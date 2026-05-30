@@ -6,8 +6,11 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -116,10 +119,13 @@ func postChroot() {
 
 	// Build the finalizer.
 	fin := &finalize.Finalizer{
-		FS:        fs,
-		Mounter:   mounter,
-		Cmd:       cmd,
-		SleepFunc: time.Sleep,
+		FS:            fs,
+		Mounter:       mounter,
+		Cmd:           cmd,
+		SleepFunc:     time.Sleep,
+		CmdlineReader: readCmdline,
+		RandFunc:      cryptoRandUint32,
+		VirtDetector:  detectVirt,
 	}
 
 	// Build the init orchestrator.
@@ -236,6 +242,32 @@ func readVersionID() string {
 		}
 	}
 	return ""
+}
+
+// cryptoRandUint32 generates a random uint32 using crypto/rand.
+func cryptoRandUint32() (uint32, error) {
+	var buf [4]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(buf[:]), nil
+}
+
+// detectVirt runs virt-what and returns the detected virtualization types.
+// If virt-what is not available or fails, it returns nil (non-fatal).
+func detectVirt() ([]string, error) {
+	out, err := exec.Command("virt-what").Output()
+	if err != nil {
+		return nil, nil //nolint:nilerr // virt-what failure is non-fatal
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	var result []string
+	for _, line := range lines {
+		if line != "" {
+			result = append(result, line)
+		}
+	}
+	return result, nil
 }
 
 // realProcessExecutor implements modes.ProcessExecutor using real syscalls.
