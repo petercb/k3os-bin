@@ -1,4 +1,10 @@
 // Package config implements the k3OS config sub-command.
+//
+// NOTE: As of the Go-based init implementation, the boot sequence calls
+// RunInitrd() and RunBoot() directly in-process. The --initrd and --boot
+// CLI flags are deprecated and retained only for backward compatibility.
+// The default action (no flags) is used by the ccapply OpenRC service and
+// for diagnostic purposes.
 package config
 
 import (
@@ -20,22 +26,25 @@ var (
 	dumpJSON     = false
 )
 
-// Command `config`
+// Command returns the CLI command for k3OS configuration management.
+// The default action (no flags) applies the full cloud-config sequence;
+// this is used by the ccapply OpenRC service at the "default" runlevel.
+// The --dump and --dump-json flags are useful for diagnostics.
 func Command() *cli.Command {
 	return &cli.Command{
 		Name:    "config",
-		Usage:   "configure k3OS",
+		Usage:   "apply or inspect k3OS cloud-config",
 		Aliases: []string{"cfg"},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:        "initrd",
 				Destination: &initrd,
-				Usage:       "Run initrd stage",
+				Usage:       "[deprecated] Run initrd stage (now handled internally during boot)",
 			},
 			&cli.BoolFlag{
 				Name:        "boot",
 				Destination: &bootPhase,
-				Usage:       "Run boot stage",
+				Usage:       "[deprecated] Run boot stage (now handled internally during boot)",
 			},
 			&cli.BoolFlag{
 				Name:        "install",
