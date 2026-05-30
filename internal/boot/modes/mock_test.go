@@ -1,6 +1,6 @@
 //go:build linux
 
-package bootstrap
+package modes
 
 import (
 	"os"
@@ -15,6 +15,7 @@ var (
 	_ iface.FileSystem    = (*MockFileSystem)(nil)
 	_ iface.CommandRunner = (*MockCommandRunner)(nil)
 	_ iface.Mounter       = (*MockMounter)(nil)
+	_ ProcessExecutor     = (*MockProcessExecutor)(nil)
 )
 
 // MockFileSystem is a testable iface.FileSystem implementation.
@@ -39,6 +40,14 @@ func (m *MockFileSystem) MkdirAll(path string, perm os.FileMode) error {
 }
 
 func (m *MockFileSystem) Stat(name string) (os.FileInfo, error) {
+	args := m.Called(name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(os.FileInfo), args.Error(1)
+}
+
+func (m *MockFileSystem) Lstat(name string) (os.FileInfo, error) {
 	args := m.Called(name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -99,14 +108,6 @@ func (m *MockFileSystem) Readlink(name string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockFileSystem) Lstat(name string) (os.FileInfo, error) {
-	args := m.Called(name)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(os.FileInfo), args.Error(1)
-}
-
 func (m *MockFileSystem) ReadDir(name string) ([]iface.DirEntry, error) {
 	args := m.Called(name)
 	if args.Get(0) == nil {
@@ -134,6 +135,16 @@ func (m *MockCommandRunner) Run(name string, args ...string) error {
 	return m.Called(callArgs...).Error(0)
 }
 
+func (m *MockCommandRunner) RunOutput(name string, args ...string) (string, error) {
+	callArgs := make([]interface{}, 1+len(args))
+	callArgs[0] = name
+	for i, a := range args {
+		callArgs[i+1] = a
+	}
+	ret := m.Called(callArgs...)
+	return ret.String(0), ret.Error(1)
+}
+
 func (m *MockCommandRunner) RunWithStdin(stdin string, name string, args ...string) error {
 	callArgs := make([]interface{}, 2+len(args))
 	callArgs[0] = stdin
@@ -158,16 +169,6 @@ func (m *MockCommandRunner) RunWithEnv(env []string, name string, args ...string
 	return m.Called(callArgs...).Error(0)
 }
 
-func (m *MockCommandRunner) RunOutput(name string, args ...string) (string, error) {
-	callArgs := make([]interface{}, 1+len(args))
-	callArgs[0] = name
-	for i, a := range args {
-		callArgs[i+1] = a
-	}
-	ret := m.Called(callArgs...)
-	return ret.String(0), ret.Error(1)
-}
-
 // MockMounter is a testable iface.Mounter implementation.
 type MockMounter struct {
 	mock.Mock
@@ -186,14 +187,43 @@ func (m *MockMounter) Mounted(target string) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-// fakeFileInfo implements os.FileInfo for tests.
-type fakeFileInfo struct{}
+// MockProcessExecutor is a testable ProcessExecutor implementation.
+type MockProcessExecutor struct {
+	mock.Mock
+}
 
-func (fakeFileInfo) Name() string      { return "fake" }
-func (fakeFileInfo) Size() int64       { return 0 }
-func (fakeFileInfo) Mode() os.FileMode { return 0o755 }
-func (fakeFileInfo) ModTime() time.Time {
+func (m *MockProcessExecutor) PivotRoot(newRoot, putOld string) error {
+	return m.Called(newRoot, putOld).Error(0)
+}
+
+func (m *MockProcessExecutor) Exec(path string, args []string, env []string) error {
+	return m.Called(path, args, env).Error(0)
+}
+
+// fakeFileInfo implements os.FileInfo for tests.
+type fakeFileInfo struct {
+	name  string
+	isDir bool
+	mode  os.FileMode
+}
+
+func (f fakeFileInfo) Name() string      { return f.name }
+func (f fakeFileInfo) Size() int64       { return 0 }
+func (f fakeFileInfo) Mode() os.FileMode { return f.mode }
+func (f fakeFileInfo) ModTime() time.Time {
 	return time.Time{}
 }
-func (fakeFileInfo) IsDir() bool      { return true }
-func (fakeFileInfo) Sys() interface{} { return nil }
+func (f fakeFileInfo) IsDir() bool      { return f.isDir }
+func (f fakeFileInfo) Sys() interface{} { return nil }
+
+// fakeDirEntry implements iface.DirEntry for tests.
+type fakeDirEntry struct {
+	name  string
+	isDir bool
+	mode  os.FileMode
+}
+
+func (f fakeDirEntry) Name() string               { return f.name }
+func (f fakeDirEntry) IsDir() bool                { return f.isDir }
+func (f fakeDirEntry) Type() os.FileMode          { return f.mode }
+func (f fakeDirEntry) Info() (os.FileInfo, error) { return fakeFileInfo(f), nil }

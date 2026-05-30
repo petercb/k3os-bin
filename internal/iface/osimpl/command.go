@@ -19,6 +19,16 @@ func (ShellRunner) Run(name string, args ...string) error {
 	return cmd.Run()
 }
 
+// RunOutput executes a command and returns its stdout as a trimmed string.
+func (ShellRunner) RunOutput(name string, args ...string) (string, error) {
+	cmd := exec.Command(name, args...)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 // RunWithStdin executes a command with the provided stdin content.
 func (ShellRunner) RunWithStdin(stdin string, name string, args ...string) error {
 	cmd := exec.Command(name, args...)

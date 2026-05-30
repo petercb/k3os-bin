@@ -12,12 +12,21 @@ type File interface {
 	Name() string
 }
 
+// DirEntry abstracts directory entry information.
+type DirEntry interface {
+	Name() string
+	IsDir() bool
+	Type() os.FileMode
+	Info() (os.FileInfo, error)
+}
+
 // FileSystem abstracts file I/O operations used by appliers.
 type FileSystem interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
 	ReadFile(name string) ([]byte, error)
 	MkdirAll(path string, perm os.FileMode) error
 	Stat(name string) (os.FileInfo, error)
+	Lstat(name string) (os.FileInfo, error)
 	Open(name string) (File, error)
 	Create(name string) (File, error)
 	CreateTemp(dir, pattern string) (File, error)
@@ -25,12 +34,17 @@ type FileSystem interface {
 	Chmod(name string, mode os.FileMode) error
 	Rename(oldpath, newpath string) error
 	Remove(name string) error
+	RemoveAll(path string) error
+	Symlink(oldname, newname string) error
+	Readlink(name string) (string, error)
+	ReadDir(name string) ([]DirEntry, error)
 	Hostname() (string, error)
 }
 
 // CommandRunner abstracts shell command execution.
 type CommandRunner interface {
 	Run(name string, args ...string) error
+	RunOutput(name string, args ...string) (string, error)
 	RunWithStdin(stdin string, name string, args ...string) error
 	RunShell(command string) error
 	RunWithEnv(env []string, name string, args ...string) error
