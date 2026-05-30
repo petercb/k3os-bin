@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Port the mode detection logic (overlay/libexec/k3os/mode) into Go. Extend the existing internal/mode package with a Detect() function that reads /proc/cmdline for k3os.mode=, checks for K3OS_STATE partition via blkid, checks filesystem type, and implements the 30-second wait loop with fallback. This replaces the mode shell script.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Write tests first in internal/mode/detect_test.go covering: cmdline k3os.mode=disk returns 'disk'; cmdline rescue returns 'shell'; blkid finds K3OS_STATE returns 'disk'; K3OS_MODE env var is respected; non-tmpfs root returns 'local'; fallback_mode from cmdline is used; timeout returns error when no mode found; mode file is written to /run/k3os/mode on success",
     "Define interfaces for the external dependencies: CmdlineReader (reads /proc/cmdline), BlkidChecker (checks for partition labels), StatfsChecker (checks filesystem type), FileWriter (writes mode file)",
@@ -26,5 +26,5 @@
     "go build ./..."
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 29 tests pass (22 new detect tests + 7 existing Get tests). golangci-lint passes with 0 issues. go build and go test ./... both pass. Detector struct uses func types for DI instead of interfaces (simpler for this use case). parseCmdline is a pure function thoroughly tested with table-driven tests. ValidModes is a map for O(1) lookup. Wait loop uses configurable Timeout and SleepInterval with injectable SleepFunc for fast tests. Set() function added for writing mode to state file. Context cancellation supported in Detect()."
 }
