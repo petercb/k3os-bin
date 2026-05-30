@@ -18,6 +18,19 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Run executes the rc sequence directly (mounts, hotplug, clock, loopback,
+// hostname, resolv.conf). It is called by the bootstrap phase in-process
+// and also by the CLI action when invoked as "k3os rc".
+func Run() error {
+	doMounts()
+	doHotplug()
+	doClock()
+	doLoopback()
+	doHostname()
+	doResolvConf()
+	return nil
+}
+
 // Command returns the CLI command for early phase run commands and run control.
 func Command() *cli.Command {
 	return &cli.Command{
@@ -31,13 +44,7 @@ func Command() *cli.Command {
 			return nil, nil
 		},
 		Action: func(_ context.Context, _ *cli.Command) error {
-			doMounts()
-			doHotplug()
-			doClock()
-			doLoopback()
-			doHostname()
-			doResolvConf()
-			return nil
+			return Run()
 		},
 	}
 }

@@ -17,6 +17,7 @@ type Bootstrapper struct {
 	FS            iface.FileSystem
 	Mounter       iface.Mounter
 	Cmd           iface.CommandRunner
+	RCRunner      func() error
 	KernelVersion string
 	Mode          string
 }
@@ -90,13 +91,12 @@ func (b *Bootstrapper) SetupUsers() error {
 	return nil
 }
 
-// SetupRC runs the k3os rc command for hardware initialization (modalias
-// module loading, devtmpfs, mounts). This matches the shell's call to
-// $K3OS_SYSTEM/k3os/current/k3os rc between setup_users and setup_dirs.
+// SetupRC runs the k3os rc logic for hardware initialization (modalias
+// module loading, devtmpfs, mounts). The RCRunner field is wired to
+// rc.Run in production so the logic is called directly in-process.
 func (b *Bootstrapper) SetupRC() error {
 	slog.Debug("bootstrap: running k3os rc")
-	k3osBin := system.RootPath("k3os", "current", "k3os")
-	if err := b.Cmd.Run(k3osBin, "rc"); err != nil {
+	if err := b.RCRunner(); err != nil {
 		return fmt.Errorf("k3os rc: %w", err)
 	}
 	return nil

@@ -22,6 +22,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/boot/finalize"
 	"github.com/petercb/k3os-bin/internal/boot/modes"
 	"github.com/petercb/k3os-bin/internal/cli/app"
+	"github.com/petercb/k3os-bin/internal/cli/rc"
 	"github.com/petercb/k3os-bin/internal/enterchroot"
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
 	"github.com/petercb/k3os-bin/internal/kernel"
@@ -114,6 +115,7 @@ func postChroot() {
 		FS:            fs,
 		Mounter:       mounter,
 		Cmd:           cmd,
+		RCRunner:      rc.Run,
 		KernelVersion: kver,
 	}
 

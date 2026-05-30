@@ -184,32 +184,27 @@ func TestSetupUsers_AddGroupFails(t *testing.T) {
 func TestSetupRC_Success(t *testing.T) {
 	t.Parallel()
 
-	fs := &MockFileSystem{}
-	mnt := &MockMounter{}
-	cmd := &MockCommandRunner{}
-
-	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
-
-	expectedBin := "/k3os/system/k3os/current/k3os"
-	cmd.On("Run", expectedBin, "rc").Return(nil)
+	called := false
+	b := &Bootstrapper{
+		RCRunner: func() error {
+			called = true
+			return nil
+		},
+	}
 
 	err := b.SetupRC()
 	require.NoError(t, err)
-
-	cmd.AssertExpectations(t)
+	assert.True(t, called)
 }
 
 func TestSetupRC_Fails(t *testing.T) {
 	t.Parallel()
 
-	fs := &MockFileSystem{}
-	mnt := &MockMounter{}
-	cmd := &MockCommandRunner{}
-
-	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
-
-	expectedBin := "/k3os/system/k3os/current/k3os"
-	cmd.On("Run", expectedBin, "rc").Return(errors.New("rc failed"))
+	b := &Bootstrapper{
+		RCRunner: func() error {
+			return errors.New("rc failed")
+		},
+	}
 
 	err := b.SetupRC()
 	require.Error(t, err)
@@ -384,7 +379,14 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 	mnt := &MockMounter{}
 	cmd := &MockCommandRunner{}
 
-	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd, KernelVersion: "5.15.0", Mode: "live"}
+	b := &Bootstrapper{
+		FS:            fs,
+		Mounter:       mnt,
+		Cmd:           cmd,
+		RCRunner:      func() error { return nil },
+		KernelVersion: "5.15.0",
+		Mode:          "live",
+	}
 
 	// SetupEtc
 	fs.On("MkdirAll", "/etc", os.FileMode(0o755)).Return(nil)
@@ -405,9 +407,7 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 	cmd.On("Run", "adduser", "-s", "/bin/bash", "-u", "1000", "-D", "-G", "rancher", "rancher").Return(nil)
 	cmd.On("RunWithStdin", "rancher:*\n", "chpasswd", "-e").Return(nil)
 
-	// SetupRC
-	expectedRCBin := "/k3os/system/k3os/current/k3os"
-	cmd.On("Run", expectedRCBin, "rc").Return(nil)
+	// SetupRC uses RCRunner (wired above as no-op)
 
 	// SetupDirs
 	fs.On("MkdirAll", "/run/k3os", os.FileMode(0o755)).Return(nil)
