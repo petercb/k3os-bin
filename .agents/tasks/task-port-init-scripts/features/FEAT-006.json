@@ -2,7 +2,7 @@
   "id": "FEAT-006",
   "type": "feat",
   "description": "Port the boot finalization script (overlay/libexec/k3os/boot) into Go. Create internal/boot/finalize/ package that handles: setup_ttys (configure serial consoles from /proc/cmdline), setup_sudoers, setup_services (OpenRC runlevel symlinks including virt-what detection), setup_hostname (with random fallback), setup_hosts (/etc/hosts generation), setup_mounts (bind /.base/boot, /k3os/system, unmount /.base), setup_manifests (rsync k3s manifests), setup_state_dirs, grow_live (grow partition in local mode), and the cleanup function.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Create internal/boot/finalize/ package directory",
     "Write tests first in internal/boot/finalize/finalize_test.go covering each sub-function with mocked dependencies",
@@ -34,5 +34,5 @@
     "go build ./..."
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 47 tests pass (including subtests). Tests cover SetupTTYs, SetupSudoers, SetupServices (kvm/hyperv/vmware/failure), SetupHostname, SetupHosts, SetupRoot, SetupMounts, SetupManifests, SetupStateDirs, GrowLive (blkid fallback), Cleanup, SetupConfig, Finalizer.Run, plus helper functions. golangci-lint reports 0 issues."
 }
