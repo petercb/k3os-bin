@@ -2,7 +2,7 @@
   "id": "FEAT-007",
   "type": "feat",
   "description": "Create the top-level init orchestrator (internal/boot/init.go) that wires together bootstrap, mode detection, mode execution, boot finalization, and exec /sbin/init -- matching the flow of the overlay/init shell script. Also port the utility functions (pinfo, perr, pfatal, reinit_debug, setup_kernel, cleanup) from overlay/libexec/k3os/functions. Update main.go to call this new init orchestrator instead of relying on /usr/init shell script handoff.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Create internal/boot/init.go with an Init struct that holds all sub-phase runners (Bootstrap, ModeDetector, ModeRunner, Finalizer)",
     "Write tests first in internal/boot/init_test.go: test that Init.Run() calls phases in correct order (bootstrap -> mode detect -> mode-specific -> boot finalize -> exec /sbin/init), test rescue/fallback on errors, test debug mode propagation from k3os.debug cmdline",
@@ -31,5 +31,5 @@
     "go build ./..."
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 10 init orchestrator tests pass (table-driven subtests for each failure mode plus ordered phase test and cmdline error test). Init.Run() calls bootstrap, mode detection, mode registry, mode handler, finalizer, and exec /sbin/init in correct order. Error in any phase triggers rescue. Debug mode from k3os.debug cmdline enables slog debug level. main.go initrd() detects post-chroot via /.base sentinel and calls postChroot() which wires real dependencies (osimpl types, mode.Detector, modes.NewRegistry, bootstrap.Bootstrapper, finalize.Finalizer) into boot.Init struct. realProcessExecutor wraps syscall.PivotRoot and syscall.Exec. Helper functions readCmdline, blockProbe, statfsCheck, readVersionID, fsTypeName support the orchestrator. golangci-lint 0 issues. go test ./... all green. go build ./... clean."
 }
