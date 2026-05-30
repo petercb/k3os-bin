@@ -37,18 +37,21 @@ type ModeRegistryFunc func(mode string) (ModeHandler, error)
 // It mirrors the flow of the original overlay/init shell script:
 //  1. Check cmdline for k3os.debug and enable debug logging
 //  2. Run bootstrap
-//  3. Detect boot mode
-//  4. Look up and execute the mode-specific handler
-//  5. Run boot finalization
-//  6. Exec /sbin/init (OpenRC)
+//  3. Redirect stdin/stdout/stderr to /dev/console
+//  4. Detect boot mode
+//  5. Look up and execute the mode-specific handler
+//  6. Run boot finalization
+//  7. Exec /sbin/init (OpenRC)
 type Init struct {
-	Bootstrap     BootstrapRunner
-	ModeDetector  ModeDetectorFunc
-	ModeRegistry  ModeRegistryFunc
-	Finalizer     FinalizerRunner
-	ExecFunc      func(path string, args []string, env []string) error
-	CmdlineReader func() (string, error)
-	RescueFunc    func() error
+	Bootstrap       BootstrapRunner
+	ModeDetector    ModeDetectorFunc
+	ModeRegistry    ModeRegistryFunc
+	Finalizer       FinalizerRunner
+	ExecFunc        func(path string, args []string, env []string) error
+	CmdlineReader   func() (string, error)
+	RescueFunc      func() error
+	ConsoleRedirect func() error
+	ModeSetterFunc  func(mode string)
 }
 
 // Run executes the full init sequence. On any phase failure it drops to the
@@ -64,6 +67,14 @@ func (i *Init) Run() {
 		return
 	}
 
+	// Redirect stdin/stdout/stderr to /dev/console, matching the shell's
+	// exec >/dev/console </dev/console 2>&1 after bootstrap.
+	if i.ConsoleRedirect != nil {
+		if err := i.ConsoleRedirect(); err != nil {
+			slog.Warn("init: console redirect failed", "error", err)
+		}
+	}
+
 	slog.Info("init: detecting boot mode")
 	mode, err := i.ModeDetector()
 	if err != nil {
@@ -72,6 +83,11 @@ func (i *Init) Run() {
 		return
 	}
 	slog.Info("init: detected mode", "mode", mode)
+
+	// Explicitly propagate detected mode to the finalizer.
+	if i.ModeSetterFunc != nil {
+		i.ModeSetterFunc(mode)
+	}
 
 	handler, err := i.ModeRegistry(mode)
 	if err != nil {

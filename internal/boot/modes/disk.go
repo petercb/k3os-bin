@@ -113,10 +113,18 @@ func (h *DiskHandler) SetupMounts() error {
 		return fmt.Errorf("umount for grow: %w", err)
 	}
 	// grow: parted resizepart, partprobe, e2fsck, resize2fs
-	_ = h.deps.Cmd.Run("parted", dev, "resizepart", num, "100%")
-	_ = h.deps.Cmd.Run("partprobe", dev)
-	_ = h.deps.Cmd.Run("e2fsck", "-f", devNum)
-	_ = h.deps.Cmd.Run("resize2fs", devNum)
+	if err := h.deps.Cmd.Run("parted", dev, "resizepart", num, "100%"); err != nil {
+		slog.Warn("disk: parted resizepart failed", "error", err)
+	}
+	if err := h.deps.Cmd.Run("partprobe", dev); err != nil {
+		slog.Warn("disk: partprobe failed", "error", err)
+	}
+	if err := h.deps.Cmd.Run("e2fsck", "-f", devNum); err != nil {
+		slog.Warn("disk: e2fsck failed", "error", err)
+	}
+	if err := h.deps.Cmd.Run("resize2fs", devNum); err != nil {
+		slog.Warn("disk: resize2fs failed", "error", err)
+	}
 
 	if err := h.deps.Mounter.Mount("LABEL=K3OS_STATE", targetDir, "", ""); err != nil {
 		return fmt.Errorf("remount K3OS_STATE: %w", err)
@@ -325,9 +333,19 @@ func (h *DiskHandler) Takeover() error {
 	if _, err := h.deps.FS.Stat(poweroffPath); err == nil {
 		_ = h.deps.FS.Remove(poweroffPath)
 		_ = h.deps.Cmd.Run("sync")
-		return h.deps.Cmd.Run("poweroff", "-f")
+		if err := h.deps.Cmd.Run("poweroff", "-f"); err != nil {
+			return fmt.Errorf("poweroff -f failed: %w", err)
+		}
+		// If poweroff returned without replacing the process, prevent further execution.
+		slog.Warn("disk: poweroff returned without replacing process")
+		return fmt.Errorf("poweroff -f returned unexpectedly")
 	}
-	return h.deps.Cmd.Run("reboot", "-f")
+	if err := h.deps.Cmd.Run("reboot", "-f"); err != nil {
+		return fmt.Errorf("reboot -f failed: %w", err)
+	}
+	// If reboot returned without replacing the process, prevent further execution.
+	slog.Warn("disk: reboot returned without replacing process")
+	return fmt.Errorf("reboot -f returned unexpectedly")
 }
 
 // CleanupEphemeral removes k3os/data and factory-reset marker if either

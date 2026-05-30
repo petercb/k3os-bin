@@ -178,6 +178,45 @@ func TestSetupUsers_AddGroupFails(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// SetupRC
+// ---------------------------------------------------------------------------
+
+func TestSetupRC_Success(t *testing.T) {
+	t.Parallel()
+
+	fs := &MockFileSystem{}
+	mnt := &MockMounter{}
+	cmd := &MockCommandRunner{}
+
+	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
+
+	expectedBin := "/k3os/system/k3os/current/k3os"
+	cmd.On("Run", expectedBin, "rc").Return(nil)
+
+	err := b.SetupRC()
+	require.NoError(t, err)
+
+	cmd.AssertExpectations(t)
+}
+
+func TestSetupRC_Fails(t *testing.T) {
+	t.Parallel()
+
+	fs := &MockFileSystem{}
+	mnt := &MockMounter{}
+	cmd := &MockCommandRunner{}
+
+	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
+
+	expectedBin := "/k3os/system/k3os/current/k3os"
+	cmd.On("Run", expectedBin, "rc").Return(errors.New("rc failed"))
+
+	err := b.SetupRC()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rc failed")
+}
+
+// ---------------------------------------------------------------------------
 // SetupDirs
 // ---------------------------------------------------------------------------
 
@@ -365,6 +404,10 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 	cmd.On("Run", "addgroup", "-g", "1000", "rancher").Return(nil)
 	cmd.On("Run", "adduser", "-s", "/bin/bash", "-u", "1000", "-D", "-G", "rancher", "rancher").Return(nil)
 	cmd.On("RunWithStdin", "rancher:*\n", "chpasswd", "-e").Return(nil)
+
+	// SetupRC
+	expectedRCBin := "/k3os/system/k3os/current/k3os"
+	cmd.On("Run", expectedRCBin, "rc").Return(nil)
 
 	// SetupDirs
 	fs.On("MkdirAll", "/run/k3os", os.FileMode(0o755)).Return(nil)

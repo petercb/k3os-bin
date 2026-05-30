@@ -26,6 +26,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/petercb/k3os-bin/internal/transferroot"
 	cli "github.com/urfave/cli/v3"
+	"golang.org/x/sys/unix"
 )
 
 func main() {
@@ -115,9 +116,10 @@ func postChroot() {
 
 	// Build the finalizer.
 	fin := &finalize.Finalizer{
-		FS:      fs,
-		Mounter: mounter,
-		Cmd:     cmd,
+		FS:        fs,
+		Mounter:   mounter,
+		Cmd:       cmd,
+		SleepFunc: time.Sleep,
 	}
 
 	// Build the init orchestrator.
@@ -135,13 +137,7 @@ func postChroot() {
 				Timeout:       30 * time.Second,
 				SleepInterval: 1 * time.Second,
 			}
-			m, detectErr := detector.Detect(context.Background())
-			if detectErr != nil {
-				return "", detectErr
-			}
-			// Update finalizer mode after detection.
-			fin.Mode = m
-			return m, nil
+			return detector.Detect(context.Background())
 		},
 		ModeRegistry: func(m string) (boot.ModeHandler, error) {
 			return registry.Get(m)
@@ -152,11 +148,39 @@ func postChroot() {
 		RescueFunc: func() error {
 			return syscall.Exec("/bin/bash", []string{"bash"}, os.Environ())
 		},
+		ConsoleRedirect: consoleRedirect,
+		ModeSetterFunc: func(m string) {
+			fin.Mode = m
+		},
 	}
 
 	initOrch.Run()
 	// Should not reach here; exec replaces the process.
 	os.Exit(1)
+}
+
+// consoleRedirect opens /dev/console and redirects stdin, stdout, and stderr
+// to it, matching the shell's exec >/dev/console </dev/console 2>&1.
+func consoleRedirect() error {
+	f, err := os.OpenFile("/dev/console", os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	fd := int(f.Fd())
+	if err := unix.Dup2(fd, 0); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := unix.Dup2(fd, 1); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := unix.Dup2(fd, 2); err != nil {
+		_ = f.Close()
+		return err
+	}
+	// Do not close f; the duplicated fds keep it open.
+	return nil
 }
 
 // readCmdline reads the kernel command line from /proc/cmdline.

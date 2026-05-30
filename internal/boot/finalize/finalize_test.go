@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -110,6 +112,52 @@ func TestSetupTTYs_SerialConsole(t *testing.T) {
 	fs.On("WriteFile", "/etc/inittab", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
 	fs.On("ReadFile", "/etc/securetty").Return([]byte(""), nil)
 	fs.On("WriteFile", "/etc/securetty", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
+
+	err := f.SetupTTYs()
+	require.NoError(t, err)
+	fs.AssertExpectations(t)
+}
+
+func TestSetupTTYs_SerialConsoleDeduplicated(t *testing.T) {
+	t.Parallel()
+	fs := &MockFileSystem{}
+	cmd := &MockCommandRunner{}
+	mnt := &MockMounter{}
+	// tty1 appears both as a standard TTY and in console= cmdline parameter.
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, CmdlineReader: func() (string, error) {
+		return "console=tty1,115200n8", nil
+	}}
+
+	fi := fakeFileInfo{name: "tty1", isDir: false}
+	// tty1 exists as standard TTY.
+	fs.On("Stat", "/dev/tty1").Return(fi, nil)
+	for i := 2; i <= 6; i++ {
+		fs.On("Stat", fmt.Sprintf("/dev/tty%d", i)).Return(nil, os.ErrNotExist)
+	}
+
+	fs.On("ReadFile", "/etc/inittab").Return([]byte(""), nil)
+	fs.On("WriteFile", "/etc/inittab", mock.MatchedBy(func(data []byte) bool {
+		content := string(data)
+		// tty1 should appear exactly once.
+		count := 0
+		for _, line := range strings.Split(content, "\n") {
+			if strings.HasPrefix(line, "tty1::") {
+				count++
+			}
+		}
+		return count == 1
+	}), os.FileMode(0o644)).Return(nil)
+	fs.On("ReadFile", "/etc/securetty").Return([]byte(""), nil)
+	fs.On("WriteFile", "/etc/securetty", mock.MatchedBy(func(data []byte) bool {
+		content := string(data)
+		count := 0
+		for _, line := range strings.Split(content, "\n") {
+			if line == "tty1" {
+				count++
+			}
+		}
+		return count == 1
+	}), os.FileMode(0o644)).Return(nil)
 
 	err := f.SetupTTYs()
 	require.NoError(t, err)
@@ -617,14 +665,13 @@ func TestGrowLive_Success(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: "local"}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: "local", SleepFunc: func(time.Duration) {}}
 
 	fs.On("ReadFile", "/k3os/system/growpart").Return([]byte("/dev/sda 2\n"), nil)
 	fi := fakeFileInfo{name: "sda2", isDir: false}
 	fs.On("Stat", "/dev/sda2").Return(fi, nil)
 	cmd.On("Run", "parted", "/dev/sda", "resizepart", "2", "yes", "100%").Return(nil)
 	cmd.On("Run", "partprobe", "/dev/sda").Return(nil)
-	cmd.On("Run", "sleep", "2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
 	fs.On("Remove", "/k3os/system/growpart").Return(nil)
 
@@ -639,14 +686,13 @@ func TestGrowLive_BlkidFallback(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: "local"}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: "local", SleepFunc: func(time.Duration) {}}
 
 	fs.On("ReadFile", "/k3os/system/growpart").Return([]byte("/dev/sda 2\n"), nil)
 	fs.On("Stat", "/dev/sda2").Return(nil, os.ErrNotExist)
 	cmd.On("RunOutput", "blkid", "-L", "K3OS_STATE").Return("/dev/nvme0n1p2\n", nil)
 	cmd.On("Run", "parted", "/dev/nvme0n1", "resizepart", "2", "yes", "100%").Return(nil)
 	cmd.On("Run", "partprobe", "/dev/nvme0n1").Return(nil)
-	cmd.On("Run", "sleep", "2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/nvme0n1p2").Return(nil)
 	fs.On("Remove", "/k3os/system/growpart").Return(nil)
 
@@ -805,6 +851,7 @@ func TestFinalizer_Run_Success(t *testing.T) {
 		VirtDetector: func() ([]string, error) {
 			return nil, nil
 		},
+		SleepFunc: func(time.Duration) {},
 	}
 
 	// SetupMounts - no base dirs, not mounted.
@@ -888,6 +935,7 @@ func TestFinalizer_Run_StopsOnError(t *testing.T) {
 		VirtDetector: func() ([]string, error) {
 			return nil, nil
 		},
+		SleepFunc: func(time.Duration) {},
 	}
 
 	// SetupMounts fails immediately.

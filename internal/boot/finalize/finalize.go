@@ -7,6 +7,7 @@ package finalize
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/petercb/k3os-bin/internal/iface"
 )
@@ -20,6 +21,7 @@ type Finalizer struct {
 	CmdlineReader func() (string, error)
 	RandFunc      func() (uint32, error)
 	VirtDetector  func() ([]string, error)
+	SleepFunc     func(time.Duration)
 }
 
 // Run executes the full boot finalization sequence in order, stopping on first error.

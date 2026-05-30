@@ -17,6 +17,9 @@ func (f *Finalizer) SetupTTYs() error {
 	var inittab strings.Builder
 	var securetty strings.Builder
 
+	// Track which TTYs have been added to avoid duplicates.
+	seen := make(map[string]bool)
+
 	// Add standard TTYs (1-6).
 	for i := 1; i <= 6; i++ {
 		tty := fmt.Sprintf("tty%d", i)
@@ -24,6 +27,7 @@ func (f *Finalizer) SetupTTYs() error {
 		if _, err := f.FS.Stat(devPath); err == nil {
 			inittab.WriteString(fmt.Sprintf("%s::respawn:/sbin/getty 38400 %s\n", tty, tty))
 			securetty.WriteString(tty + "\n")
+			seen[tty] = true
 		}
 	}
 
@@ -35,10 +39,14 @@ func (f *Finalizer) SetupTTYs() error {
 
 	serialEntries := parseConsoleEntries(cmdline)
 	for _, entry := range serialEntries {
+		if seen[entry.tty] {
+			continue
+		}
 		devPath := fmt.Sprintf("/dev/%s", entry.tty)
 		if _, err := f.FS.Stat(devPath); err == nil {
 			inittab.WriteString(fmt.Sprintf("%s::respawn:/sbin/getty -L %s %s vt100\n", entry.tty, entry.baudrate, entry.tty))
 			securetty.WriteString(entry.tty + "\n")
+			seen[entry.tty] = true
 		}
 	}
 

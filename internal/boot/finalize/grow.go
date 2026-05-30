@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 )
 
 // GrowLive grows the root partition if mode is "local" and a growpart marker
@@ -52,8 +53,8 @@ func (f *Finalizer) GrowLive() error {
 	if err := f.Cmd.Run("partprobe", dev); err != nil {
 		return fmt.Errorf("partprobe: %w", err)
 	}
-	if err := f.Cmd.Run("sleep", "2"); err != nil {
-		return fmt.Errorf("sleep: %w", err)
+	if f.SleepFunc != nil {
+		f.SleepFunc(2 * time.Second)
 	}
 	if err := f.Cmd.Run("resize2fs", part); err != nil {
 		return fmt.Errorf("resize2fs: %w", err)

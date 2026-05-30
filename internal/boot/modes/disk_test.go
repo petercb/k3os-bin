@@ -355,7 +355,9 @@ func TestDiskHandler_Takeover_Reboot(t *testing.T) {
 	cmd.On("Run", "reboot", "-f").Return(nil)
 
 	err := h.Takeover()
-	require.NoError(t, err)
+	// reboot returns nil (process not replaced), so we expect an error
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reboot -f returned unexpectedly")
 
 	cmd.AssertExpectations(t)
 }
@@ -393,7 +395,9 @@ func TestDiskHandler_Takeover_Poweroff(t *testing.T) {
 	cmd.On("Run", "poweroff", "-f").Return(nil)
 
 	err := h.Takeover()
-	require.NoError(t, err)
+	// poweroff returns nil (process not replaced), so we expect an error
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "poweroff -f returned unexpectedly")
 
 	cmd.AssertCalled(t, "Run", "poweroff", "-f")
 }
