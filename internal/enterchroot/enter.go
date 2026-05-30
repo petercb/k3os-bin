@@ -293,14 +293,16 @@ func run(data string) error {
 		return err
 	}
 
-	if _, err := os.Stat("/usr/init"); err != nil {
-		return fmt.Errorf("failed to find /usr/init: %w", err)
-	}
-
 	_ = os.Unsetenv("ENTER_ROOT")
 	_ = os.Unsetenv("ENTER_DATA")
 	_ = os.Unsetenv("ENTER_DEVICE")
-	return syscall.Exec("/usr/init", os.Args, os.Environ())
+
+	// Re-exec the k3os binary as "init" so the reexec handler fires and
+	// postChroot() runs the Go-based boot sequence. Using /proc/self/exe
+	// ensures we always exec the same binary that is currently running,
+	// regardless of filesystem layout after pivot_root.
+	self := reexec.Self()
+	return syscall.Exec(self, []string{"init"}, os.Environ())
 }
 
 func checkSquashfs() error {
