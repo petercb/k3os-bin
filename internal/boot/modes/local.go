@@ -41,7 +41,7 @@ func (h *LocalHandler) SetupSSH() error {
 		if err := h.deps.FS.MkdirAll("/var/lib/rancher/k3os", 0o755); err != nil {
 			return fmt.Errorf("mkdir rancher dir: %w", err)
 		}
-		if err := h.deps.Cmd.Run("cp", "-rf", etcSSH, persistDir); err != nil {
+		if err := h.deps.CopyDir(etcSSH, persistDir); err != nil {
 			return fmt.Errorf("copy ssh keys: %w", err)
 		}
 	}

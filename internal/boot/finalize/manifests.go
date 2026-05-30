@@ -16,10 +16,10 @@ func (f *Finalizer) SetupManifests() error {
 		return fmt.Errorf("mkdir manifests: %w", err)
 	}
 
-	if err := f.Cmd.Run("rsync", "-a", "--exclude=*.example",
-		"/usr/share/rancher/k3s/server/manifests/",
-		"/var/lib/rancher/k3s/server/manifests/"); err != nil {
-		return fmt.Errorf("rsync manifests: %w", err)
+	if err := f.ManifestCopier(
+		"/usr/share/rancher/k3s/server/manifests",
+		"/var/lib/rancher/k3s/server/manifests"); err != nil {
+		return fmt.Errorf("copy manifests: %w", err)
 	}
 
 	return nil

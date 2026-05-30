@@ -17,6 +17,7 @@ type Bootstrapper struct {
 	FS            iface.FileSystem
 	Mounter       iface.Mounter
 	Cmd           iface.CommandRunner
+	CopyDir       func(src, dst string) error
 	RCRunner      func() error
 	ConfigRunner  func() error
 	KernelVersion string
@@ -40,7 +41,7 @@ func (b *Bootstrapper) SetupEtc() error {
 	if err := b.Mounter.Mount("none", "/proc", "proc", ""); err != nil {
 		return fmt.Errorf("mount proc on /proc: %w", err)
 	}
-	if err := b.Cmd.Run("cp", "-rfp", "/usr/etc/.", "/etc/"); err != nil {
+	if err := b.CopyDir("/usr/etc", "/etc"); err != nil {
 		return fmt.Errorf("copy /usr/etc to /etc: %w", err)
 	}
 	return nil

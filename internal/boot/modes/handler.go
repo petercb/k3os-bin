@@ -31,6 +31,7 @@ type Deps struct {
 	Cmd           iface.CommandRunner
 	Mounter       iface.Mounter
 	Proc          ProcessExecutor
+	CopyDir       func(src, dst string) error
 	KernelVersion string
 	VersionID     string
 	SleepFunc     func(time.Duration)

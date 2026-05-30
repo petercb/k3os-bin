@@ -23,20 +23,25 @@ func TestSetupEtc_Success(t *testing.T) {
 	mnt := &MockMounter{}
 	cmd := &MockCommandRunner{}
 
-	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
+	copyDirCalled := false
+	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd, CopyDir: func(src, dst string) error {
+		copyDirCalled = true
+		assert.Equal(t, "/usr/etc", src)
+		assert.Equal(t, "/etc", dst)
+		return nil
+	}}
 
 	fs.On("MkdirAll", "/etc", os.FileMode(0o755)).Return(nil)
 	fs.On("MkdirAll", "/proc", os.FileMode(0o755)).Return(nil)
 	mnt.On("Mount", "none", "/etc", "tmpfs", "").Return(nil)
 	mnt.On("Mount", "none", "/proc", "proc", "").Return(nil)
-	cmd.On("Run", "cp", "-rfp", "/usr/etc/.", "/etc/").Return(nil)
 
 	err := b.SetupEtc()
 	require.NoError(t, err)
+	assert.True(t, copyDirCalled)
 
 	fs.AssertExpectations(t)
 	mnt.AssertExpectations(t)
-	cmd.AssertExpectations(t)
 }
 
 func TestSetupEtc_MkdirEtcFails(t *testing.T) {
@@ -381,6 +386,7 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 		FS:            fs,
 		Mounter:       mnt,
 		Cmd:           cmd,
+		CopyDir:       func(_, _ string) error { return nil },
 		RCRunner:      func() error { return nil },
 		ConfigRunner:  func() error { return nil },
 		KernelVersion: "5.15.0",
@@ -392,7 +398,6 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 	fs.On("MkdirAll", "/proc", os.FileMode(0o755)).Return(nil)
 	mnt.On("Mount", "none", "/etc", "tmpfs", "").Return(nil)
 	mnt.On("Mount", "none", "/proc", "proc", "").Return(nil)
-	cmd.On("Run", "cp", "-rfp", "/usr/etc/.", "/etc/").Return(nil)
 
 	// SetupModules
 	fs.On("Stat", ".base/lib/modules/5.15.0").Return(nil, os.ErrNotExist)

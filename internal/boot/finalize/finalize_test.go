@@ -555,17 +555,21 @@ func TestSetupManifests_Success(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt}
+
+	copierCalled := false
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, ManifestCopier: func(src, dst string) error {
+		copierCalled = true
+		assert.Equal(t, "/usr/share/rancher/k3s/server/manifests", src)
+		assert.Equal(t, "/var/lib/rancher/k3s/server/manifests", dst)
+		return nil
+	}}
 
 	fs.On("MkdirAll", "/var/lib/rancher/k3s/server/manifests", os.FileMode(0o755)).Return(nil)
-	cmd.On("Run", "rsync", "-a", "--exclude=*.example",
-		"/usr/share/rancher/k3s/server/manifests/",
-		"/var/lib/rancher/k3s/server/manifests/").Return(nil)
 
 	err := f.SetupManifests()
 	require.NoError(t, err)
+	assert.True(t, copierCalled)
 	fs.AssertExpectations(t)
-	cmd.AssertExpectations(t)
 }
 
 func TestSetupManifests_MkdirFails(t *testing.T) {
@@ -573,7 +577,7 @@ func TestSetupManifests_MkdirFails(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, ManifestCopier: func(_, _ string) error { return nil }}
 
 	fs.On("MkdirAll", "/var/lib/rancher/k3s/server/manifests", os.FileMode(0o755)).Return(errors.New("mkdir failed"))
 
@@ -582,21 +586,20 @@ func TestSetupManifests_MkdirFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "mkdir failed")
 }
 
-func TestSetupManifests_RsyncFails(t *testing.T) {
+func TestSetupManifests_CopyFails(t *testing.T) {
 	t.Parallel()
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, ManifestCopier: func(_, _ string) error {
+		return errors.New("copy failed")
+	}}
 
 	fs.On("MkdirAll", "/var/lib/rancher/k3s/server/manifests", os.FileMode(0o755)).Return(nil)
-	cmd.On("Run", "rsync", "-a", "--exclude=*.example",
-		"/usr/share/rancher/k3s/server/manifests/",
-		"/var/lib/rancher/k3s/server/manifests/").Return(errors.New("rsync failed"))
 
 	err := f.SetupManifests()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "rsync failed")
+	assert.Contains(t, err.Error(), "copy failed")
 }
 
 // ---------------------------------------------------------------------------
@@ -848,8 +851,9 @@ func TestFinalizer_Run_Success(t *testing.T) {
 		VirtDetector: func() ([]string, error) {
 			return nil, nil
 		},
-		SleepFunc:    func(time.Duration) {},
-		ConfigRunner: func() error { return nil },
+		SleepFunc:      func(time.Duration) {},
+		ConfigRunner:   func() error { return nil },
+		ManifestCopier: func(_, _ string) error { return nil },
 	}
 
 	// SetupMounts - no base dirs, not mounted.
@@ -896,9 +900,6 @@ func TestFinalizer_Run_Success(t *testing.T) {
 
 	// SetupManifests.
 	fs.On("MkdirAll", "/var/lib/rancher/k3s/server/manifests", os.FileMode(0o755)).Return(nil)
-	cmd.On("Run", "rsync", "-a", "--exclude=*.example",
-		"/usr/share/rancher/k3s/server/manifests/",
-		"/var/lib/rancher/k3s/server/manifests/").Return(nil)
 
 	// SetupStateDirs.
 	fs.On("MkdirAll", "/var/lib/nfs", os.FileMode(0o755)).Return(nil)

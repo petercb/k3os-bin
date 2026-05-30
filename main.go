@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/moby/sys/reexec"
+	cp "github.com/otiai10/copy"
 	"github.com/petercb/k3os-bin/internal/boot"
 	"github.com/petercb/k3os-bin/internal/boot/bootstrap"
 	"github.com/petercb/k3os-bin/internal/boot/finalize"
@@ -106,6 +107,7 @@ func postChroot() {
 		Cmd:           cmd,
 		Mounter:       mounter,
 		Proc:          &realProcessExecutor{},
+		CopyDir:       func(src, dst string) error { return cp.Copy(src, dst) },
 		KernelVersion: kver,
 		VersionID:     versionID,
 	}
@@ -113,9 +115,15 @@ func postChroot() {
 
 	// Build the bootstrapper.
 	bs := &bootstrap.Bootstrapper{
-		FS:            fs,
-		Mounter:       mounter,
-		Cmd:           cmd,
+		FS:      fs,
+		Mounter: mounter,
+		Cmd:     cmd,
+		CopyDir: func(src, dst string) error {
+			return cp.Copy(src, dst, cp.Options{
+				PreserveTimes: true,
+				PreserveOwner: true,
+			})
+		},
 		RCRunner:      rc.Run,
 		ConfigRunner:  cliconfig.RunInitrd,
 		KernelVersion: kver,
@@ -131,6 +139,18 @@ func postChroot() {
 		RandFunc:      cryptoRandUint32,
 		VirtDetector:  detectVirt,
 		ConfigRunner:  cliconfig.RunBoot,
+		ManifestCopier: func(src, dst string) error {
+			return cp.Copy(src, dst, cp.Options{
+				PreserveTimes: true,
+				PreserveOwner: true,
+				Skip: func(_ os.FileInfo, srcPath, _ string) (bool, error) {
+					if filepath.Ext(srcPath) == ".example" {
+						return true, nil
+					}
+					return false, nil
+				},
+			})
+		},
 	}
 
 	// Build the init orchestrator.

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,21 +18,26 @@ func TestLocalHandler_SetupSSH_PersistDirNotExists(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt}
+	copyDirCalled := false
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, CopyDir: func(src, dst string) error {
+		copyDirCalled = true
+		assert.Equal(t, "/etc/ssh", src)
+		assert.Equal(t, "/var/lib/rancher/k3os/ssh", dst)
+		return nil
+	}}
 	h := NewLocalHandler(deps)
 
 	// Persist dir does not exist
 	fs.On("Stat", "/var/lib/rancher/k3os/ssh").Return(nil, os.ErrNotExist)
 	fs.On("MkdirAll", "/var/lib/rancher/k3os", os.FileMode(0o755)).Return(nil)
-	cmd.On("Run", "cp", "-rf", "/etc/ssh", "/var/lib/rancher/k3os/ssh").Return(nil)
 	fs.On("RemoveAll", "/etc/ssh").Return(nil)
 	fs.On("Symlink", "/var/lib/rancher/k3os/ssh", "/etc/ssh").Return(nil)
 
 	err := h.SetupSSH()
 	require.NoError(t, err)
+	assert.True(t, copyDirCalled)
 
 	fs.AssertExpectations(t)
-	cmd.AssertExpectations(t)
 }
 
 func TestLocalHandler_SetupSSH_PersistDirExists(t *testing.T) {
@@ -43,7 +47,11 @@ func TestLocalHandler_SetupSSH_PersistDirExists(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt}
+	copyDirCalled := false
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, CopyDir: func(_, _ string) error {
+		copyDirCalled = true
+		return nil
+	}}
 	h := NewLocalHandler(deps)
 
 	// Persist dir already exists
@@ -54,8 +62,8 @@ func TestLocalHandler_SetupSSH_PersistDirExists(t *testing.T) {
 	err := h.SetupSSH()
 	require.NoError(t, err)
 
-	// Should not have called cp
-	cmd.AssertNotCalled(t, "Run", mock.Anything)
+	// Should not have called CopyDir
+	assert.False(t, copyDirCalled)
 }
 
 func TestLocalHandler_SetupSSH_CopyFails(t *testing.T) {
@@ -65,12 +73,13 @@ func TestLocalHandler_SetupSSH_CopyFails(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, CopyDir: func(_, _ string) error {
+		return errors.New("copy failed")
+	}}
 	h := NewLocalHandler(deps)
 
 	fs.On("Stat", "/var/lib/rancher/k3os/ssh").Return(nil, os.ErrNotExist)
 	fs.On("MkdirAll", "/var/lib/rancher/k3os", os.FileMode(0o755)).Return(nil)
-	cmd.On("Run", "cp", "-rf", "/etc/ssh", "/var/lib/rancher/k3os/ssh").Return(errors.New("copy failed"))
 
 	err := h.SetupSSH()
 	require.Error(t, err)
@@ -121,7 +130,7 @@ func TestLocalHandler_Execute_Success(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, CopyDir: func(_, _ string) error { return nil }}
 	h := NewLocalHandler(deps)
 
 	// SetupSSH - persist dir exists already
