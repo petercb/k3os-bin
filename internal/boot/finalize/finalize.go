@@ -22,6 +22,7 @@ type Finalizer struct {
 	RandFunc      func() (uint32, error)
 	VirtDetector  func() ([]string, error)
 	SleepFunc     func(time.Duration)
+	ConfigRunner  func() error
 }
 
 // Run executes the full boot finalization sequence in order, stopping on first error.

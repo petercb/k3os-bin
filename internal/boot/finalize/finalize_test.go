@@ -776,9 +776,8 @@ func TestSetupConfig_Success(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, ConfigRunner: func() error { return nil }}
 
-	cmd.On("Run", "k3os", "config", "--boot").Return(nil)
 	fs.On("Stat", "/etc/conf.d/udev-settle").Return(nil, os.ErrNotExist)
 	fs.On("Stat", "/var/lib/connman/cloud-config.config").Return(nil, os.ErrNotExist)
 	fs.On("Stat", "/etc/conf.d/cloud-config").Return(nil, os.ErrNotExist)
@@ -786,7 +785,7 @@ func TestSetupConfig_Success(t *testing.T) {
 
 	err := f.SetupConfig()
 	require.NoError(t, err)
-	cmd.AssertExpectations(t)
+	fs.AssertExpectations(t)
 }
 
 func TestSetupConfig_AllConditionalsPresent(t *testing.T) {
@@ -794,10 +793,9 @@ func TestSetupConfig_AllConditionalsPresent(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, ConfigRunner: func() error { return nil }}
 
 	fi := fakeFileInfo{name: "conf", isDir: false}
-	cmd.On("Run", "k3os", "config", "--boot").Return(nil)
 	fs.On("Stat", "/etc/conf.d/udev-settle").Return(fi, nil)
 	fs.On("Symlink", "/etc/init.d/udev-settle", "/etc/runlevels/sysinit/udev-settle").Return(nil)
 	fs.On("Stat", "/var/lib/connman/cloud-config.config").Return(fi, nil)
@@ -811,7 +809,6 @@ func TestSetupConfig_AllConditionalsPresent(t *testing.T) {
 	err := f.SetupConfig()
 	require.NoError(t, err)
 	fs.AssertExpectations(t)
-	cmd.AssertExpectations(t)
 }
 
 func TestSetupConfig_K3osConfigFails(t *testing.T) {
@@ -819,9 +816,9 @@ func TestSetupConfig_K3osConfigFails(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt}
-
-	cmd.On("Run", "k3os", "config", "--boot").Return(errors.New("config failed"))
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, ConfigRunner: func() error {
+		return errors.New("config failed")
+	}}
 
 	err := f.SetupConfig()
 	require.Error(t, err)
@@ -851,7 +848,8 @@ func TestFinalizer_Run_Success(t *testing.T) {
 		VirtDetector: func() ([]string, error) {
 			return nil, nil
 		},
-		SleepFunc: func(time.Duration) {},
+		SleepFunc:    func(time.Duration) {},
+		ConfigRunner: func() error { return nil },
 	}
 
 	// SetupMounts - no base dirs, not mounted.
@@ -890,8 +888,7 @@ func TestFinalizer_Run_Success(t *testing.T) {
 	// SetupServices.
 	fs.On("Symlink", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
 
-	// SetupConfig.
-	cmd.On("Run", "k3os", "config", "--boot").Return(nil)
+	// SetupConfig - uses ConfigRunner (wired above as no-op).
 	fs.On("Stat", "/etc/conf.d/udev-settle").Return(nil, os.ErrNotExist)
 	fs.On("Stat", "/var/lib/connman/cloud-config.config").Return(nil, os.ErrNotExist)
 	fs.On("Stat", "/etc/conf.d/cloud-config").Return(nil, os.ErrNotExist)

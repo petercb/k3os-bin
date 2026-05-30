@@ -18,6 +18,7 @@ type Bootstrapper struct {
 	Mounter       iface.Mounter
 	Cmd           iface.CommandRunner
 	RCRunner      func() error
+	ConfigRunner  func() error
 	KernelVersion string
 	Mode          string
 }
@@ -147,8 +148,7 @@ func (b *Bootstrapper) SetupConfig(mode string) error {
 		return nil
 	}
 
-	k3osBin := system.RootPath("k3os", "current", "k3os")
-	if err := b.Cmd.Run(k3osBin, "config", "--initrd"); err != nil {
+	if err := b.ConfigRunner(); err != nil {
 		return fmt.Errorf("k3os config --initrd: %w", err)
 	}
 	return nil

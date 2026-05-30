@@ -325,7 +325,10 @@ func TestSetupConfig_LocalMode(t *testing.T) {
 	mnt := &MockMounter{}
 	cmd := &MockCommandRunner{}
 
-	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
+	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd, ConfigRunner: func() error {
+		t.Fatal("ConfigRunner should not be called in local mode")
+		return nil
+	}}
 
 	err := b.SetupConfig("local")
 	require.NoError(t, err)
@@ -336,32 +339,27 @@ func TestSetupConfig_LocalMode(t *testing.T) {
 func TestSetupConfig_NonLocalMode(t *testing.T) {
 	t.Parallel()
 
-	fs := &MockFileSystem{}
-	mnt := &MockMounter{}
-	cmd := &MockCommandRunner{}
-
-	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
-
-	expectedBin := "/k3os/system/k3os/current/k3os"
-	cmd.On("Run", expectedBin, "config", "--initrd").Return(nil)
+	called := false
+	b := &Bootstrapper{
+		ConfigRunner: func() error {
+			called = true
+			return nil
+		},
+	}
 
 	err := b.SetupConfig("live")
 	require.NoError(t, err)
-
-	cmd.AssertExpectations(t)
+	assert.True(t, called)
 }
 
 func TestSetupConfig_RunFails(t *testing.T) {
 	t.Parallel()
 
-	fs := &MockFileSystem{}
-	mnt := &MockMounter{}
-	cmd := &MockCommandRunner{}
-
-	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
-
-	expectedBin := "/k3os/system/k3os/current/k3os"
-	cmd.On("Run", expectedBin, "config", "--initrd").Return(errors.New("config failed"))
+	b := &Bootstrapper{
+		ConfigRunner: func() error {
+			return errors.New("config failed")
+		},
+	}
 
 	err := b.SetupConfig("disk")
 	require.Error(t, err)
@@ -384,6 +382,7 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 		Mounter:       mnt,
 		Cmd:           cmd,
 		RCRunner:      func() error { return nil },
+		ConfigRunner:  func() error { return nil },
 		KernelVersion: "5.15.0",
 		Mode:          "live",
 	}
@@ -416,9 +415,7 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 	kernelPath := "/k3os/system/kernel/5.15.0/kernel.squashfs"
 	fs.On("Stat", kernelPath).Return(nil, os.ErrNotExist)
 
-	// SetupConfig (non-local mode)
-	expectedBin := "/k3os/system/k3os/current/k3os"
-	cmd.On("Run", expectedBin, "config", "--initrd").Return(nil)
+	// SetupConfig uses ConfigRunner (wired above as no-op)
 
 	err := b.Run()
 	require.NoError(t, err)

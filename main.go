@@ -22,6 +22,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/boot/finalize"
 	"github.com/petercb/k3os-bin/internal/boot/modes"
 	"github.com/petercb/k3os-bin/internal/cli/app"
+	cliconfig "github.com/petercb/k3os-bin/internal/cli/config"
 	"github.com/petercb/k3os-bin/internal/cli/rc"
 	"github.com/petercb/k3os-bin/internal/enterchroot"
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
@@ -116,6 +117,7 @@ func postChroot() {
 		Mounter:       mounter,
 		Cmd:           cmd,
 		RCRunner:      rc.Run,
+		ConfigRunner:  cliconfig.RunInitrd,
 		KernelVersion: kver,
 	}
 
@@ -128,6 +130,7 @@ func postChroot() {
 		CmdlineReader: readCmdline,
 		RandFunc:      cryptoRandUint32,
 		VirtDetector:  detectVirt,
+		ConfigRunner:  cliconfig.RunBoot,
 	}
 
 	// Build the init orchestrator.

@@ -12,7 +12,7 @@ import (
 func (f *Finalizer) SetupConfig() error {
 	slog.Debug("finalize: setting up config")
 
-	if err := f.Cmd.Run("k3os", "config", "--boot"); err != nil {
+	if err := f.ConfigRunner(); err != nil {
 		return fmt.Errorf("k3os config --boot: %w", err)
 	}
 
