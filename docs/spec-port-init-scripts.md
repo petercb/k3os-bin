@@ -507,3 +507,147 @@ The port is considered complete when:
    from the k3os repository, replaced by the Go binary.
 6. `golangci-lint run ./...` passes with no issues.
 7. The binary size remains reasonable (no unnecessary dependencies).
+
+## 14. Implementation Notes
+
+This section documents what was actually implemented during the port, any
+deviations from the original plan, and how the final architecture differs from
+the spec above.
+
+### 14.1 Summary of What Was Implemented
+
+All four major phases of the init sequence were ported to Go, plus a top-level
+orchestrator that wires them together:
+
+1. **Bootstrap** (`internal/boot/bootstrap/`): SetupEtc, SetupModules,
+   SetupUsers, RunRC, SetupDirs, SetupKernel, SetupConfig - matching the
+   original `overlay/libexec/k3os/bootstrap` shell script.
+
+2. **Mode Detection** (`internal/mode/`): The `Detector` struct implements
+   cmdline parsing, block device probing via blkid, root filesystem type
+   detection via statfs, and a retry loop with configurable timeout -
+   matching the original `overlay/libexec/k3os/mode` shell script.
+
+3. **Mode Handlers** (`internal/boot/modes/`): Five handlers covering all
+   boot modes:
+   - `DiskHandler` - partition grow, mount state, setup k3os/k3s, pivot_root
+   - `LocalHandler` - SSH persistence, rancher node setup
+   - `LiveHandler` - base image mount, password removal, motd setup
+   - `InstallHandler` - delegates to LiveHandler
+   - `ShellHandler` - delegates to LiveHandler, then execs bash
+
+4. **Boot Finalization** (`internal/boot/finalize/`): SetupMounts, GrowLive,
+   SetupHostname, SetupHosts, SetupRoot, SetupTTYs, SetupSudoers,
+   SetupServices, SetupConfig, SetupManifests, SetupStateDirs, and Cleanup -
+   matching the original `overlay/libexec/k3os/boot` shell script.
+
+5. **Orchestrator** (`internal/boot/init.go`): The `Init` struct runs all
+   phases in sequence with error handling and rescue-shell fallback, matching
+   the flow of the original `overlay/init` shell script.
+
+### 14.2 Deviations From the Original Plan
+
+1. **Mode detection lives in `internal/mode/`, not `internal/boot/`**: The
+   existing `internal/mode` package already handled mode reading/writing. The
+   `Detector` struct was added there (with a `Detect` method) rather than
+   creating a separate detection file in `internal/boot/`. The orchestrator
+   wraps it via a `ModeDetectorFunc` closure.
+
+2. **Package structure differs from spec**: Instead of a flat set of files
+   under `internal/boot/`, the implementation uses sub-packages:
+   - `internal/boot/bootstrap/` (not `internal/boot/bootstrap.go`)
+   - `internal/boot/modes/` (not `internal/boot/handler_*.go`)
+   - `internal/boot/finalize/` (not `internal/boot/finalize.go`)
+   - `internal/boot/init.go` is the orchestrator (not `internal/boot/boot.go`)
+
+3. **Finalize includes SetupConfig and SetupRoot**: The original spec listed
+   these but the implementation adds concrete handling for writing
+   `/root` with 0700 permissions and invoking `k3os config --boot`.
+
+4. **No separate interfaces in `internal/iface/` for new abstractions**:
+   Rather than adding `BlockDeviceProber`, `PartitionResizer`, and
+   `ProcessExecutor` as formal interfaces in the shared `iface` package, each
+   package defines its own dependency interfaces locally:
+   - `modes.ProcessExecutor` in `internal/boot/modes/handler.go`
+   - Mode detection dependencies are function fields on `mode.Detector`
+   - Bootstrap/Finalize use `iface.FileSystem`, `iface.Mounter`, and
+     `iface.CommandRunner` directly
+
+5. **Functional dependency injection**: The `mode.Detector` uses function
+   fields (e.g., `CmdlineReader`, `BlockProber`, `StatfsChecker`) rather than
+   interface types. This makes testing simpler since test functions can be
+   assigned directly without creating mock structs.
+
+6. **Finalize has individual files per function**: Each finalization step is
+   in its own file (hostname.go, ttys.go, services.go, etc.) for clarity,
+   rather than one large finalize.go file.
+
+### 14.3 Architecture
+
+The entry point is `main.go`, which registers an "init" reexec handler.
+When the binary is invoked as PID 1 (`/init`), it enters the `initrd()`
+function. This function detects whether it is running pre-chroot or
+post-chroot by checking for the `/.base` sentinel file:
+
+- **Pre-chroot**: Calls `transferroot.Relocate()`, remounts root as rw, and
+  enters the chroot via `enterchroot.Mount()`. This is unchanged from the
+  existing code.
+- **Post-chroot** (new): Calls `postChroot()` which wires up all real OS
+  dependencies and invokes `boot.Init.Run()`. This replaces the original
+  `/usr/init` shell script that was previously exec'd after entering the
+  chroot.
+
+### 14.4 Package Structure
+
+```
+main.go                              -- reexec registration, postChroot() wiring
+internal/boot/
+    init.go                          -- Init orchestrator struct and Run() method
+    init_test.go                     -- orchestrator unit tests
+internal/boot/bootstrap/
+    bootstrap.go                     -- Bootstrapper struct, all setup functions
+    bootstrap_test.go                -- table-driven unit tests
+    mock_test.go                     -- testify mock definitions
+internal/boot/modes/
+    handler.go                       -- ModeHandler interface, Deps, Registry
+    handler_test.go                  -- registry tests
+    disk.go                          -- DiskHandler
+    disk_test.go
+    local.go                         -- LocalHandler
+    local_test.go
+    live.go                          -- LiveHandler (shared by live/install)
+    live_test.go
+    shell.go                         -- ShellHandler
+    shell_test.go
+    mock_test.go                     -- shared mock definitions
+internal/boot/finalize/
+    finalize.go                      -- Finalizer struct with Run() sequence
+    finalize_test.go                 -- integration test for step ordering
+    mounts.go, grow.go, hostname.go  -- individual step implementations
+    ttys.go, sudoers.go, services.go
+    config.go, manifests.go
+    statedirs.go, cleanup.go
+    mock_test.go                     -- shared mock definitions
+internal/mode/
+    mode.go                          -- Get/Set functions (pre-existing)
+    detect.go                        -- Detector struct with Detect() method
+    detect_test.go                   -- table-driven detection tests
+```
+
+### 14.5 Testing Approach
+
+- **Interface-driven DI**: All OS interactions (filesystem, mounts, process
+  execution, command running) are injected via interfaces or function fields.
+  No test touches the real filesystem or invokes real system commands.
+- **testify/mock**: Mock implementations are generated using
+  `github.com/stretchr/testify/mock` and defined in `mock_test.go` files
+  within each package.
+- **Table-driven tests**: All test functions use the standard Go table-driven
+  pattern with `t.Run()` subtests, covering success paths, error paths, and
+  edge cases.
+- **Independent testability**: Each function (e.g., `SetupHostname`,
+  `SetupTTYs`) can be tested in isolation by constructing a `Finalizer` or
+  `Bootstrapper` with only the mocks that function needs.
+- **Orchestrator tested with full mock graph**: `init_test.go` verifies the
+  end-to-end flow (bootstrap, detect, mode execute, finalize, exec) using
+  mock runners that track call order and simulate failures.
