@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-007",
+  "type": "feat",
+  "description": "Create the top-level init orchestrator (internal/boot/init.go) that wires together bootstrap, mode detection, mode execution, boot finalization, and exec /sbin/init -- matching the flow of the overlay/init shell script. Also port the utility functions (pinfo, perr, pfatal, reinit_debug, setup_kernel, cleanup) from overlay/libexec/k3os/functions. Update main.go to call this new init orchestrator instead of relying on /usr/init shell script handoff.",
+  "status": "pending",
+  "steps": [
+    "Create internal/boot/init.go with an Init struct that holds all sub-phase runners (Bootstrap, ModeDetector, ModeRunner, Finalizer)",
+    "Write tests first in internal/boot/init_test.go: test that Init.Run() calls phases in correct order (bootstrap -> mode detect -> mode-specific -> boot finalize -> exec /sbin/init), test rescue/fallback on errors, test debug mode propagation from k3os.debug cmdline",
+    "Port utility functions from overlay/libexec/k3os/functions: pinfo/perr/pfatal map to slog.Info/slog.Error/slog.Error+os.Exit, reinit_debug checks /proc/cmdline for k3os.debug and enables debug logging, setup_kernel mounts kernel squashfs and bind-mounts modules/firmware, cleanup removes /run/k3os and writes mode file",
+    "Implement Init.Run() method that orchestrates the full boot sequence with error handling and rescue shell fallback",
+    "Update main.go initrd() function: after enterchroot.Mount() succeeds, the binary is now exec'd as /usr/init. Register a new reexec handler 'usr-init' (or modify the existing flow) so that when the binary runs as /usr/init inside the chroot, it calls boot.Init.Run() instead of a shell script",
+    "Ensure the enterchroot.Enter() -> run() function execs the binary itself (self-exec) as /usr/init rather than a shell script, OR configure enterchroot to exec a path that is a symlink to the k3os binary",
+    "Run golangci-lint run ./... and fix any issues",
+    "Run go test ./internal/boot/... and verify all tests pass",
+    "Run go test ./... to verify no regressions",
+    "Commit with message 'feat(init): wire up init orchestrator replacing shell-based init'"
+  ],
+  "acceptance_criteria": [
+    "internal/boot/init.go and internal/boot/init_test.go exist",
+    "Init.Run() calls bootstrap, mode detection, mode handler, finalizer, and execs /sbin/init in correct order",
+    "Error in any phase triggers rescue shell (exec bash) matching original shell behavior",
+    "Debug mode from k3os.debug cmdline enables slog debug level",
+    "main.go or enterchroot correctly invokes the Go-based init instead of shell /usr/init",
+    "go test ./... passes (all packages)",
+    "golangci-lint run ./... passes"
+  ],
+  "verification": [
+    "go test ./internal/boot/...",
+    "go test ./...",
+    "golangci-lint run ./...",
+    "go build ./..."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

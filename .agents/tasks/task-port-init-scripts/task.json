@@ -1,0 +1,7 @@
+{
+  "task_id": "task-port-init-scripts",
+  "task_description": "Port the shell-based init sequence from k3os repo (overlay/init, overlay/libexec/k3os/*) into Go code within k3os-bin. The shell scripts handle bootstrap, mode detection, mode-specific setup, boot finalization, and handoff to OpenRC. Each phase becomes a Go package under internal/boot/ with interface-driven design for testability using TDD.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005", "FEAT-006", "FEAT-007", "FEAT-008"],
+  "blocked_reason": null
+}

@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-005",
+  "type": "feat",
+  "description": "Port the mode-specific scripts (mode-disk, mode-local, mode-live, mode-install, mode-shell) and the live helper into Go. Create internal/boot/modes/ package with a ModeRunner interface and implementations for each mode. mode-disk is the most complex (mount K3OS_STATE, grow partition, setup k3os/k3s binaries, pivot_root). mode-local sets up SSH persistence and rancher node dirs. mode-live/mode-install source the live script (mount ISO/USB, setup_kernel, remove passwd, setup motd). mode-shell drops to a shell.",
+  "status": "pending",
+  "steps": [
+    "Create internal/boot/modes/ package directory",
+    "Define ModeRunner interface with Execute(mode string) error method in internal/boot/modes/modes.go",
+    "Write tests first in internal/boot/modes/modes_test.go for the dispatcher that routes to the correct mode handler",
+    "Write internal/boot/modes/disk.go with tests in disk_test.go: port mode-disk logic (mount K3OS_STATE, grow partition, setup_k3os, setup_kernel_squashfs, setup_init symlink, setup_k3s, takeover, pivot_root)",
+    "Write internal/boot/modes/local.go with tests in local_test.go: port mode-local logic (setup_ssh persistence, setup_rancher_node)",
+    "Write internal/boot/modes/live.go with tests in live_test.go: port live helper logic (mount ISO/USB with retry, setup_kernel squashfs, remove passwd, setup motd) and mode-live/mode-install that call it",
+    "Write internal/boot/modes/shell.go with tests in shell_test.go: port mode-shell (exec bash)",
+    "All implementations use interfaces from internal/iface for testability",
+    "Run golangci-lint run ./... and fix any issues",
+    "Run go test ./internal/boot/modes/... and verify all tests pass",
+    "Commit with message 'feat(modes): port boot mode scripts to Go'"
+  ],
+  "acceptance_criteria": [
+    "internal/boot/modes/ package exists with modes.go, disk.go, local.go, live.go, shell.go and corresponding test files",
+    "ModeRunner dispatches to correct handler based on mode string",
+    "Disk mode implements: mount, grow, k3os/k3s setup, takeover, pivot_root",
+    "Local mode implements: SSH dir persistence, rancher node dirs",
+    "Live mode implements: ISO/USB mount with retry loop, kernel squashfs, passwd removal, motd",
+    "Shell mode execs bash",
+    "All modes are tested with mocked dependencies",
+    "go test ./internal/boot/modes/... passes",
+    "golangci-lint run ./... passes"
+  ],
+  "verification": [
+    "go test ./internal/boot/modes/...",
+    "golangci-lint run ./...",
+    "go build ./..."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

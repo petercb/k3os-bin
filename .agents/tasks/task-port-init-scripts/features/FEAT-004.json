@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Port the mode detection logic (overlay/libexec/k3os/mode) into Go. Extend the existing internal/mode package with a Detect() function that reads /proc/cmdline for k3os.mode=, checks for K3OS_STATE partition via blkid, checks filesystem type, and implements the 30-second wait loop with fallback. This replaces the mode shell script.",
+  "status": "pending",
+  "steps": [
+    "Write tests first in internal/mode/detect_test.go covering: cmdline k3os.mode=disk returns 'disk'; cmdline rescue returns 'shell'; blkid finds K3OS_STATE returns 'disk'; K3OS_MODE env var is respected; non-tmpfs root returns 'local'; fallback_mode from cmdline is used; timeout returns error when no mode found; mode file is written to /run/k3os/mode on success",
+    "Define interfaces for the external dependencies: CmdlineReader (reads /proc/cmdline), BlkidChecker (checks for partition labels), StatfsChecker (checks filesystem type), FileWriter (writes mode file)",
+    "Implement Detect() function in internal/mode/detect.go with the full mode detection logic matching the shell script behavior",
+    "Implement real OS implementations of the interfaces",
+    "Run golangci-lint run ./... and fix any issues",
+    "Run go test ./internal/mode/... and verify all tests pass",
+    "Commit with message 'feat(mode): port mode detection shell script to Go'"
+  ],
+  "acceptance_criteria": [
+    "internal/mode/detect.go and internal/mode/detect_test.go exist",
+    "Detect() handles all mode determination paths: cmdline override, rescue, blkid K3OS_STATE, env var, filesystem type check, fallback, timeout",
+    "Mode result is written to state file at /run/k3os/mode",
+    "Tests verify each detection path independently using mocked dependencies",
+    "go test ./internal/mode/... passes",
+    "golangci-lint run ./... passes"
+  ],
+  "verification": [
+    "go test ./internal/mode/...",
+    "golangci-lint run ./...",
+    "go build ./..."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

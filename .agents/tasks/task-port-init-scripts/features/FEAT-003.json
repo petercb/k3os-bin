@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Port the bootstrap phase (overlay/libexec/k3os/bootstrap) into Go. This includes setup_etc (mount tmpfs on /etc, copy files), setup_modules (bind mount kernel modules/firmware), setup_users (create rancher user/group), setup_dirs (create /run/k3os), and setup_config (call k3os config --initrd). Create a new internal/boot/bootstrap package with interface-driven design for testability.",
+  "status": "pending",
+  "steps": [
+    "Create internal/boot/bootstrap/ package directory",
+    "Define a Bootstrap interface in internal/boot/bootstrap/bootstrap.go that abstracts the OS operations needed (FileSystem, Mounter, CommandRunner from internal/iface)",
+    "Write tests first in internal/boot/bootstrap/bootstrap_test.go using mock implementations, covering: setup_etc creates /etc and /proc, mounts tmpfs, copies files; setup_modules bind-mounts modules/firmware when they exist; setup_users creates groups and users correctly; setup_dirs creates /run/k3os; setup_config calls k3os config --initrd in non-local mode",
+    "Implement Bootstrap struct with Run() method that orchestrates all bootstrap steps in order",
+    "Implement each sub-function: SetupEtc, SetupModules, SetupUsers, SetupDirs, SetupConfig",
+    "Run golangci-lint run ./... and fix any issues",
+    "Run go test ./internal/boot/bootstrap/... and verify all tests pass",
+    "Commit with message 'feat(bootstrap): port bootstrap shell script to Go'"
+  ],
+  "acceptance_criteria": [
+    "internal/boot/bootstrap/ package exists with bootstrap.go and bootstrap_test.go",
+    "All bootstrap sub-functions are implemented and tested",
+    "Tests use dependency injection (mocked FS, mounter, command runner)",
+    "go test ./internal/boot/bootstrap/... passes",
+    "golangci-lint run ./... passes"
+  ],
+  "verification": [
+    "go test ./internal/boot/bootstrap/...",
+    "golangci-lint run ./...",
+    "go build ./..."
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
