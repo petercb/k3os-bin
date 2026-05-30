@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "docs",
   "description": "Create a specification document (docs/spec-port-init-scripts.md) in the repo that details the plan to port the shell-based init sequence into Go. This serves as the reference spec for future work. Also update the README to mention the init subsystem.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Create docs/ directory if it does not exist",
     "Write docs/spec-port-init-scripts.md containing: overview of the current shell-based init flow (from overlay/init through bootstrap, mode detection, mode-specific scripts, boot, cleanup, exec /sbin/init), the target Go architecture (new internal/init/ package with sub-packages for each phase), the mapping of shell functions to Go functions, interface definitions for testability, TDD/SOLID/KISS/DRY principles applied, and phased implementation approach",
@@ -20,5 +20,5 @@
     "grep -q 'init' README.md"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Spec written covering all 10 shell scripts. golangci-lint passes clean. README updated with init subsystem section linking to spec."
 }
