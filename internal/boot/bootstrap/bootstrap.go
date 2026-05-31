@@ -167,8 +167,12 @@ func (b *Bootstrapper) Run() error {
 	}{
 		{"SetupEtc", b.SetupEtc},
 		{"SetupModules", b.SetupModules},
-		{"SetupUsers", b.SetupUsers},
+		// SetupRC must run before SetupUsers because rc.Run() mounts /dev
+		// (devtmpfs), and Go's os/exec requires /dev/null for subprocess
+		// stdin. The original shell script ran users before rc, but busybox
+		// sed doesn't need /dev/null whereas Go's exec.Command does.
 		{"SetupRC", b.SetupRC},
+		{"SetupUsers", b.SetupUsers},
 		{"SetupDirs", b.SetupDirs},
 		{"SetupKernel", b.SetupKernel},
 		{"SetupConfig", func() error { return b.SetupConfig(b.Mode) }},

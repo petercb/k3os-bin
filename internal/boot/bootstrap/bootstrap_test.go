@@ -403,6 +403,8 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 	fs.On("Stat", ".base/lib/modules/5.15.0").Return(nil, os.ErrNotExist)
 	fs.On("Stat", ".base/lib/firmware").Return(nil, os.ErrNotExist)
 
+	// SetupRC uses RCRunner (wired above as no-op)
+
 	// SetupUsers
 	cmd.On("Run", "sed", "-i", "s!/bin/ash!/bin/bash!", "/etc/passwd").Return(nil)
 	cmd.On("Run", "addgroup", "-S", "sudo").Return(nil)
@@ -410,8 +412,6 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 	cmd.On("Run", "addgroup", "-g", "1000", "rancher").Return(nil)
 	cmd.On("Run", "adduser", "-s", "/bin/bash", "-u", "1000", "-D", "-G", "rancher", "rancher").Return(nil)
 	cmd.On("RunWithStdin", "rancher:*\n", "chpasswd", "-e").Return(nil)
-
-	// SetupRC uses RCRunner (wired above as no-op)
 
 	// SetupDirs
 	fs.On("MkdirAll", "/run/k3os", os.FileMode(0o755)).Return(nil)
