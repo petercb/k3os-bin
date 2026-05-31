@@ -297,12 +297,14 @@ func run(data string) error {
 	_ = os.Unsetenv("ENTER_DATA")
 	_ = os.Unsetenv("ENTER_DEVICE")
 
-	// Re-exec the k3os binary as "init" so the reexec handler fires and
+	// Re-exec the k3os binary as "/init" so the reexec handler fires and
 	// postChroot() runs the Go-based boot sequence. Using /proc/self/exe
 	// ensures we always exec the same binary that is currently running,
 	// regardless of filesystem layout after pivot_root.
+	// The argv[0] must be "/init" to match the reexec.Register("/init", ...)
+	// registration (the moby/sys/reexec package matches on os.Args[0] exactly).
 	self := reexec.Self()
-	return syscall.Exec(self, []string{"init"}, os.Environ())
+	return syscall.Exec(self, []string{"/init"}, os.Environ())
 }
 
 func checkSquashfs() error {
