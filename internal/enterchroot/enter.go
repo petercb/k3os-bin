@@ -277,6 +277,21 @@ func run(data string) error {
 	}
 
 	slog.Debug("pivoting to . .base")
+
+	// Resolve the binary path BEFORE pivot_root, because /proc/self/exe
+	// (returned by reexec.Self()) won't be accessible after pivot since
+	// /proc is not mounted in the new root. We resolve the symlink now
+	// while /proc is still available.
+	var self string
+	if resolved, readErr := os.Readlink(reexec.Self()); readErr != nil {
+		// Fallback: use the known path where the binary will be after pivot.
+		self = "/.base/k3os/system/k3os/current/k3os"
+	} else {
+		// The resolved path is absolute in the current root. After pivot_root,
+		// the current root becomes /.base, so prefix accordingly.
+		self = "/.base" + resolved
+	}
+
 	if err := syscall.PivotRoot(".", ".base"); err != nil {
 		return fmt.Errorf("pivot_root failed: %w", err)
 	}
@@ -298,12 +313,11 @@ func run(data string) error {
 	_ = os.Unsetenv("ENTER_DEVICE")
 
 	// Re-exec the k3os binary as "/init" so the reexec handler fires and
-	// postChroot() runs the Go-based boot sequence. Using /proc/self/exe
-	// ensures we always exec the same binary that is currently running,
-	// regardless of filesystem layout after pivot_root.
+	// postChroot() runs the Go-based boot sequence. The path was resolved
+	// before pivot_root (while /proc was still accessible) and prefixed
+	// with /.base to account for the old root's new location.
 	// The argv[0] must be "/init" to match the reexec.Register("/init", ...)
 	// registration (the moby/sys/reexec package matches on os.Args[0] exactly).
-	self := reexec.Self()
 	return syscall.Exec(self, []string{"/init"}, os.Environ())
 }
 
