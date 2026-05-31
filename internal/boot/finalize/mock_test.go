@@ -1,7 +1,8 @@
-package writefile
+//go:build linux
+
+package finalize
 
 import (
-	"bytes"
 	"os"
 	"time"
 
@@ -12,37 +13,11 @@ import (
 // Compile-time interface checks.
 var (
 	_ iface.FileSystem    = (*MockFileSystem)(nil)
-	_ iface.File          = (*MockFile)(nil)
 	_ iface.CommandRunner = (*MockCommandRunner)(nil)
+	_ iface.Mounter       = (*MockMounter)(nil)
 )
 
-// MockFile is a testable iface.File implementation. Read and Write operate on
-// an internal bytes.Buffer so tests can inspect written content without
-// touching the real filesystem. Close and Name are delegated to mock.Mock so
-// callers can set expectations on them.
-type MockFile struct {
-	mock.Mock
-	buf bytes.Buffer
-}
-
-func (f *MockFile) Read(p []byte) (int, error) {
-	return f.buf.Read(p)
-}
-
-func (f *MockFile) Write(p []byte) (int, error) {
-	return f.buf.Write(p)
-}
-
-func (f *MockFile) Close() error {
-	return f.Called().Error(0)
-}
-
-func (f *MockFile) Name() string {
-	return f.Called().String(0)
-}
-
-// MockFileSystem is a testable iface.FileSystem implementation backed by
-// testify/mock.
+// MockFileSystem is a testable iface.FileSystem implementation.
 type MockFileSystem struct {
 	mock.Mock
 }
@@ -64,6 +39,14 @@ func (m *MockFileSystem) MkdirAll(path string, perm os.FileMode) error {
 }
 
 func (m *MockFileSystem) Stat(name string) (os.FileInfo, error) {
+	args := m.Called(name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(os.FileInfo), args.Error(1)
+}
+
+func (m *MockFileSystem) Lstat(name string) (os.FileInfo, error) {
 	args := m.Called(name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -124,14 +107,6 @@ func (m *MockFileSystem) Readlink(name string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockFileSystem) Lstat(name string) (os.FileInfo, error) {
-	args := m.Called(name)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(os.FileInfo), args.Error(1)
-}
-
 func (m *MockFileSystem) ReadDir(name string) ([]iface.DirEntry, error) {
 	args := m.Called(name)
 	if args.Get(0) == nil {
@@ -145,8 +120,7 @@ func (m *MockFileSystem) Hostname() (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-// MockCommandRunner is a testable iface.CommandRunner implementation backed by
-// testify/mock.
+// MockCommandRunner is a testable iface.CommandRunner implementation.
 type MockCommandRunner struct {
 	mock.Mock
 }
@@ -158,6 +132,16 @@ func (m *MockCommandRunner) Run(name string, args ...string) error {
 		callArgs[i+1] = a
 	}
 	return m.Called(callArgs...).Error(0)
+}
+
+func (m *MockCommandRunner) RunOutput(name string, args ...string) (string, error) {
+	callArgs := make([]interface{}, 1+len(args))
+	callArgs[0] = name
+	for i, a := range args {
+		callArgs[i+1] = a
+	}
+	ret := m.Called(callArgs...)
+	return ret.String(0), ret.Error(1)
 }
 
 func (m *MockCommandRunner) RunWithStdin(stdin string, name string, args ...string) error {
@@ -184,24 +168,36 @@ func (m *MockCommandRunner) RunWithEnv(env []string, name string, args ...string
 	return m.Called(callArgs...).Error(0)
 }
 
-func (m *MockCommandRunner) RunOutput(name string, args ...string) (string, error) {
-	callArgs := make([]interface{}, 1+len(args))
-	callArgs[0] = name
-	for i, a := range args {
-		callArgs[i+1] = a
-	}
-	ret := m.Called(callArgs...)
-	return ret.String(0), ret.Error(1)
+// MockMounter is a testable iface.Mounter implementation.
+type MockMounter struct {
+	mock.Mock
 }
 
-// mockFileInfo is a minimal os.FileInfo implementation for use in Stat mocks.
-type mockFileInfo struct {
+func (m *MockMounter) Mount(device, target, mType, options string) error {
+	return m.Called(device, target, mType, options).Error(0)
+}
+
+func (m *MockMounter) ForceMount(device, target, mType, options string) error {
+	return m.Called(device, target, mType, options).Error(0)
+}
+
+func (m *MockMounter) Mounted(target string) (bool, error) {
+	args := m.Called(target)
+	return args.Bool(0), args.Error(1)
+}
+
+// fakeFileInfo implements os.FileInfo for tests.
+type fakeFileInfo struct {
+	name  string
 	isDir bool
+	mode  os.FileMode
 }
 
-func (m *mockFileInfo) Name() string       { return "" }
-func (m *mockFileInfo) Size() int64        { return 0 }
-func (m *mockFileInfo) Mode() os.FileMode  { return 0 }
-func (m *mockFileInfo) ModTime() time.Time { return time.Time{} }
-func (m *mockFileInfo) IsDir() bool        { return m.isDir }
-func (m *mockFileInfo) Sys() interface{}   { return nil }
+func (f fakeFileInfo) Name() string      { return f.name }
+func (f fakeFileInfo) Size() int64       { return 0 }
+func (f fakeFileInfo) Mode() os.FileMode { return f.mode }
+func (f fakeFileInfo) ModTime() time.Time {
+	return time.Time{}
+}
+func (f fakeFileInfo) IsDir() bool      { return f.isDir }
+func (f fakeFileInfo) Sys() interface{} { return nil }

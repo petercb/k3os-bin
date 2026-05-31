@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-006",
+  "type": "feat",
+  "description": "Port the boot finalization script (overlay/libexec/k3os/boot) into Go. Create internal/boot/finalize/ package that handles: setup_ttys (configure serial consoles from /proc/cmdline), setup_sudoers, setup_services (OpenRC runlevel symlinks including virt-what detection), setup_hostname (with random fallback), setup_hosts (/etc/hosts generation), setup_mounts (bind /.base/boot, /k3os/system, unmount /.base), setup_manifests (rsync k3s manifests), setup_state_dirs, grow_live (grow partition in local mode), and the cleanup function.",
+  "status": "completed",
+  "steps": [
+    "Create internal/boot/finalize/ package directory",
+    "Write tests first in internal/boot/finalize/finalize_test.go covering each sub-function with mocked dependencies",
+    "Implement SetupTTYs in internal/boot/finalize/ttys.go: parse /proc/cmdline for console= entries, write inittab and securetty entries for each TTY (1-6) and serial console",
+    "Implement SetupSudoers in internal/boot/finalize/sudoers.go: write sudoers.d/sudo file",
+    "Implement SetupServices in internal/boot/finalize/services.go: create OpenRC runlevel symlinks for sysinit/boot/default/shutdown, detect virtualization via virt-what",
+    "Implement SetupHostname in internal/boot/finalize/hostname.go: read existing or generate random hostname, persist to /var/lib/rancher/k3os/hostname",
+    "Implement SetupHosts in internal/boot/finalize/hosts.go: generate /etc/hosts from hostname",
+    "Implement SetupMounts in internal/boot/finalize/mounts.go: bind mount boot/system dirs, unmount /.base",
+    "Implement SetupManifests in internal/boot/finalize/manifests.go: copy k3s server manifests",
+    "Implement SetupStateDirs in internal/boot/finalize/statedirs.go: create NFS and k3s agent dirs",
+    "Implement GrowLive in internal/boot/finalize/grow.go: partition grow logic for local mode",
+    "Implement Cleanup in internal/boot/finalize/cleanup.go: remove /run/k3os, write mode to /run/k3os/mode",
+    "Implement Finalize() orchestrator that calls all sub-functions in order",
+    "Run golangci-lint run ./... and fix any issues",
+    "Run go test ./internal/boot/finalize/... and verify all tests pass",
+    "Commit with message 'feat(finalize): port boot finalization script to Go'"
+  ],
+  "acceptance_criteria": [
+    "internal/boot/finalize/ package exists with all sub-function files and tests",
+    "Each boot finalization function is independently tested",
+    "Finalize() orchestrator calls functions in correct order matching shell script",
+    "go test ./internal/boot/finalize/... passes",
+    "golangci-lint run ./... passes"
+  ],
+  "verification": [
+    "go test ./internal/boot/finalize/...",
+    "golangci-lint run ./...",
+    "go build ./..."
+  ],
+  "blocked_reason": null,
+  "findings": "All 47 tests pass (including subtests). Tests cover SetupTTYs, SetupSudoers, SetupServices (kvm/hyperv/vmware/failure), SetupHostname, SetupHosts, SetupRoot, SetupMounts, SetupManifests, SetupStateDirs, GrowLive (blkid fallback), Cleanup, SetupConfig, Finalizer.Run, plus helper functions. golangci-lint reports 0 issues."
+}

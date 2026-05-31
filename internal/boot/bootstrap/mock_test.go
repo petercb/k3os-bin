@@ -1,8 +1,10 @@
-package cc
+//go:build linux
+
+package bootstrap
 
 import (
-	"bytes"
 	"os"
+	"time"
 
 	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/stretchr/testify/mock"
@@ -10,39 +12,12 @@ import (
 
 // Compile-time interface checks.
 var (
-	_ iface.FileSystem = (*MockFileSystem)(nil)
-	_ iface.File       = (*MockFile)(nil)
+	_ iface.FileSystem    = (*MockFileSystem)(nil)
+	_ iface.CommandRunner = (*MockCommandRunner)(nil)
+	_ iface.Mounter       = (*MockMounter)(nil)
 )
 
-// MockFile is a testable iface.File implementation. Read and Write operate on
-// an internal bytes.Buffer so tests can inspect written content without
-// touching the real filesystem. Close and Name are delegated to mock.Mock so
-// callers can set expectations on them.
-type MockFile struct {
-	mock.Mock
-	buf bytes.Buffer
-}
-
-func (f *MockFile) Read(p []byte) (int, error) {
-	return f.buf.Read(p)
-}
-
-func (f *MockFile) Write(p []byte) (int, error) {
-	return f.buf.Write(p)
-}
-
-func (f *MockFile) Close() error {
-	return f.Called().Error(0)
-}
-
-func (f *MockFile) Name() string {
-	return f.Called().String(0)
-}
-
-// MockFileSystem is a testable iface.FileSystem implementation backed by
-// testify/mock. Methods that return interface values (Open, Create,
-// CreateTemp, Stat) guard against nil before type-asserting to avoid panics
-// when the mock is configured to return an error with a nil value.
+// MockFileSystem is a testable iface.FileSystem implementation.
 type MockFileSystem struct {
 	mock.Mock
 }
@@ -144,3 +119,81 @@ func (m *MockFileSystem) Hostname() (string, error) {
 	args := m.Called()
 	return args.String(0), args.Error(1)
 }
+
+// MockCommandRunner is a testable iface.CommandRunner implementation.
+type MockCommandRunner struct {
+	mock.Mock
+}
+
+func (m *MockCommandRunner) Run(name string, args ...string) error {
+	callArgs := make([]interface{}, 1+len(args))
+	callArgs[0] = name
+	for i, a := range args {
+		callArgs[i+1] = a
+	}
+	return m.Called(callArgs...).Error(0)
+}
+
+func (m *MockCommandRunner) RunWithStdin(stdin string, name string, args ...string) error {
+	callArgs := make([]interface{}, 2+len(args))
+	callArgs[0] = stdin
+	callArgs[1] = name
+	for i, a := range args {
+		callArgs[i+2] = a
+	}
+	return m.Called(callArgs...).Error(0)
+}
+
+func (m *MockCommandRunner) RunShell(command string) error {
+	return m.Called(command).Error(0)
+}
+
+func (m *MockCommandRunner) RunWithEnv(env []string, name string, args ...string) error {
+	callArgs := make([]interface{}, 2+len(args))
+	callArgs[0] = env
+	callArgs[1] = name
+	for i, a := range args {
+		callArgs[i+2] = a
+	}
+	return m.Called(callArgs...).Error(0)
+}
+
+func (m *MockCommandRunner) RunOutput(name string, args ...string) (string, error) {
+	callArgs := make([]interface{}, 1+len(args))
+	callArgs[0] = name
+	for i, a := range args {
+		callArgs[i+1] = a
+	}
+	ret := m.Called(callArgs...)
+	return ret.String(0), ret.Error(1)
+}
+
+// MockMounter is a testable iface.Mounter implementation.
+type MockMounter struct {
+	mock.Mock
+}
+
+func (m *MockMounter) Mount(device, target, mType, options string) error {
+	return m.Called(device, target, mType, options).Error(0)
+}
+
+func (m *MockMounter) ForceMount(device, target, mType, options string) error {
+	return m.Called(device, target, mType, options).Error(0)
+}
+
+func (m *MockMounter) Mounted(target string) (bool, error) {
+	args := m.Called(target)
+	return args.Bool(0), args.Error(1)
+}
+
+// fakeFileInfo implements os.FileInfo for tests.
+type fakeFileInfo struct{}
+
+func (fakeFileInfo) Name() string      { return "fake" }
+func (fakeFileInfo) Size() int64       { return 0 }
+func (fakeFileInfo) Mode() os.FileMode { return 0o755 }
+func (fakeFileInfo) ModTime() time.Time {
+	return time.Time{}
+}
+func (fakeFileInfo) IsDir() bool      { return true }
+func (fakeFileInfo) Sys() interface{} { return nil }

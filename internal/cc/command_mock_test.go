@@ -47,3 +47,13 @@ func (m *MockCommandRunner) RunWithEnv(env []string, name string, args ...string
 	}
 	return m.Called(callArgs...).Error(0)
 }
+
+func (m *MockCommandRunner) RunOutput(name string, args ...string) (string, error) {
+	callArgs := make([]interface{}, 1+len(args))
+	callArgs[0] = name
+	for i, a := range args {
+		callArgs[i+1] = a
+	}
+	ret := m.Called(callArgs...)
+	return ret.String(0), ret.Error(1)
+}

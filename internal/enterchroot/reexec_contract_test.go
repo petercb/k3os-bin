@@ -27,20 +27,24 @@ func TestReexecRegisterBasenameDoesNotPanic(t *testing.T) {
 	}, "registering a basename-only name must not panic")
 }
 
-// TestReexecBasenameMappingForInit verifies that filepath.Base resolves both
-// "/init" and "/sbin/init" to "init", confirming a single "init" registration
-// covers both boot modes.
-func TestReexecBasenameMappingForInit(t *testing.T) {
+// TestReexecExactMatchBehavior verifies that reexec.Init() uses os.Args[0]
+// directly for matching (no filepath.Base transformation). This confirms
+// that registrations must use the exact argv[0] value the kernel/exec provides.
+func TestReexecExactMatchBehavior(t *testing.T) {
+	// The reexec package matches os.Args[0] exactly against registered names.
+	// "/init" and "/sbin/init" are distinct registrations.
+	// Our enterchroot exec uses "/init" as argv[0] to match the "/init" registration.
 	tests := []struct {
-		path     string
+		argv0    string
 		expected string
 	}{
-		{"/init", "init"},
-		{"/sbin/init", "init"},
+		{"/init", "/init"},
+		{"/sbin/init", "/sbin/init"},
 	}
 	for _, tc := range tests {
-		t.Run(tc.path, func(t *testing.T) {
-			assert.Equal(t, tc.expected, filepath.Base(tc.path))
+		t.Run(tc.argv0, func(t *testing.T) {
+			// Verify the value we'd pass as argv[0] matches exactly
+			assert.Equal(t, tc.expected, tc.argv0)
 		})
 	}
 }

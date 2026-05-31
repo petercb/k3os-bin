@@ -23,6 +23,9 @@ func (OSFileSystem) MkdirAll(path string, perm os.FileMode) error { return os.Mk
 // Stat returns file information using os.Stat.
 func (OSFileSystem) Stat(name string) (os.FileInfo, error) { return os.Stat(name) }
 
+// Lstat returns file information without following symlinks.
+func (OSFileSystem) Lstat(name string) (os.FileInfo, error) { return os.Lstat(name) }
+
 // Open opens a file using os.Open.
 func (OSFileSystem) Open(name string) (iface.File, error) { return os.Open(name) }
 
@@ -45,6 +48,28 @@ func (OSFileSystem) Rename(oldpath, newpath string) error { return os.Rename(old
 
 // Remove removes a path using os.Remove.
 func (OSFileSystem) Remove(name string) error { return os.Remove(name) }
+
+// RemoveAll removes a path and all children using os.RemoveAll.
+func (OSFileSystem) RemoveAll(path string) error { return os.RemoveAll(path) }
+
+// Symlink creates a symbolic link using os.Symlink.
+func (OSFileSystem) Symlink(oldname, newname string) error { return os.Symlink(oldname, newname) }
+
+// Readlink returns the destination of a symlink using os.Readlink.
+func (OSFileSystem) Readlink(name string) (string, error) { return os.Readlink(name) }
+
+// ReadDir reads a directory using os.ReadDir and wraps entries.
+func (OSFileSystem) ReadDir(name string) ([]iface.DirEntry, error) {
+	entries, err := os.ReadDir(name)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]iface.DirEntry, len(entries))
+	for i, e := range entries {
+		result[i] = e
+	}
+	return result, nil
+}
 
 // Hostname returns the current hostname using os.Hostname.
 func (OSFileSystem) Hostname() (string, error) { return os.Hostname() }

@@ -6,16 +6,33 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
 
 	"github.com/moby/sys/reexec"
+	cp "github.com/otiai10/copy"
+	"github.com/petercb/k3os-bin/internal/boot"
+	"github.com/petercb/k3os-bin/internal/boot/bootstrap"
+	"github.com/petercb/k3os-bin/internal/boot/finalize"
+	"github.com/petercb/k3os-bin/internal/boot/modes"
 	"github.com/petercb/k3os-bin/internal/cli/app"
+	cliconfig "github.com/petercb/k3os-bin/internal/cli/config"
+	"github.com/petercb/k3os-bin/internal/cli/rc"
 	"github.com/petercb/k3os-bin/internal/enterchroot"
+	"github.com/petercb/k3os-bin/internal/iface/osimpl"
+	"github.com/petercb/k3os-bin/internal/kernel"
+	"github.com/petercb/k3os-bin/internal/mode"
 	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/petercb/k3os-bin/internal/transferroot"
 	cli "github.com/urfave/cli/v3"
+	"golang.org/x/sys/unix"
 )
 
 func main() {
@@ -40,7 +57,23 @@ func main() {
 	}
 }
 
+// postChrootSentinel is the path that indicates we are running post-chroot.
+// The pivot_root in enterchroot uses ".base" as the put-old directory,
+// which becomes /.base after the pivot.
+var postChrootSentinel = "/.base"
+
+// statFunc is the function used to check for file existence (injectable for tests).
+var statFunc = os.Stat
+
 func initrd() {
+	// Detect whether we are running pre-chroot (initramfs) or post-chroot.
+	// After enterchroot pivots root, /.base exists as the put-old directory.
+	if _, err := statFunc(postChrootSentinel); err == nil {
+		postChroot()
+		return
+	}
+
+	// Pre-chroot: relocate, remount, and enter the chroot.
 	enterchroot.DebugCmdline = "k3os.debug"
 	transferroot.Relocate()
 	if err := mount.Mount("", "/", "none", "rw,remount"); err != nil {
@@ -50,6 +83,228 @@ func initrd() {
 		slog.Error("failed to enter root", "error", err)
 		os.Exit(1)
 	}
+}
+
+// postChroot runs the Go-based init orchestrator, replacing the original
+// /usr/init shell script. It wires up all real dependencies and calls
+// boot.Init.Run().
+func postChroot() {
+	fs := osimpl.OSFileSystem{}
+	cmd := osimpl.ShellRunner{}
+	mounter := osimpl.LinuxMounter{}
+
+	kver, err := kernel.GetKernelVersion()
+	if err != nil {
+		slog.Error("failed to get kernel version", "error", err)
+		kver = "unknown"
+	}
+
+	// Read the k3OS version from /usr/lib/os-release if available.
+	versionID := readVersionID()
+
+	// Build the mode registry with real dependencies.
+	modeDeps := &modes.Deps{
+		FS:            fs,
+		Cmd:           cmd,
+		Mounter:       mounter,
+		Proc:          &realProcessExecutor{},
+		CopyDir:       func(src, dst string) error { return cp.Copy(src, dst) },
+		KernelVersion: kver,
+		VersionID:     versionID,
+	}
+	registry := modes.NewRegistry(modeDeps)
+
+	// Build the bootstrapper.
+	bs := &bootstrap.Bootstrapper{
+		FS:      fs,
+		Mounter: mounter,
+		Cmd:     cmd,
+		CopyDir: func(src, dst string) error {
+			return cp.Copy(src, dst, cp.Options{
+				PreserveTimes: true,
+				PreserveOwner: true,
+			})
+		},
+		RCRunner:      rc.Run,
+		ConfigRunner:  cliconfig.RunInitrd,
+		KernelVersion: kver,
+	}
+
+	// Build the finalizer.
+	fin := &finalize.Finalizer{
+		FS:            fs,
+		Mounter:       mounter,
+		Cmd:           cmd,
+		SleepFunc:     time.Sleep,
+		CmdlineReader: readCmdline,
+		RandFunc:      cryptoRandUint32,
+		VirtDetector:  detectVirt,
+		ConfigRunner:  cliconfig.RunBoot,
+		ManifestCopier: func(src, dst string) error {
+			return cp.Copy(src, dst, cp.Options{
+				PreserveTimes: true,
+				PreserveOwner: true,
+				Skip: func(_ os.FileInfo, srcPath, _ string) (bool, error) {
+					if filepath.Ext(srcPath) == ".example" {
+						return true, nil
+					}
+					return false, nil
+				},
+			})
+		},
+	}
+
+	// Build the init orchestrator.
+	initOrch := &boot.Init{
+		Bootstrap: bs,
+		ModeDetector: func() (string, error) {
+			detector := &mode.Detector{
+				CmdlineReader: readCmdline,
+				BlockProber:   blockProbe,
+				StatfsChecker: statfsCheck,
+				EnvReader:     os.Getenv,
+				FileWriter:    os.WriteFile,
+				MkdirAll:      os.MkdirAll,
+				SleepFunc:     time.Sleep,
+				Timeout:       30 * time.Second,
+				SleepInterval: 1 * time.Second,
+			}
+			return detector.Detect(context.Background())
+		},
+		ModeRegistry: func(m string) (boot.ModeHandler, error) {
+			return registry.Get(m)
+		},
+		Finalizer:     fin,
+		CmdlineReader: readCmdline,
+		ExecFunc:      syscall.Exec,
+		RescueFunc: func() error {
+			return syscall.Exec("/bin/bash", []string{"bash"}, os.Environ())
+		},
+		ConsoleRedirect: consoleRedirect,
+		ModeSetterFunc: func(m string) {
+			fin.Mode = m
+		},
+	}
+
+	initOrch.Run()
+	// Should not reach here; exec replaces the process.
+	os.Exit(1)
+}
+
+// consoleRedirect opens /dev/console and redirects stdin, stdout, and stderr
+// to it, matching the shell's exec >/dev/console </dev/console 2>&1.
+func consoleRedirect() error {
+	f, err := os.OpenFile("/dev/console", os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	fd := int(f.Fd())
+	if err := unix.Dup2(fd, 0); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := unix.Dup2(fd, 1); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := unix.Dup2(fd, 2); err != nil {
+		_ = f.Close()
+		return err
+	}
+	// Do not close f; the duplicated fds keep it open.
+	return nil
+}
+
+// readCmdline reads the kernel command line from /proc/cmdline.
+func readCmdline() (string, error) {
+	data, err := os.ReadFile("/proc/cmdline")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+// blockProbe checks for a block device with the given label using blkid.
+func blockProbe(label string) (string, error) {
+	runner := osimpl.ShellRunner{}
+	return runner.RunOutput("blkid", "-L", label)
+}
+
+// statfsCheck returns the filesystem type name for the given path.
+func statfsCheck(path string) (string, error) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return "", err
+	}
+	return fsTypeName(stat.Type), nil
+}
+
+// fsTypeName returns a human-readable name for a filesystem magic number.
+func fsTypeName(magic int64) string {
+	// Common filesystem type magic numbers from statfs(2).
+	switch magic {
+	case 0x01021994:
+		return "tmpfs"
+	case 0xEF53:
+		return "ext2/ext3/ext4"
+	case 0x58465342:
+		return "xfs"
+	case 0x9123683E:
+		return "btrfs"
+	default:
+		return "unknown"
+	}
+}
+
+// readVersionID reads VERSION_ID from /usr/lib/os-release.
+func readVersionID() string {
+	data, err := os.ReadFile("/usr/lib/os-release")
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "VERSION_ID=") {
+			return strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), "\"")
+		}
+	}
+	return ""
+}
+
+// cryptoRandUint32 generates a random uint32 using crypto/rand.
+func cryptoRandUint32() (uint32, error) {
+	var buf [4]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(buf[:]), nil
+}
+
+// detectVirt runs virt-what and returns the detected virtualization types.
+// If virt-what is not available or fails, it returns nil (non-fatal).
+func detectVirt() ([]string, error) {
+	out, err := exec.Command("virt-what").Output()
+	if err != nil {
+		return nil, nil //nolint:nilerr // virt-what failure is non-fatal
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	var result []string
+	for _, line := range lines {
+		if line != "" {
+			result = append(result, line)
+		}
+	}
+	return result, nil
+}
+
+// realProcessExecutor implements modes.ProcessExecutor using real syscalls.
+type realProcessExecutor struct{}
+
+func (r *realProcessExecutor) PivotRoot(newRoot, putOld string) error {
+	return syscall.PivotRoot(newRoot, putOld)
+}
+
+func (r *realProcessExecutor) Exec(path string, args []string, env []string) error {
+	return syscall.Exec(path, args, env)
 }
 
 // findCommand searches the command's sub-commands for a match by name or alias.

@@ -110,6 +110,35 @@ func (m *MockFileSystem) Remove(name string) error {
 	return m.Called(name).Error(0)
 }
 
+func (m *MockFileSystem) RemoveAll(path string) error {
+	return m.Called(path).Error(0)
+}
+
+func (m *MockFileSystem) Symlink(oldname, newname string) error {
+	return m.Called(oldname, newname).Error(0)
+}
+
+func (m *MockFileSystem) Readlink(name string) (string, error) {
+	args := m.Called(name)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockFileSystem) Lstat(name string) (os.FileInfo, error) {
+	args := m.Called(name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(os.FileInfo), args.Error(1)
+}
+
+func (m *MockFileSystem) ReadDir(name string) ([]iface.DirEntry, error) {
+	args := m.Called(name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]iface.DirEntry), args.Error(1)
+}
+
 func (m *MockFileSystem) Hostname() (string, error) {
 	args := m.Called()
 	return args.String(0), args.Error(1)

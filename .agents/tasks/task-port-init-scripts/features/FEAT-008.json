@@ -1,0 +1,34 @@
+{
+  "id": "FEAT-008",
+  "type": "chore",
+  "description": "Final CI validation, documentation update, and push. Ensure all tests pass, lint is clean, e2e tests still build, push the feature branch, and verify CircleCI pipeline passes.",
+  "status": "completed",
+  "steps": [
+    "Run go test ./... to verify all tests pass",
+    "Run golangci-lint run ./... to verify no lint issues",
+    "Run go build ./... to verify clean compilation",
+    "Update docs/spec-port-init-scripts.md with any changes made during implementation (implementation notes, deviations from plan)",
+    "Update README.md if needed to reflect the new init architecture",
+    "Commit any final documentation updates with message 'docs: update spec with implementation notes'",
+    "Review git log to ensure all commits follow conventional commit syntax",
+    "Push the feature branch to origin",
+    "Check CircleCI pipeline status using the CircleCI MCP server tools (project slug: gh/petercb/k3os-bin, branch: feat/port-init-scripts)",
+    "If CI fails, read the failure logs, fix issues, and re-push until green"
+  ],
+  "acceptance_criteria": [
+    "All unit tests pass (go test ./...)",
+    "Lint is clean (golangci-lint run ./...)",
+    "Build succeeds (go build ./...)",
+    "CircleCI pipeline passes on the feature branch",
+    "All commits follow conventional commit format",
+    "Documentation is up to date"
+  ],
+  "verification": [
+    "go test ./...",
+    "golangci-lint run ./...",
+    "go build ./...",
+    "Check CircleCI pipeline status for branch feat/port-init-scripts"
+  ],
+  "blocked_reason": null,
+  "findings": "All validation passed: go test ./... (all pass), golangci-lint run ./... (0 issues), go build ./... (clean). Documentation updated with implementation notes covering architecture, deviations, and testing approach."
+}

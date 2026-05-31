@@ -1,4 +1,9 @@
 // Package rc implements the k3OS rc (run-control) sub-command.
+//
+// NOTE: As of the Go-based init implementation, the boot sequence calls
+// Run() directly in-process during the bootstrap phase. The "k3os rc" CLI
+// command is deprecated and retained only for backward compatibility and
+// debugging purposes.
 package rc
 
 // forked from https://github.com/linuxkit/linuxkit
@@ -18,11 +23,26 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// Run executes the rc sequence directly (mounts, hotplug, clock, loopback,
+// hostname, resolv.conf). It is called by the bootstrap phase in-process
+// and also by the CLI action when invoked as "k3os rc".
+func Run() error {
+	doMounts()
+	doHotplug()
+	doClock()
+	doLoopback()
+	doHostname()
+	doResolvConf()
+	return nil
+}
+
 // Command returns the CLI command for early phase run commands and run control.
+// Deprecated: The boot sequence now calls Run() directly in-process.
+// This CLI command is retained for backward compatibility and debugging.
 func Command() *cli.Command {
 	return &cli.Command{
 		Name:  "rc",
-		Usage: "early phase \"run commands\" / \"run control\"",
+		Usage: "[deprecated] early phase run control (now handled internally during boot)",
 		Flags: []cli.Flag{},
 		Before: func(_ context.Context, _ *cli.Command) (context.Context, error) {
 			if os.Getuid() != 0 {
@@ -31,13 +51,7 @@ func Command() *cli.Command {
 			return nil, nil
 		},
 		Action: func(_ context.Context, _ *cli.Command) error {
-			doMounts()
-			doHotplug()
-			doClock()
-			doLoopback()
-			doHostname()
-			doResolvConf()
-			return nil
+			return Run()
 		},
 	}
 }
