@@ -33,8 +33,8 @@ func TestSetupEtc_Success(t *testing.T) {
 
 	fs.On("MkdirAll", "/etc", os.FileMode(0o755)).Return(nil)
 	fs.On("MkdirAll", "/proc", os.FileMode(0o755)).Return(nil)
-	mnt.On("Mount", "none", "/etc", "tmpfs", "").Return(nil)
-	mnt.On("Mount", "none", "/proc", "proc", "").Return(nil)
+	mnt.On("ForceMount", "none", "/etc", "tmpfs", "").Return(nil)
+	mnt.On("ForceMount", "none", "/proc", "proc", "").Return(nil)
 
 	err := b.SetupEtc()
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestSetupEtc_MountEtcFails(t *testing.T) {
 
 	fs.On("MkdirAll", "/etc", os.FileMode(0o755)).Return(nil)
 	fs.On("MkdirAll", "/proc", os.FileMode(0o755)).Return(nil)
-	mnt.On("Mount", "none", "/etc", "tmpfs", "").Return(errors.New("mount failed"))
+	mnt.On("ForceMount", "none", "/etc", "tmpfs", "").Return(errors.New("mount failed"))
 
 	err := b.SetupEtc()
 	require.Error(t, err)
@@ -396,8 +396,8 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 	// SetupEtc
 	fs.On("MkdirAll", "/etc", os.FileMode(0o755)).Return(nil)
 	fs.On("MkdirAll", "/proc", os.FileMode(0o755)).Return(nil)
-	mnt.On("Mount", "none", "/etc", "tmpfs", "").Return(nil)
-	mnt.On("Mount", "none", "/proc", "proc", "").Return(nil)
+	mnt.On("ForceMount", "none", "/etc", "tmpfs", "").Return(nil)
+	mnt.On("ForceMount", "none", "/proc", "proc", "").Return(nil)
 
 	// SetupModules
 	fs.On("Stat", ".base/lib/modules/5.15.0").Return(nil, os.ErrNotExist)

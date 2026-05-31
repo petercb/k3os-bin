@@ -26,6 +26,10 @@ type Bootstrapper struct {
 
 // SetupEtc creates /etc and /proc, mounts tmpfs on /etc and proc on /proc,
 // then copies /usr/etc/* into /etc.
+//
+// ForceMount is used here because /proc is not yet available at this point
+// in the boot sequence, and the regular Mount() checks /proc/self/mountinfo
+// to determine if a target is already mounted.
 func (b *Bootstrapper) SetupEtc() error {
 	slog.Debug("bootstrap: setting up /etc")
 
@@ -35,10 +39,10 @@ func (b *Bootstrapper) SetupEtc() error {
 	if err := b.FS.MkdirAll("/proc", 0o755); err != nil {
 		return fmt.Errorf("mkdir /proc: %w", err)
 	}
-	if err := b.Mounter.Mount("none", "/etc", "tmpfs", ""); err != nil {
+	if err := b.Mounter.ForceMount("none", "/etc", "tmpfs", ""); err != nil {
 		return fmt.Errorf("mount tmpfs on /etc: %w", err)
 	}
-	if err := b.Mounter.Mount("none", "/proc", "proc", ""); err != nil {
+	if err := b.Mounter.ForceMount("none", "/proc", "proc", ""); err != nil {
 		return fmt.Errorf("mount proc on /proc: %w", err)
 	}
 	if err := b.CopyDir("/usr/etc", "/etc"); err != nil {
