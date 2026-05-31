@@ -7,6 +7,7 @@ package bootstrap
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/petercb/k3os-bin/internal/system"
@@ -71,30 +72,74 @@ func (b *Bootstrapper) SetupModules() error {
 	return nil
 }
 
-// SetupUsers creates the rancher user and sudo group, matching the original
-// shell script behavior.
+// SetupUsers creates the rancher user and sudo group using pure Go file
+// manipulation. This avoids shelling out to sed/addgroup/adduser/chpasswd
+// which require /dev/null (not available until SetupRC mounts devtmpfs).
 func (b *Bootstrapper) SetupUsers() error {
 	slog.Debug("bootstrap: setting up users")
 
-	if err := b.Cmd.Run("sed", "-i", "s!/bin/ash!/bin/bash!", "/etc/passwd"); err != nil {
-		return fmt.Errorf("sed passwd: %w", err)
+	// Replace /bin/ash with /bin/bash in /etc/passwd
+	if err := b.replaceInFile("/etc/passwd", "/bin/ash", "/bin/bash"); err != nil {
+		return fmt.Errorf("replace shell in passwd: %w", err)
 	}
-	if err := b.Cmd.Run("addgroup", "-S", "sudo"); err != nil {
-		return fmt.Errorf("addgroup sudo: %w", err)
+
+	// Create /home directory for user home dirs
+	if err := b.FS.MkdirAll("/home", 0o755); err != nil {
+		return fmt.Errorf("mkdir /home: %w", err)
 	}
-	if err := b.Cmd.Run("sed", "-i", `s/^(sudo:.*)/\1rancher/g`, "/etc/group"); err != nil {
-		return fmt.Errorf("sed group: %w", err)
+
+	// Add sudo system group to /etc/group
+	if err := b.appendLine("/etc/group", "sudo:x:101:rancher"); err != nil {
+		return fmt.Errorf("add sudo group: %w", err)
 	}
-	if err := b.Cmd.Run("addgroup", "-g", "1000", "rancher"); err != nil {
-		return fmt.Errorf("addgroup rancher: %w", err)
+
+	// Add rancher group (GID 1000) to /etc/group
+	if err := b.appendLine("/etc/group", "rancher:x:1000:"); err != nil {
+		return fmt.Errorf("add rancher group: %w", err)
 	}
-	if err := b.Cmd.Run("adduser", "-s", "/bin/bash", "-u", "1000", "-D", "-G", "rancher", "rancher"); err != nil {
-		return fmt.Errorf("adduser rancher: %w", err)
+
+	// Add rancher user (UID 1000) to /etc/passwd
+	if err := b.appendLine("/etc/passwd", "rancher:x:1000:1000::/home/rancher:/bin/bash"); err != nil {
+		return fmt.Errorf("add rancher user: %w", err)
 	}
-	if err := b.Cmd.RunWithStdin("rancher:*\n", "chpasswd", "-e"); err != nil {
-		return fmt.Errorf("chpasswd: %w", err)
+
+	// Add rancher shadow entry with locked password (*)
+	if err := b.appendLine("/etc/shadow", "rancher:*:::::::"); err != nil {
+		return fmt.Errorf("add rancher shadow: %w", err)
 	}
+
+	// Create rancher home directory
+	if err := b.FS.MkdirAll("/home/rancher", 0o755); err != nil {
+		return fmt.Errorf("mkdir rancher home: %w", err)
+	}
+
 	return nil
+}
+
+// replaceInFile reads a file, replaces all occurrences of old with replacement,
+// and writes it back. Uses the FS interface for testability.
+func (b *Bootstrapper) replaceInFile(path, old, replacement string) error {
+	data, err := b.FS.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	replaced := strings.ReplaceAll(string(data), old, replacement)
+	return b.FS.WriteFile(path, []byte(replaced), 0o644)
+}
+
+// appendLine reads a file and appends a line to it (with trailing newline).
+func (b *Bootstrapper) appendLine(path, line string) error {
+	data, err := b.FS.ReadFile(path)
+	if err != nil {
+		// File might not exist yet (e.g., /etc/shadow)
+		data = nil
+	}
+	content := string(data)
+	if len(content) > 0 && content[len(content)-1] != '\n' {
+		content += "\n"
+	}
+	content += line + "\n"
+	return b.FS.WriteFile(path, []byte(content), 0o644)
 }
 
 // SetupRC runs the k3os rc logic for hardware initialization (modalias

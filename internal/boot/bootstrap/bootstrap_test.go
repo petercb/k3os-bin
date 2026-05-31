@@ -152,20 +152,29 @@ func TestSetupUsers_Success(t *testing.T) {
 
 	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
 
-	cmd.On("Run", "sed", "-i", "s!/bin/ash!/bin/bash!", "/etc/passwd").Return(nil)
-	cmd.On("Run", "addgroup", "-S", "sudo").Return(nil)
-	cmd.On("Run", "sed", "-i", `s/^(sudo:.*)/\1rancher/g`, "/etc/group").Return(nil)
-	cmd.On("Run", "addgroup", "-g", "1000", "rancher").Return(nil)
-	cmd.On("Run", "adduser", "-s", "/bin/bash", "-u", "1000", "-D", "-G", "rancher", "rancher").Return(nil)
-	cmd.On("RunWithStdin", "rancher:*\n", "chpasswd", "-e").Return(nil)
+	// replaceInFile reads /etc/passwd then writes it back with replacement
+	fs.On("ReadFile", "/etc/passwd").Return([]byte("root:x:0:0:root:/root:/bin/ash\n"), nil)
+	fs.On("WriteFile", "/etc/passwd", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
+
+	// mkdir /home
+	fs.On("MkdirAll", "/home", os.FileMode(0o755)).Return(nil)
+
+	// appendLine calls for /etc/group, /etc/shadow
+	fs.On("ReadFile", "/etc/group").Return([]byte("root:x:0:\n"), nil)
+	fs.On("WriteFile", "/etc/group", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
+	fs.On("ReadFile", "/etc/shadow").Return([]byte("root:!:::::::\n"), nil)
+	fs.On("WriteFile", "/etc/shadow", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
+
+	// mkdir rancher home
+	fs.On("MkdirAll", "/home/rancher", os.FileMode(0o755)).Return(nil)
 
 	err := b.SetupUsers()
 	require.NoError(t, err)
 
-	cmd.AssertExpectations(t)
+	fs.AssertExpectations(t)
 }
 
-func TestSetupUsers_AddGroupFails(t *testing.T) {
+func TestSetupUsers_ReplaceShellFails(t *testing.T) {
 	t.Parallel()
 
 	fs := &MockFileSystem{}
@@ -174,12 +183,11 @@ func TestSetupUsers_AddGroupFails(t *testing.T) {
 
 	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd}
 
-	cmd.On("Run", "sed", "-i", "s!/bin/ash!/bin/bash!", "/etc/passwd").Return(nil)
-	cmd.On("Run", "addgroup", "-S", "sudo").Return(errors.New("addgroup failed"))
+	fs.On("ReadFile", "/etc/passwd").Return(nil, errors.New("read failed"))
 
 	err := b.SetupUsers()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "addgroup failed")
+	assert.Contains(t, err.Error(), "read failed")
 }
 
 // ---------------------------------------------------------------------------
@@ -403,13 +411,15 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 	fs.On("Stat", ".base/lib/modules/5.15.0").Return(nil, os.ErrNotExist)
 	fs.On("Stat", ".base/lib/firmware").Return(nil, os.ErrNotExist)
 
-	// SetupUsers
-	cmd.On("Run", "sed", "-i", "s!/bin/ash!/bin/bash!", "/etc/passwd").Return(nil)
-	cmd.On("Run", "addgroup", "-S", "sudo").Return(nil)
-	cmd.On("Run", "sed", "-i", `s/^(sudo:.*)/\1rancher/g`, "/etc/group").Return(nil)
-	cmd.On("Run", "addgroup", "-g", "1000", "rancher").Return(nil)
-	cmd.On("Run", "adduser", "-s", "/bin/bash", "-u", "1000", "-D", "-G", "rancher", "rancher").Return(nil)
-	cmd.On("RunWithStdin", "rancher:*\n", "chpasswd", "-e").Return(nil)
+	// SetupUsers (pure Go file manipulation)
+	fs.On("ReadFile", "/etc/passwd").Return([]byte("root:x:0:0:root:/root:/bin/ash\n"), nil)
+	fs.On("WriteFile", "/etc/passwd", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
+	fs.On("MkdirAll", "/home", os.FileMode(0o755)).Return(nil)
+	fs.On("ReadFile", "/etc/group").Return([]byte("root:x:0:\n"), nil)
+	fs.On("WriteFile", "/etc/group", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
+	fs.On("ReadFile", "/etc/shadow").Return([]byte("root:!:::::::\n"), nil)
+	fs.On("WriteFile", "/etc/shadow", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
+	fs.On("MkdirAll", "/home/rancher", os.FileMode(0o755)).Return(nil)
 
 	// SetupRC uses RCRunner (wired above as no-op)
 
