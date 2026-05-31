@@ -68,6 +68,9 @@ docker run --rm --privileged -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
   go test -v ./internal/iface/osimpl/...
 ```
 
+### `moby/sys/reexec` matches `os.Args[0]` exactly — register full paths
+The `github.com/moby/sys/reexec` package (v0.1.0) uses `os.Args[0]` verbatim as the map key in `Init()`. Unlike the old `github.com/moby/moby/pkg/reexec` which used `filepath.Base(os.Args[0])`, the new package does NOT strip directory prefixes. When the kernel boots the binary as `/init` or systemd invokes `/sbin/init`, the registration must use the full path (`"/init"`, `"/sbin/init"`), not just the basename (`"init"`). Basename-only registrations work for programmatic reexec (where the caller controls argv[0]) but fail for kernel/init-system invocations.
+
 ### Pre-existing `pault.ag/go/modprobe` typecheck on macOS is expected
 Running `golangci-lint run ./...` on macOS produces typecheck errors for `unix.FinitModule`/`unix.DeleteModule` (Linux-only syscalls in the modprobe dependency). This is not a blocker — it's a known limitation of linting Linux-only code on Darwin. Scoped lint (`golangci-lint run ./internal/iface/osimpl/...`) passes cleanly.
 

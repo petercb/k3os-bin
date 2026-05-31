@@ -19,7 +19,8 @@ import (
 )
 
 func main() {
-	reexec.Register("init", initrd) // covers both /init (live) and /sbin/init (local)
+	reexec.Register("/init", initrd)      // mode=live: kernel boots with /init as argv[0]
+	reexec.Register("/sbin/init", initrd) // mode=local: systemd/openrc invokes /sbin/init
 	reexec.Register("enter-root", enterchroot.Enter)
 
 	if !reexec.Init() {
