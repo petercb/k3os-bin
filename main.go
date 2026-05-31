@@ -89,6 +89,10 @@ func initrd() {
 // /usr/init shell script. It wires up all real dependencies and calls
 // boot.Init.Run().
 func postChroot() {
+	// Set PATH early so exec.Command can find binaries in the rootfs.
+	// This matches the original shell script: export PATH=/bin:/sbin:/usr/bin:/usr/sbin:...
+	_ = os.Setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin")
+
 	fs := osimpl.OSFileSystem{}
 	cmd := osimpl.ShellRunner{}
 	mounter := osimpl.LinuxMounter{}
