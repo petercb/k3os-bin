@@ -3,6 +3,9 @@
 package rc
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"testing"
 
 	"github.com/petercb/k3os-bin/internal/namespace"
@@ -61,4 +64,79 @@ func TestRcNamespace_ContainsDevConsole(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "rcNamespace should contain the /dev/console device entry")
+}
+
+func TestDoLoopback_UsesLibinitNetInit(t *testing.T) {
+	t.Parallel()
+
+	// Parse rc.go and verify doLoopback calls libinit.NetInit instead of exec.Command
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "rc.go", nil, parser.AllErrors)
+	require.NoError(t, err, "failed to parse rc.go")
+
+	// Find the doLoopback function
+	var doLoopbackDecl *ast.FuncDecl
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if ok && fn.Name.Name == "doLoopback" {
+			doLoopbackDecl = fn
+			break
+		}
+	}
+	require.NotNil(t, doLoopbackDecl, "doLoopback function must exist in rc.go")
+
+	// Verify it calls libinit.NetInit
+	foundNetInit := false
+	ast.Inspect(doLoopbackDecl.Body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		ident, ok := sel.X.(*ast.Ident)
+		if ok && ident.Name == "libinit" && sel.Sel.Name == "NetInit" {
+			foundNetInit = true
+		}
+		return true
+	})
+	assert.True(t, foundNetInit, "doLoopback must call libinit.NetInit()")
+
+	// Verify it does NOT call exec.Command
+	foundExecCommand := false
+	ast.Inspect(doLoopbackDecl.Body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		ident, ok := sel.X.(*ast.Ident)
+		if ok && ident.Name == "exec" && sel.Sel.Name == "Command" {
+			foundExecCommand = true
+		}
+		return true
+	})
+	assert.False(t, foundExecCommand, "doLoopback must not call exec.Command")
+}
+
+func TestRcGo_ImportsLibinit(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "rc.go", nil, parser.AllErrors)
+	require.NoError(t, err, "failed to parse rc.go")
+
+	foundLibinit := false
+	for _, imp := range f.Imports {
+		if imp.Path.Value == `"github.com/u-root/u-root/pkg/libinit"` {
+			foundLibinit = true
+			break
+		}
+	}
+	assert.True(t, foundLibinit, "rc.go must import github.com/u-root/u-root/pkg/libinit")
 }

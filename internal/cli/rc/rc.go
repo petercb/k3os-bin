@@ -20,6 +20,7 @@ import (
 
 	"github.com/petercb/k3os-bin/internal/modalias"
 	"github.com/petercb/k3os-bin/internal/namespace"
+	"github.com/u-root/u-root/pkg/libinit"
 	cli "github.com/urfave/cli/v3"
 	"golang.org/x/sys/unix"
 )
@@ -263,13 +264,7 @@ func doResolvConf() {
 }
 
 func doLoopback() {
-	// TODO use netlink instead
-	cmd := exec.Command("/sbin/ip", "addr", "add", "127.0.0.1/8", "dev", "lo", "brd", "+", "scope", "host")
-	_ = cmd.Run()
-	cmd = exec.Command("/sbin/ip", "route", "add", "127.0.0.0/8", "dev", "lo", "scope", "host")
-	_ = cmd.Run()
-	cmd = exec.Command("/sbin/ip", "link", "set", "lo", "up")
-	_ = cmd.Run()
+	libinit.NetInit()
 }
 
 func doHostname() {
