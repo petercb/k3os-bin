@@ -118,14 +118,21 @@ func (h *DiskHandler) SetupMounts() error {
 	if convErr != nil {
 		return fmt.Errorf("parse partition number %q: %w", num, convErr)
 	}
-	if err := h.deps.PartitionGrower.GrowPartition(dev, partNumInt); err != nil {
-		slog.Warn("disk: partition grow failed", "error", err)
-	}
-	if err := h.deps.Cmd.Run("e2fsck", "-f", devNum); err != nil {
-		slog.Warn("disk: e2fsck failed", "error", err)
-	}
-	if err := h.deps.Cmd.Run("resize2fs", devNum); err != nil {
-		slog.Warn("disk: resize2fs failed", "error", err)
+
+	if h.deps.PartitionGrower == nil {
+		slog.Debug("disk: PartitionGrower not configured, skipping partition grow")
+	} else if err := h.deps.PartitionGrower.GrowPartition(dev, partNumInt); err != nil {
+		// If partition grow fails, skip e2fsck and resize2fs since the partition
+		// boundary may be inconsistent (e.g., GPT partially written). Running
+		// filesystem tools against a stale partition layout is unsafe.
+		slog.Warn("disk: partition grow failed, skipping filesystem resize", "error", err)
+	} else {
+		if err := h.deps.Cmd.Run("e2fsck", "-f", devNum); err != nil {
+			slog.Warn("disk: e2fsck failed", "error", err)
+		}
+		if err := h.deps.Cmd.Run("resize2fs", devNum); err != nil {
+			slog.Warn("disk: resize2fs failed", "error", err)
+		}
 	}
 
 	if err := h.deps.Mounter.Mount("LABEL=K3OS_STATE", targetDir, "", ""); err != nil {

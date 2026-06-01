@@ -10,12 +10,7 @@ import (
 	"github.com/siderolabs/go-blockdevice/v2/partitioning/gpt"
 )
 
-// PartitionGrower grows a partition to fill available space on a GPT disk.
-type PartitionGrower interface {
-	GrowPartition(device string, partNum int) error
-}
-
-// GPTPartitionGrower implements PartitionGrower using go-blockdevice/v2.
+// GPTPartitionGrower implements iface.PartitionGrower using go-blockdevice/v2.
 type GPTPartitionGrower struct{}
 
 // GrowPartition opens the block device, reads its GPT, and grows the

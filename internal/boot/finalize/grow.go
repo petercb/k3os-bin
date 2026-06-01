@@ -52,6 +52,12 @@ func (f *Finalizer) GrowLive() error {
 	if convErr != nil {
 		return fmt.Errorf("parse partition number %q: %w", num, convErr)
 	}
+
+	if f.PartitionGrower == nil {
+		slog.Debug("finalize: PartitionGrower not configured, skipping partition grow")
+		return nil
+	}
+
 	if err := f.PartitionGrower.GrowPartition(dev, partNumInt); err != nil {
 		return fmt.Errorf("grow partition: %w", err)
 	}

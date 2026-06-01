@@ -512,7 +512,7 @@ Replace disk-related shell-outs (parted, partprobe, lsblk, losetup) with pure Go
 
 1. **FEAT-001**: Upgraded Go from 1.24 to 1.25 in `go.mod`, `.circleci/config.yml`, `e2e/Dockerfile.e2e`, and `.devcontainer/devcontainer.json`. Added `github.com/siderolabs/go-blockdevice/v2 v2.0.6` dependency.
 2. **FEAT-002**: Created `internal/diskutil/partition.go` with `GPTPartitionGrower` implementation using go-blockdevice GPT read/write/grow. Replaced `parted resizepart` and `partprobe` calls in `internal/boot/modes/disk.go` and `internal/boot/finalize/grow.go` with the new `PartitionGrower` interface. Added `PartitionGrower` to `internal/iface/iface.go`.
-3. **FEAT-003**: Replaced `lsblk` shell-out in `internal/cliinstall/ask.go` with `BlockProber.ListDisks()`. Replaced bare `losetup -d /dev/loop0` in `PivotAndExec` with `LoopDetacher` interface. Removed `os/exec` import from `ask.go`.
+3. **FEAT-003**: Replaced `lsblk` shell-out in `internal/cliinstall/ask.go` with `BlockProber.ListDisks()`. Replaced bare `losetup -d /dev/loop0` in `PivotAndExec` with `LoopDetacher` interface.
 4. **FEAT-004**: Created design decision document at `docs/plans/replace-disk-shellouts-with-go-blockdevice.md` documenting which shell-outs were replaced, which remain, library evaluation rationale, new interfaces, and testing strategy.
 
 ### Files Changed
