@@ -73,6 +73,14 @@ type HostnameSetter interface {
 	SetHostname(name string) error
 }
 
+// BlockProber abstracts block device discovery.
+type BlockProber interface {
+	// FindByLabel returns the device path for a filesystem label.
+	FindByLabel(label string) (string, error)
+	// ListDisks returns device names of all block devices of type "disk".
+	ListDisks() ([]string, error)
+}
+
 // LoopDevice abstracts a single attached loop device.
 type LoopDevice interface {
 	Path() string

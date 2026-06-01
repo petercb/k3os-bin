@@ -111,6 +111,7 @@ func postChroot() {
 		FS:            fs,
 		Cmd:           cmd,
 		Mounter:       mounter,
+		BlockProber:   osimpl.SysfsBlockProber{},
 		Proc:          &realProcessExecutor{},
 		CopyDir:       func(src, dst string) error { return cp.Copy(src, dst) },
 		KernelVersion: kver,
@@ -139,6 +140,7 @@ func postChroot() {
 		FS:            fs,
 		Mounter:       mounter,
 		Cmd:           cmd,
+		BlockProber:   osimpl.SysfsBlockProber{},
 		SleepFunc:     time.Sleep,
 		CmdlineReader: readCmdline,
 		RandFunc:      cryptoRandUint32,
@@ -164,7 +166,7 @@ func postChroot() {
 		ModeDetector: func() (string, error) {
 			detector := &mode.Detector{
 				CmdlineReader: readCmdline,
-				BlockProber:   blockProbe,
+				BlockProber:   modeDeps.BlockProber.FindByLabel,
 				StatfsChecker: statfsCheck,
 				EnvReader:     os.Getenv,
 				FileWriter:    os.WriteFile,
@@ -226,12 +228,6 @@ func readCmdline() (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(data)), nil
-}
-
-// blockProbe checks for a block device with the given label using blkid.
-func blockProbe(label string) (string, error) {
-	runner := osimpl.ShellRunner{}
-	return runner.RunOutput("blkid", "-L", label)
 }
 
 // statfsCheck returns the filesystem type name for the given path.

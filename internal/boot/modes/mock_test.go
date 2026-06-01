@@ -16,6 +16,7 @@ var (
 	_ iface.CommandRunner = (*MockCommandRunner)(nil)
 	_ iface.Mounter       = (*MockMounter)(nil)
 	_ ProcessExecutor     = (*MockProcessExecutor)(nil)
+	_ iface.BlockProber   = (*MockBlockProber)(nil)
 )
 
 // MockFileSystem is a testable iface.FileSystem implementation.
@@ -198,6 +199,24 @@ func (m *MockProcessExecutor) PivotRoot(newRoot, putOld string) error {
 
 func (m *MockProcessExecutor) Exec(path string, args []string, env []string) error {
 	return m.Called(path, args, env).Error(0)
+}
+
+// MockBlockProber is a testable iface.BlockProber implementation.
+type MockBlockProber struct {
+	mock.Mock
+}
+
+func (m *MockBlockProber) FindByLabel(label string) (string, error) {
+	args := m.Called(label)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockBlockProber) ListDisks() ([]string, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
 }
 
 // fakeFileInfo implements os.FileInfo for tests.

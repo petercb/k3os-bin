@@ -19,17 +19,18 @@ func TestLiveSetup_SetupBase_ISOLabel(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, SleepFunc: func(time.Duration) {}}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, SleepFunc: func(time.Duration) {}}
 	l := NewLiveSetup(deps)
 
-	cmd.On("RunOutput", "blkid", "-L", "K3OS").Return("/dev/sr0", nil)
+	bp.On("FindByLabel", "K3OS").Return("/dev/sr0", nil)
 	mnt.On("Mount", "/dev/sr0", baseDir, "", "ro").Return(nil)
 
 	err := l.SetupBase()
 	require.NoError(t, err)
 
-	cmd.AssertExpectations(t)
+	bp.AssertExpectations(t)
 	mnt.AssertExpectations(t)
 }
 
@@ -39,14 +40,15 @@ func TestLiveSetup_SetupBase_USBProbeSuccess(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, SleepFunc: func(time.Duration) {}}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, SleepFunc: func(time.Duration) {}}
 	l := NewLiveSetup(deps)
 
-	// blkid fails (no ISO label)
-	cmd.On("RunOutput", "blkid", "-L", "K3OS").Return("", errors.New("not found"))
-	// lsblk returns disks
-	cmd.On("RunOutput", "lsblk", "-o", "NAME,TYPE", "-n").Return("sda  disk\nsda1 part\nsdb  disk", nil)
+	// FindByLabel fails (no ISO label)
+	bp.On("FindByLabel", "K3OS").Return("", errors.New("not found"))
+	// ListDisks returns disks
+	bp.On("ListDisks").Return([]string{"sda", "sdb"}, nil)
 	// First disk fails, second succeeds
 	mnt.On("Mount", "/dev/sda", baseDir, "", "").Return(errors.New("no fs"))
 	mnt.On("Mount", "/dev/sdb", baseDir, "", "").Return(nil)
@@ -63,16 +65,17 @@ func TestLiveSetup_SetupBase_USBRetry(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 
 	sleepCount := 0
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, SleepFunc: func(time.Duration) { sleepCount++ }}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, SleepFunc: func(time.Duration) { sleepCount++ }}
 	l := NewLiveSetup(deps)
 
-	cmd.On("RunOutput", "blkid", "-L", "K3OS").Return("", errors.New("not found"))
+	bp.On("FindByLabel", "K3OS").Return("", errors.New("not found"))
 	// First 4 attempts: no disks found
-	cmd.On("RunOutput", "lsblk", "-o", "NAME,TYPE", "-n").Return("", nil).Times(4)
+	bp.On("ListDisks").Return([]string{}, nil).Times(4)
 	// 5th attempt: disk found
-	cmd.On("RunOutput", "lsblk", "-o", "NAME,TYPE", "-n").Return("sda  disk", nil).Once()
+	bp.On("ListDisks").Return([]string{"sda"}, nil).Once()
 	mnt.On("Mount", "/dev/sda", baseDir, "", "").Return(nil)
 
 	err := l.SetupBase()
@@ -86,12 +89,13 @@ func TestLiveSetup_SetupBase_AllRetriesFail(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, SleepFunc: func(time.Duration) {}}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, SleepFunc: func(time.Duration) {}}
 	l := NewLiveSetup(deps)
 
-	cmd.On("RunOutput", "blkid", "-L", "K3OS").Return("", errors.New("not found"))
-	cmd.On("RunOutput", "lsblk", "-o", "NAME,TYPE", "-n").Return("sda  disk", nil)
+	bp.On("FindByLabel", "K3OS").Return("", errors.New("not found"))
+	bp.On("ListDisks").Return([]string{"sda"}, nil)
 	mnt.On("Mount", "/dev/sda", baseDir, "", "").Return(errors.New("fail"))
 
 	err := l.SetupBase()
@@ -221,12 +225,13 @@ func TestLiveHandler_Execute(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, KernelVersion: "5.15.0", SleepFunc: func(time.Duration) {}}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, KernelVersion: "5.15.0", SleepFunc: func(time.Duration) {}}
 	h := NewLiveHandler(deps)
 
 	// SetupBase - ISO found
-	cmd.On("RunOutput", "blkid", "-L", "K3OS").Return("/dev/sr0", nil)
+	bp.On("FindByLabel", "K3OS").Return("/dev/sr0", nil)
 	mnt.On("Mount", "/dev/sr0", baseDir, "", "ro").Return(nil)
 
 	// SetupKernel - not exists
@@ -249,12 +254,13 @@ func TestInstallHandler_Execute(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, KernelVersion: "5.15.0", SleepFunc: func(time.Duration) {}}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, KernelVersion: "5.15.0", SleepFunc: func(time.Duration) {}}
 	h := NewInstallHandler(deps)
 
 	// Same as live
-	cmd.On("RunOutput", "blkid", "-L", "K3OS").Return("/dev/sr0", nil)
+	bp.On("FindByLabel", "K3OS").Return("/dev/sr0", nil)
 	mnt.On("Mount", "/dev/sr0", baseDir, "", "ro").Return(nil)
 	fs.On("Stat", "/k3os/system/kernel/5.15.0/kernel.squashfs").Return(nil, os.ErrNotExist)
 	cmd.On("Run", "passwd", "-d", "rancher").Return(nil)
@@ -263,19 +269,4 @@ func TestInstallHandler_Execute(t *testing.T) {
 
 	err := h.Execute()
 	require.NoError(t, err)
-}
-
-func TestParseDisks(t *testing.T) {
-	t.Parallel()
-
-	input := "sda    disk\nsda1   part\nsdb    disk\nnvme0n1 disk"
-	disks := parseDisks(input)
-	assert.Equal(t, []string{"sda", "sdb", "nvme0n1"}, disks)
-}
-
-func TestParseDisks_Empty(t *testing.T) {
-	t.Parallel()
-
-	disks := parseDisks("")
-	assert.Empty(t, disks)
 }

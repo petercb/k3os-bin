@@ -47,13 +47,13 @@ func (l *LiveSetup) Run() error {
 }
 
 // SetupBase mounts the K3OS ISO or probes USB disks at /.base.
-// It first tries blkid -L K3OS; if found, mounts it read-only.
+// It first tries finding the K3OS label; if found, mounts it read-only.
 // Otherwise, probes all block disks up to maxRetries times with 1s sleep.
 func (l *LiveSetup) SetupBase() error {
 	slog.Debug("live: setting up base")
 
 	// Try ISO label first
-	device, err := l.deps.Cmd.RunOutput("blkid", "-L", "K3OS")
+	device, err := l.deps.BlockProber.FindByLabel("K3OS")
 	if err == nil && device != "" {
 		if err := l.deps.Mounter.Mount(device, baseDir, "", "ro"); err != nil {
 			return fmt.Errorf("mount K3OS ISO: %w", err)
@@ -68,9 +68,9 @@ func (l *LiveSetup) SetupBase() error {
 	}
 
 	for j := range maxRetries {
-		disks, diskErr := l.deps.Cmd.RunOutput("lsblk", "-o", "NAME,TYPE", "-n")
+		diskNames, diskErr := l.deps.BlockProber.ListDisks()
 		if diskErr == nil {
-			for _, name := range parseDisks(disks) {
+			for _, name := range diskNames {
 				dev := "/dev/" + name
 				if err := l.deps.Mounter.Mount(dev, baseDir, "", ""); err == nil {
 					return nil
@@ -130,60 +130,6 @@ func (l *LiveSetup) SetupMotd() error {
 		return fmt.Errorf("write motd: %w", err)
 	}
 	return nil
-}
-
-// parseDisks extracts disk names from lsblk output.
-// Each line is "NAME TYPE"; we want lines where TYPE is "disk".
-func parseDisks(output string) []string {
-	var disks []string
-	for _, line := range splitLines(output) {
-		fields := splitFields(line)
-		if len(fields) >= 2 && fields[1] == "disk" {
-			disks = append(disks, fields[0])
-		}
-	}
-	return disks
-}
-
-// splitLines splits a string into lines, filtering empty ones.
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := range len(s) {
-		if s[i] == '\n' {
-			line := s[start:i]
-			if line != "" {
-				lines = append(lines, line)
-			}
-			start = i + 1
-		}
-	}
-	if start < len(s) {
-		lines = append(lines, s[start:])
-	}
-	return lines
-}
-
-// splitFields splits a line into whitespace-separated fields.
-func splitFields(s string) []string {
-	var fields []string
-	start := -1
-	for i := range len(s) {
-		if s[i] == ' ' || s[i] == '\t' {
-			if start >= 0 {
-				fields = append(fields, s[start:i])
-				start = -1
-			}
-		} else {
-			if start < 0 {
-				start = i
-			}
-		}
-	}
-	if start >= 0 {
-		fields = append(fields, s[start:])
-	}
-	return fields
 }
 
 // LiveHandler implements ModeHandler for the "live" boot mode.

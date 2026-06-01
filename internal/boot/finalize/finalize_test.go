@@ -689,11 +689,12 @@ func TestGrowLive_BlkidFallback(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: "local", SleepFunc: func(time.Duration) {}}
+	bp := &MockBlockProber{}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, Mode: "local", SleepFunc: func(time.Duration) {}}
 
 	fs.On("ReadFile", "/k3os/system/growpart").Return([]byte("/dev/sda 2\n"), nil)
 	fs.On("Stat", "/dev/sda2").Return(nil, os.ErrNotExist)
-	cmd.On("RunOutput", "blkid", "-L", "K3OS_STATE").Return("/dev/nvme0n1p2\n", nil)
+	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/nvme0n1p2", nil)
 	cmd.On("Run", "parted", "/dev/nvme0n1", "resizepart", "2", "yes", "100%").Return(nil)
 	cmd.On("Run", "partprobe", "/dev/nvme0n1").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/nvme0n1p2").Return(nil)
@@ -703,6 +704,7 @@ func TestGrowLive_BlkidFallback(t *testing.T) {
 	require.NoError(t, err)
 	fs.AssertExpectations(t)
 	cmd.AssertExpectations(t)
+	bp.AssertExpectations(t)
 }
 
 func TestGrowLive_BlkidFails(t *testing.T) {
@@ -710,15 +712,16 @@ func TestGrowLive_BlkidFails(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: "local"}
+	bp := &MockBlockProber{}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, Mode: "local"}
 
 	fs.On("ReadFile", "/k3os/system/growpart").Return([]byte("/dev/sda 2\n"), nil)
 	fs.On("Stat", "/dev/sda2").Return(nil, os.ErrNotExist)
-	cmd.On("RunOutput", "blkid", "-L", "K3OS_STATE").Return("", errors.New("not found"))
+	bp.On("FindByLabel", "K3OS_STATE").Return("", errors.New("not found"))
 
 	err := f.GrowLive()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "blkid")
+	assert.Contains(t, err.Error(), "find K3OS_STATE by label")
 }
 
 // ---------------------------------------------------------------------------

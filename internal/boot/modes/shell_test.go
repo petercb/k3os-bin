@@ -20,11 +20,13 @@ func TestShellHandler_Execute_Success(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	proc := &MockProcessExecutor{}
+	bp := &MockBlockProber{}
 
 	deps := &Deps{
 		FS:            fs,
 		Cmd:           cmd,
 		Mounter:       mnt,
+		BlockProber:   bp,
 		Proc:          proc,
 		KernelVersion: "5.15.0",
 		SleepFunc:     func(time.Duration) {},
@@ -32,7 +34,7 @@ func TestShellHandler_Execute_Success(t *testing.T) {
 	h := NewShellHandler(deps)
 
 	// Live setup: SetupBase - ISO found
-	cmd.On("RunOutput", "blkid", "-L", "K3OS").Return("/dev/sr0", nil)
+	bp.On("FindByLabel", "K3OS").Return("/dev/sr0", nil)
 	mnt.On("Mount", "/dev/sr0", baseDir, "", "ro").Return(nil)
 
 	// SetupKernel - not exists
@@ -63,20 +65,22 @@ func TestShellHandler_Execute_LiveSetupFails(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	proc := &MockProcessExecutor{}
+	bp := &MockBlockProber{}
 
 	deps := &Deps{
 		FS:            fs,
 		Cmd:           cmd,
 		Mounter:       mnt,
+		BlockProber:   bp,
 		Proc:          proc,
 		KernelVersion: "5.15.0",
 		SleepFunc:     func(time.Duration) {},
 	}
 	h := NewShellHandler(deps)
 
-	// Live setup fails: blkid fails and USB probe fails
-	cmd.On("RunOutput", "blkid", "-L", "K3OS").Return("", errors.New("not found"))
-	cmd.On("RunOutput", "lsblk", "-o", "NAME,TYPE", "-n").Return("", nil)
+	// Live setup fails: FindByLabel fails and ListDisks returns empty
+	bp.On("FindByLabel", "K3OS").Return("", errors.New("not found"))
+	bp.On("ListDisks").Return([]string{}, nil)
 
 	err := h.Execute()
 	require.Error(t, err)
@@ -92,11 +96,13 @@ func TestShellHandler_Execute_ExecFails(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	proc := &MockProcessExecutor{}
+	bp := &MockBlockProber{}
 
 	deps := &Deps{
 		FS:            fs,
 		Cmd:           cmd,
 		Mounter:       mnt,
+		BlockProber:   bp,
 		Proc:          proc,
 		KernelVersion: "5.15.0",
 		SleepFunc:     func(time.Duration) {},
@@ -104,7 +110,7 @@ func TestShellHandler_Execute_ExecFails(t *testing.T) {
 	h := NewShellHandler(deps)
 
 	// Live setup succeeds
-	cmd.On("RunOutput", "blkid", "-L", "K3OS").Return("/dev/sr0", nil)
+	bp.On("FindByLabel", "K3OS").Return("/dev/sr0", nil)
 	mnt.On("Mount", "/dev/sr0", baseDir, "", "ro").Return(nil)
 	fs.On("Stat", "/k3os/system/kernel/5.15.0/kernel.squashfs").Return(nil, os.ErrNotExist)
 	cmd.On("Run", "passwd", "-d", "rancher").Return(nil)
