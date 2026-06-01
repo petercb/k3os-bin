@@ -264,6 +264,10 @@ func doResolvConf() {
 }
 
 func doLoopback() {
+	// NetInit brings up the loopback interface via netlink but does not assign
+	// 127.0.0.1/8 or add a host route. On kernel 6.8+ the address is
+	// configured automatically when lo is set up; older kernels will have a
+	// functioning interface with no address bound.
 	libinit.NetInit()
 }
 

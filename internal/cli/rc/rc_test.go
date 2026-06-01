@@ -123,20 +123,3 @@ func TestDoLoopback_UsesLibinitNetInit(t *testing.T) {
 	})
 	assert.False(t, foundExecCommand, "doLoopback must not call exec.Command")
 }
-
-func TestRcGo_ImportsLibinit(t *testing.T) {
-	t.Parallel()
-
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "rc.go", nil, parser.AllErrors)
-	require.NoError(t, err, "failed to parse rc.go")
-
-	foundLibinit := false
-	for _, imp := range f.Imports {
-		if imp.Path.Value == `"github.com/u-root/u-root/pkg/libinit"` {
-			foundLibinit = true
-			break
-		}
-	}
-	assert.True(t, foundLibinit, "rc.go must import github.com/u-root/u-root/pkg/libinit")
-}
