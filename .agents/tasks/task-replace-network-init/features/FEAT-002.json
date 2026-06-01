@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Replace doLoopback() in internal/cli/rc/rc.go with u-root's libinit.NetInit() which uses netlink to bring up the loopback interface. Since kernel 6.8+ handles loopback address/route configuration automatically, the old code that manually added 127.0.0.1/8 and routes via /sbin/ip is no longer needed. Use TDD approach: write tests first, then implement.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "First, write a spec/plan document at docs/plans/replace-network-init-with-uroot-netinit.md explaining the change, the rationale (kernel 6.8+ handles loopback automatically), and the approach (use u-root libinit.NetInit which uses netlink)",
     "In internal/cli/rc/rc_test.go, add a test that verifies the doLoopback function no longer exists or is replaced. Since the rc package calls Run() which calls doLoopback(), add a test verifying the Run function's sequence no longer includes manual ip commands. Note: the existing tests only test the namespace slice - they don't test Run() directly because it requires root.",
@@ -30,5 +30,5 @@
     "grep -c 'libinit.NetInit' internal/cli/rc/rc.go returns 1"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Replacement was straightforward. go mod tidy pulled in vishvananda/netlink v1.3.0 and vishvananda/netns v0.0.4 as transitive dependencies. The exec import stays because doHotplug and doClock still use exec.Command. Tests use go/ast parsing to verify the code structure (no exec.Command in doLoopback, libinit.NetInit is called). All make targets (build, test, lint) pass cleanly."
 }
