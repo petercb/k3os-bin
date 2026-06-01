@@ -1,0 +1,44 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Add BlockProber interface and sysfs-based implementation. Add interface to internal/iface/iface.go. Create implementation at internal/iface/osimpl/block.go that reads /dev/disk/by-label/<label> for FindByLabel and /sys/block/ for ListDisks. Wire into modes.Deps, finalize.Finalizer, and main.go. Replace all blkid/lsblk shell-outs in disk.go, live.go, grow.go with BlockProber calls. Update mode.Detector.BlockProber in main.go to use the new implementation. Add mocks and update all existing tests.",
+  "status": "completed",
+  "steps": [
+    "Step 1: Add BlockProber interface to internal/iface/iface.go with FindByLabel(label string) (string, error) and ListDisks() ([]string, error) methods.",
+    "Step 2: Create internal/iface/osimpl/block.go (with //go:build linux) implementing BlockProber using os.Readlink on /dev/disk/by-label/<label> for FindByLabel, and os.ReadDir on /sys/block/ for ListDisks (filtering out loop/ram/dm devices).",
+    "Step 3: Create internal/iface/osimpl/block_test.go with unit tests for the osimpl implementation (testing path construction and error handling using filesystem abstractions or test-friendly patterns).",
+    "Step 4: Add BlockProber field (iface.BlockProber) to modes.Deps struct in internal/boot/modes/handler.go.",
+    "Step 5: Add BlockProber field (iface.BlockProber) to finalize.Finalizer struct in internal/boot/finalize/finalize.go.",
+    "Step 6: Add MockBlockProber to internal/boot/modes/mock_test.go with compile-time interface check.",
+    "Step 7: Add MockBlockProber to internal/boot/finalize/mock_test.go with compile-time interface check.",
+    "Step 8: Replace blkid -L K3OS_STATE shell-out in internal/boot/modes/disk.go SetupMounts() with h.deps.BlockProber.FindByLabel('K3OS_STATE').",
+    "Step 9: Replace blkid -L K3OS shell-out in internal/boot/modes/live.go SetupBase() with l.deps.BlockProber.FindByLabel('K3OS'). Replace lsblk -o NAME,TYPE -n shell-out with l.deps.BlockProber.ListDisks().",
+    "Step 10: Replace blkid -L K3OS_STATE shell-out in internal/boot/finalize/grow.go GrowLive() with f.BlockProber.FindByLabel('K3OS_STATE').",
+    "Step 11: Update internal/boot/modes/disk_test.go to use MockBlockProber instead of mocking Cmd.RunOutput('blkid', ...) calls.",
+    "Step 12: Update internal/boot/modes/live_test.go to use MockBlockProber instead of mocking Cmd.RunOutput('blkid'/'lsblk', ...) calls.",
+    "Step 13: Update internal/boot/finalize/finalize_test.go GrowLive tests to use MockBlockProber instead of mocking Cmd.RunOutput('blkid', ...) calls.",
+    "Step 14: Update main.go postChroot(): (a) Add BlockProber to modeDeps using osimpl.SysfsBlockProber{}. (b) Add BlockProber to fin (Finalizer). (c) Update the mode.Detector BlockProber func field to use the new osimpl implementation's FindByLabel method.",
+    "Step 15: Remove the standalone blockProbe helper function from main.go.",
+    "Step 16: Run go mod tidy to add u-root dependency (only if needed - the sysfs implementation may not need u-root at all since we read /dev/disk/by-label/ and /sys/block/ directly).",
+    "Step 17: Run golangci-lint run ./... and fix any issues. Run go test -race -covermode=atomic -failfast ./... and confirm all tests pass."
+  ],
+  "acceptance_criteria": [
+    "No blkid or lsblk shell-outs remain in internal/boot/modes/ or internal/boot/finalize/ packages",
+    "BlockProber interface exists in internal/iface/iface.go with FindByLabel and ListDisks methods",
+    "A production implementation exists in internal/iface/osimpl/block.go",
+    "modes.Deps has a BlockProber field and all mode handlers use it",
+    "finalize.Finalizer has a BlockProber field and GrowLive uses it",
+    "mode.Detector.BlockProber in main.go uses the new osimpl implementation",
+    "The standalone blockProbe function is removed from main.go",
+    "All existing tests pass with updated mock expectations",
+    "golangci-lint run ./... passes",
+    "go build succeeds with CGO_ENABLED=0"
+  ],
+  "verification": [
+    "go test -race -covermode=atomic -failfast ./...",
+    "golangci-lint run ./...",
+    "CGO_ENABLED=0 go build -o k3os ."
+  ],
+  "blocked_reason": null,
+  "findings": "All tests pass. /sys/block and /dev/disk/by-label are not available in the sandbox environment so the osimpl unit tests skip gracefully. Shell tests needed updating too since ShellHandler uses LiveSetup which calls BlockProber. parseDisks/splitLines/splitFields left in live.go as they are still tested directly."
+}

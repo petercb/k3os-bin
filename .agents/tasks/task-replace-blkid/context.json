@@ -1,0 +1,32 @@
+{
+  "project_type": "Go CLI application (Linux init system for k3OS)",
+  "language": "Go 1.24",
+  "build_system": "Makefile with go build, golangci-lint, go test",
+  "test_framework": "go test with testify/mock and testify/require (mock-based unit tests)",
+  "build_command": "make build",
+  "test_command": "go test -race -covermode=atomic -failfast ./...",
+  "verification_instructions": "1. Run 'go test -race -covermode=atomic -failfast ./...' to verify all tests pass. 2. Run 'golangci-lint run ./...' to verify linting passes. 3. Run 'CGO_ENABLED=0 go build -o k3os .' to verify build succeeds.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "Go 1.24+ is pre-installed. Run 'go mod tidy' after adding dependencies.",
+  "environment_constraints": "OPEN_INTERNET network mode - can download packages. Tests have linux build tag on most boot packages. No Docker daemon available for e2e tests.",
+  "contribution_requirements": "Conventional commits. TDD approach (RED-GREEN-REFACTOR). golangci-lint must pass. Minimum 80% test coverage.",
+  "key_patterns": "1. Interfaces defined in internal/iface/iface.go. 2. Implementations in internal/iface/osimpl/. 3. Mock-based testing using testify/mock in *_test.go files with dedicated mock_test.go. 4. Deps struct pattern for dependency injection (modes.Deps, finalize.Finalizer fields). 5. mode.Detector uses func fields for dependency injection. 6. All boot packages use //go:build linux tag.",
+  "relevant_files": [
+    "internal/iface/iface.go",
+    "internal/iface/osimpl/command.go",
+    "internal/boot/modes/handler.go",
+    "internal/boot/modes/disk.go",
+    "internal/boot/modes/live.go",
+    "internal/boot/modes/mock_test.go",
+    "internal/boot/modes/disk_test.go",
+    "internal/boot/modes/live_test.go",
+    "internal/boot/finalize/finalize.go",
+    "internal/boot/finalize/grow.go",
+    "internal/boot/finalize/mock_test.go",
+    "internal/boot/finalize/finalize_test.go",
+    "internal/mode/detect.go",
+    "internal/mode/detect_test.go",
+    "main.go"
+  ],
+  "directory_structure": "internal/iface/ - interfaces. internal/iface/osimpl/ - real implementations. internal/boot/modes/ - boot mode handlers. internal/boot/finalize/ - boot finalization. internal/mode/ - mode detection. main.go - wires everything together."
+}

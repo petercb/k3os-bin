@@ -47,7 +47,7 @@ func (l *LiveSetup) Run() error {
 }
 
 // SetupBase mounts the K3OS ISO or probes USB disks at /.base.
-// It first tries blkid -L K3OS; if found, mounts it read-only.
+// It first tries finding the K3OS label; if found, mounts it read-only.
 // Otherwise, probes all block disks up to maxRetries times with 1s sleep.
 func (l *LiveSetup) SetupBase() error {
 	slog.Debug("live: setting up base")
@@ -132,7 +132,7 @@ func (l *LiveSetup) SetupMotd() error {
 	return nil
 }
 
-// parseDisks extracts disk names from lsblk output.
+// parseDisks extracts disk names from lsblk-style output.
 // Each line is "NAME TYPE"; we want lines where TYPE is "disk".
 func parseDisks(output string) []string {
 	var disks []string

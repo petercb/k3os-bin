@@ -1,0 +1,7 @@
+{
+  "task_id": "task-replace-blkid",
+  "task_description": "Replace external blkid and lsblk command invocations with pure Go block device discovery using a BlockProber interface backed by sysfs/devfs reads. This eliminates the dependency on blkid/lsblk binaries being present in the rootfs.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
