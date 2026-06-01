@@ -1,8 +1,8 @@
 module github.com/petercb/k3os-bin
 
-go 1.24.0
+go 1.25.0
 
-toolchain go1.24.3
+toolchain go1.25.1
 
 require (
 	dario.cat/mergo v1.0.2
@@ -10,6 +10,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22
 	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.14.1
+	github.com/siderolabs/go-blockdevice/v2 v2.0.6
 	github.com/stretchr/testify v1.11.1
 	github.com/u-root/u-root v0.16.0
 	github.com/urfave/cli/v3 v3.9.0
