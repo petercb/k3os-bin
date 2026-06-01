@@ -1,0 +1,25 @@
+{
+  "project_type": "Go Linux init binary for k3OS (early boot system)",
+  "language": "Go 1.24",
+  "build_system": "Makefile with go build, golangci-lint for lint/format",
+  "test_framework": "stdlib testing + testify (assert/require/mock), table-driven tests, //go:build linux guard",
+  "build_command": "make build",
+  "test_command": "make test",
+  "verification_instructions": "1. Run 'make test' to verify all tests pass. 2. Run 'make lint' to verify linting passes. 3. Run 'make build' to verify binary compiles.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "Go 1.24+ required. Run 'go mod download' for dependencies.",
+  "environment_constraints": "OPEN_INTERNET network - full access. Go 1.25.1 and golangci-lint 2.1.6 available. Linux sandbox - can run tests directly.",
+  "contribution_requirements": "Use conventional commits. TDD: write tests first. Use golangci-lint for formatting AND linting. Follow KISS/DRY/SOLID. Create feature branch from master.",
+  "key_patterns": "Interface-based DI via internal/iface package. Mocks use testify/mock. OS-dependent code uses //go:build linux. The rc package's doLoopback() currently shells out to /sbin/ip. u-root is already a dependency (used for cmdline and loopdev). u-root's libinit.NetInit() uses vishvananda/netlink to bring lo up via netlink API.",
+  "relevant_files": [
+    "internal/cli/rc/rc.go",
+    "internal/cli/rc/rc_test.go",
+    "internal/boot/bootstrap/bootstrap.go",
+    "internal/iface/interfaces.go",
+    "go.mod",
+    "docs/technical.md",
+    "docs/spec-port-init-scripts.md",
+    "Makefile"
+  ],
+  "directory_structure": "internal/cli/rc/ - run control (mounts, hotplug, clock, loopback, hostname, resolv); internal/boot/ - init orchestrator; internal/boot/bootstrap/ - bootstrap phase; internal/iface/ - OS boundary interfaces; docs/ - project documentation"
+}

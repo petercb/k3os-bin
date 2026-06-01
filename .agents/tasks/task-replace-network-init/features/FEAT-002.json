@@ -1,0 +1,34 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Replace doLoopback() in internal/cli/rc/rc.go with u-root's libinit.NetInit() which uses netlink to bring up the loopback interface. Since kernel 6.8+ handles loopback address/route configuration automatically, the old code that manually added 127.0.0.1/8 and routes via /sbin/ip is no longer needed. Use TDD approach: write tests first, then implement.",
+  "status": "pending",
+  "steps": [
+    "First, write a spec/plan document at docs/plans/replace-network-init-with-uroot-netinit.md explaining the change, the rationale (kernel 6.8+ handles loopback automatically), and the approach (use u-root libinit.NetInit which uses netlink)",
+    "In internal/cli/rc/rc_test.go, add a test that verifies the doLoopback function no longer exists or is replaced. Since the rc package calls Run() which calls doLoopback(), add a test verifying the Run function's sequence no longer includes manual ip commands. Note: the existing tests only test the namespace slice - they don't test Run() directly because it requires root.",
+    "Replace the doLoopback() function body in internal/cli/rc/rc.go. Remove the exec.Command calls to /sbin/ip. Replace with a call to github.com/u-root/u-root/pkg/libinit.NetInit(). Add the import for libinit.",
+    "Remove the now-unnecessary 'os/exec' import if it is no longer used by other functions in rc.go (check: doHotplug still uses exec.Command, doClock still uses exec.Command, so exec import stays)",
+    "Run 'go mod tidy' to ensure vishvananda/netlink (transitive dependency of u-root/libinit) is properly tracked in go.sum",
+    "Run golangci-lint to format and lint the changed files",
+    "Verify tests pass with 'make test'",
+    "Verify lint passes with 'make lint'",
+    "Commit with message: 'feat(rc): replace doLoopback with u-root libinit.NetInit\n\nReplace shell-out to /sbin/ip with u-root libinit.NetInit() which uses\nnetlink to bring up the loopback interface. On kernel 6.8+, the kernel\nautomatically configures the loopback address (127.0.0.1/8) and route\nwhen the interface is brought up, making the manual address/route\ncommands unnecessary.\n\nThis eliminates a dependency on /sbin/ip being available in the initramfs\nand uses the proper kernel netlink API instead of shelling out.'"
+  ],
+  "acceptance_criteria": [
+    "doLoopback() function body calls libinit.NetInit() instead of exec.Command('/sbin/ip', ...)",
+    "No references to '127.0.0.1' or 'ip addr add' remain in internal/cli/rc/rc.go",
+    "The import 'github.com/u-root/u-root/pkg/libinit' is present in rc.go",
+    "make test passes",
+    "make lint passes",
+    "make build succeeds"
+  ],
+  "verification": [
+    "Run 'make test' - all tests pass",
+    "Run 'make lint' - zero issues",
+    "Run 'make build' - binary compiles",
+    "grep -c '127.0.0.1' internal/cli/rc/rc.go returns 0",
+    "grep -c 'libinit.NetInit' internal/cli/rc/rc.go returns 1"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

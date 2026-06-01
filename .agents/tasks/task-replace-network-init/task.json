@@ -1,0 +1,7 @@
+{
+  "task_id": "task-replace-network-init",
+  "task_description": "Replace the network init code (doLoopback in internal/cli/rc/rc.go) with u-root's libinit.NetInit() which uses netlink to bring up the loopback interface. Since kernel 6.8+ handles loopback address/route configuration automatically, the old shell-out to /sbin/ip for adding 127.0.0.1/8 and routes is no longer necessary.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}
