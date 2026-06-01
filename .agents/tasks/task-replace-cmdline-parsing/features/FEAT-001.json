@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Add CmdlineParser interface to internal/iface and create production implementation in new internal/cmdline package wrapping u-root pkg/cmdline",
+  "status": "completed",
+  "steps": [
+    "Step 1: Write tests for the CmdlineParser implementation in internal/cmdline/cmdline_test.go. Tests should verify: (a) Flag() returns value and true for present flags, (b) Flag() returns empty and false for missing flags, (c) Contains() returns true for present boolean flags, (d) Contains() returns false for missing flags, (e) Consoles() returns all console= TTY names from the raw cmdline, (f) Raw() returns the full raw string. Use a test helper that constructs a CmdlineParser from a raw string.",
+    "Step 2: Add the CmdlineParser interface to internal/iface/iface.go with methods: Flag(name string) (string, bool), Contains(name string) bool, Consoles() []string, Raw() string.",
+    "Step 3: Create internal/cmdline/cmdline.go with: (a) a uRootCmdline struct wrapping *cmdline.CmdLine, (b) methods implementing iface.CmdlineParser, (c) a New() constructor that calls cmdline.NewCmdLine() for production use, (d) a NewFromReader(r io.Reader) constructor for testing that uses the parse approach - since parse() is unexported, construct CmdLine struct by reading the reader, trimming, and building AsMap via exported CmdLine fields.",
+    "Step 4: Since u-root's parse() is unexported, implement NewFromString(raw string) that constructs the CmdLine struct with Raw set and AsMap built by splitting on spaces and '=' (replicating the kernel cmdline key=value format). This is needed for test construction. Alternatively, simply export a mock-friendly approach: for tests, callers will mock the interface directly. The NewFromString helper is for integration-style tests of the wrapper itself.",
+    "Step 5: Run tests (go test ./internal/cmdline/... -v) to verify RED then GREEN.",
+    "Step 6: Run golangci-lint run ./internal/cmdline/... ./internal/iface/... to verify lint passes."
+  ],
+  "acceptance_criteria": [
+    "internal/iface/iface.go contains CmdlineParser interface with Flag, Contains, Consoles, Raw methods",
+    "internal/cmdline/cmdline.go exists with New() returning iface.CmdlineParser wrapping u-root",
+    "internal/cmdline/cmdline_test.go has tests covering all interface methods",
+    "go test ./internal/cmdline/... passes",
+    "golangci-lint run ./internal/cmdline/... ./internal/iface/... passes"
+  ],
+  "verification": [
+    "go test -race -v ./internal/cmdline/...",
+    "golangci-lint run ./internal/cmdline/... ./internal/iface/..."
+  ],
+  "blocked_reason": null,
+  "findings": "All tests pass with 78.6% coverage. Lint passes cleanly. Returning iface.CmdlineParser from constructors resolved the revive unexported-return lint issue. The u-root CmdLine.Consoles() method uses strings.FieldsSeq which works on all platforms. NewCmdLine() compiles on non-linux (returns empty CmdLine with os.ErrNotExist)."
+}

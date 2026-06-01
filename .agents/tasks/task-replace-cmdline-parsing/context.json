@@ -1,0 +1,30 @@
+{
+  "project_type": "Go Linux init binary for k3OS",
+  "language": "Go",
+  "build_system": "Make + go build, CGO_ENABLED=0",
+  "test_framework": "go test with testify (assert/require/mock), race detector enabled",
+  "build_command": "make build",
+  "test_command": "make test",
+  "verification_instructions": "1. Run 'make test' to verify all tests pass. 2. Run 'make lint' (golangci-lint run ./...) to verify no lint issues. 3. Run 'make build' to verify binary compiles.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "Go 1.24+ is pre-installed. Run 'go mod download' to fetch dependencies.",
+  "environment_constraints": "OPEN_INTERNET network - full access. Go 1.24.3 available. golangci-lint 2.1.6 available. Most source files have //go:build linux tags - tests will still run on Linux sandbox.",
+  "contribution_requirements": "TDD mandatory (RED/GREEN/IMPROVE). 80%+ coverage. Conventional commits. golangci-lint must pass. Small interfaces defined where used. Dependency injection via constructors.",
+  "key_patterns": "1. Interfaces defined in internal/iface/iface.go for OS boundaries. 2. Package-level vars for injectable dependencies in enterchroot (loopAttacher, ensureLoopFn). 3. Structs with func fields for DI in mode/detect.go and boot/init.go. 4. Finalize uses iface.FileSystem mock pattern with testify/mock. 5. Files use //go:build linux tags. 6. Tests use t.Parallel() throughout.",
+  "relevant_files": [
+    "internal/iface/iface.go",
+    "internal/mode/detect.go",
+    "internal/mode/detect_test.go",
+    "internal/boot/init.go",
+    "internal/boot/init_test.go",
+    "internal/boot/finalize/finalize.go",
+    "internal/boot/finalize/ttys.go",
+    "internal/boot/finalize/finalize_test.go",
+    "internal/enterchroot/enter.go",
+    "internal/enterchroot/enter_test.go",
+    "main.go",
+    "docs/specs/replace-cmdline-parsing-with-u-root.md",
+    "docs/plans/replace-cmdline-parsing-with-u-root.md"
+  ],
+  "directory_structure": "internal/iface/ - interfaces for OS boundaries. internal/mode/ - boot mode detection. internal/boot/ - init orchestrator. internal/boot/finalize/ - boot finalization (TTYs, hostname, etc). internal/enterchroot/ - pre-chroot filesystem setup. main.go - entry point, wires DebugCmdline."
+}
