@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -112,18 +113,26 @@ func (h *DiskHandler) SetupMounts() error {
 	if err := h.deps.Cmd.Run("umount", targetDir); err != nil {
 		return fmt.Errorf("umount for grow: %w", err)
 	}
-	// grow: parted resizepart, partprobe, e2fsck, resize2fs
-	if err := h.deps.Cmd.Run("parted", dev, "resizepart", num, "100%"); err != nil {
-		slog.Warn("disk: parted resizepart failed", "error", err)
+	// grow: resize partition via pure Go GPT manipulation, then e2fsck + resize2fs
+	partNumInt, convErr := strconv.Atoi(num)
+	if convErr != nil {
+		return fmt.Errorf("parse partition number %q: %w", num, convErr)
 	}
-	if err := h.deps.Cmd.Run("partprobe", dev); err != nil {
-		slog.Warn("disk: partprobe failed", "error", err)
-	}
-	if err := h.deps.Cmd.Run("e2fsck", "-f", devNum); err != nil {
-		slog.Warn("disk: e2fsck failed", "error", err)
-	}
-	if err := h.deps.Cmd.Run("resize2fs", devNum); err != nil {
-		slog.Warn("disk: resize2fs failed", "error", err)
+
+	if h.deps.PartitionGrower == nil {
+		slog.Debug("disk: PartitionGrower not configured, skipping partition grow")
+	} else if err := h.deps.PartitionGrower.GrowPartition(dev, partNumInt); err != nil {
+		// If partition grow fails, skip e2fsck and resize2fs since the partition
+		// boundary may be inconsistent (e.g., GPT partially written). Running
+		// filesystem tools against a stale partition layout is unsafe.
+		slog.Warn("disk: partition grow failed, skipping filesystem resize", "error", err)
+	} else {
+		if err := h.deps.Cmd.Run("e2fsck", "-f", devNum); err != nil {
+			slog.Warn("disk: e2fsck failed", "error", err)
+		}
+		if err := h.deps.Cmd.Run("resize2fs", devNum); err != nil {
+			slog.Warn("disk: resize2fs failed", "error", err)
+		}
 	}
 
 	if err := h.deps.Mounter.Mount("LABEL=K3OS_STATE", targetDir, "", ""); err != nil {
@@ -374,7 +383,9 @@ func (h *DiskHandler) PivotAndExec() error {
 	slog.Debug("disk: pivot and exec")
 
 	// Detach loop device (best effort)
-	_ = h.deps.Cmd.Run("losetup", "-d", "/dev/loop0")
+	if h.deps.LoopDetacher != nil {
+		_ = h.deps.LoopDetacher.DetachPath("/dev/loop0")
+	}
 
 	// Make root mount private
 	if err := h.deps.Mounter.ForceMount("", "/", "none", "rprivate"); err != nil {

@@ -81,6 +81,11 @@ type BlockProber interface {
 	ListDisks() ([]string, error)
 }
 
+// LoopDetacher abstracts loop device detachment by path.
+type LoopDetacher interface {
+	DetachPath(device string) error
+}
+
 // LoopDevice abstracts a single attached loop device.
 type LoopDevice interface {
 	Path() string
@@ -91,6 +96,11 @@ type LoopDevice interface {
 // LoopAttacher abstracts loop device attachment operations.
 type LoopAttacher interface {
 	Attach(backingFile string, offset uint64, readOnly bool) (LoopDevice, error)
+}
+
+// PartitionGrower grows a partition to fill available space on a GPT disk.
+type PartitionGrower interface {
+	GrowPartition(device string, partNum int) error
 }
 
 // CmdlineParser abstracts kernel command-line parsing.

@@ -14,17 +14,18 @@ import (
 
 // Finalizer holds dependencies needed to execute the boot finalization phase.
 type Finalizer struct {
-	FS             iface.FileSystem
-	Mounter        iface.Mounter
-	Cmd            iface.CommandRunner
-	BlockProber    iface.BlockProber
-	Mode           string
-	Cmdline        iface.CmdlineParser
-	RandFunc       func() (uint32, error)
-	VirtDetector   func() ([]string, error)
-	SleepFunc      func(time.Duration)
-	ConfigRunner   func() error
-	ManifestCopier func(src, dst string) error
+	FS              iface.FileSystem
+	Mounter         iface.Mounter
+	Cmd             iface.CommandRunner
+	BlockProber     iface.BlockProber
+	PartitionGrower iface.PartitionGrower
+	Mode            string
+	Cmdline         iface.CmdlineParser
+	RandFunc        func() (uint32, error)
+	VirtDetector    func() ([]string, error)
+	SleepFunc       func(time.Duration)
+	ConfigRunner    func() error
+	ManifestCopier  func(src, dst string) error
 }
 
 // Run executes the full boot finalization sequence in order, stopping on first error.

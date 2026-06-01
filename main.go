@@ -109,14 +109,16 @@ func postChroot() {
 
 	// Build the mode registry with real dependencies.
 	modeDeps := &modes.Deps{
-		FS:            fs,
-		Cmd:           cmd,
-		Mounter:       mounter,
-		BlockProber:   osimpl.SysfsBlockProber{},
-		Proc:          &realProcessExecutor{},
-		CopyDir:       func(src, dst string) error { return cp.Copy(src, dst) },
-		KernelVersion: kver,
-		VersionID:     versionID,
+		FS:              fs,
+		Cmd:             cmd,
+		Mounter:         mounter,
+		BlockProber:     osimpl.SysfsBlockProber{},
+		PartitionGrower: &osimpl.PartitionGrower{},
+		LoopDetacher:    osimpl.LoopPathDetacher{},
+		Proc:            &realProcessExecutor{},
+		CopyDir:         func(src, dst string) error { return cp.Copy(src, dst) },
+		KernelVersion:   kver,
+		VersionID:       versionID,
 	}
 	registry := modes.NewRegistry(modeDeps)
 
@@ -139,15 +141,16 @@ func postChroot() {
 	// Build the finalizer.
 	cl := cmdline.New()
 	fin := &finalize.Finalizer{
-		FS:           fs,
-		Mounter:      mounter,
-		Cmd:          cmd,
-		BlockProber:  osimpl.SysfsBlockProber{},
-		SleepFunc:    time.Sleep,
-		Cmdline:      cl,
-		RandFunc:     cryptoRandUint32,
-		VirtDetector: detectVirt,
-		ConfigRunner: cliconfig.RunBoot,
+		FS:              fs,
+		Mounter:         mounter,
+		Cmd:             cmd,
+		BlockProber:     osimpl.SysfsBlockProber{},
+		PartitionGrower: &osimpl.PartitionGrower{},
+		SleepFunc:       time.Sleep,
+		Cmdline:         cl,
+		RandFunc:        cryptoRandUint32,
+		VirtDetector:    detectVirt,
+		ConfigRunner:    cliconfig.RunBoot,
 		ManifestCopier: func(src, dst string) error {
 			return cp.Copy(src, dst, cp.Options{
 				PreserveTimes: true,
