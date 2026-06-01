@@ -10,15 +10,16 @@ package rc
 
 import (
 	"context"
-	"encoding/csv"
 	"errors"
 	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/petercb/k3os-bin/internal/modalias"
+	"github.com/petercb/k3os-bin/internal/namespace"
 	cli "github.com/urfave/cli/v3"
 	"golang.org/x/sys/unix"
 )
@@ -65,76 +66,80 @@ const (
 	shared   = unix.MS_SHARED
 )
 
-func mount(source string, target string, fstype string, flags uintptr, data string) {
-	// nothing really to error to, so just warn
-	mkdir(target, 0o755)
-	err := unix.Mount(source, target, fstype, flags, data)
-	if err != nil {
-		log.Printf("error mounting %s to %s: %v", source, target, err)
-	}
-}
+// rcNamespace declares all the mounts, directories, devices, and symlinks
+// that doMounts() creates during early boot.
+var rcNamespace = []namespace.Creator{
+	// mount proc filesystem
+	namespace.Mount{Source: "proc", Target: "/proc", FSType: "proc", Flags: nodev | nosuid | noexec | relatime, Silent: true},
 
-//nolint:unparam
-func mountSilent(source string, target string, fstype string, flags uintptr, data string) {
-	// in some cases, do not even log an error
-	_ = unix.Mount(source, target, fstype, flags, data)
-}
+	// mount tmpfs for /tmp and /run
+	namespace.Mount{Source: "tmpfs", Target: "/run", FSType: "tmpfs", Flags: nodev | nosuid | noexec | relatime, Data: "size=10%,mode=755"},
+	namespace.Mount{Source: "tmpfs", Target: "/tmp", FSType: "tmpfs", Flags: nodev | nosuid | noexec | relatime, Data: "size=10%,mode=1777"},
 
-// make a character device
-func mkchar(path string, mode, major, minor uint32) {
-	// unix.Mknod only supports int dev numbers; this is ok for us
-	dev := int(unix.Mkdev(major, minor))
-	err := unix.Mknod(path, mode, dev)
-	if err != nil {
-		if err.Error() == "file exists" {
-			return
-		}
-		log.Printf("error making device %s: %v", path, err)
-	}
-}
+	// add standard directories in /var
+	namespace.Dir{Name: "/var/cache", Mode: 0o755},
+	namespace.Dir{Name: "/var/empty", Mode: 0o555},
+	namespace.Dir{Name: "/var/lib", Mode: 0o755},
+	namespace.Dir{Name: "/var/local/bin", Mode: 0o755},
+	namespace.Dir{Name: "/var/lock", Mode: 0o755},
+	namespace.Dir{Name: "/var/log", Mode: 0o755},
+	namespace.Dir{Name: "/var/opt", Mode: 0o755},
+	namespace.Dir{Name: "/var/spool", Mode: 0o755},
+	namespace.Dir{Name: "/var/tmp", Mode: 0o1777},
+	namespace.Dir{Name: "/home", Mode: 0o755},
+	namespace.Symlink{Target: "/run", NewPath: "/var/run"},
 
-// symlink with error warning
-func symlink(oldpath string, newpath string) {
-	err := unix.Symlink(oldpath, newpath)
-	if err != nil {
-		log.Printf("error creating symlink %s -> %s: %v", oldpath, newpath, err)
-	}
-}
+	// mount devfs
+	namespace.Mount{Source: "dev", Target: "/dev", FSType: "devtmpfs", Flags: nosuid | noexec | relatime, Data: "size=10m,nr_inodes=248418,mode=755"},
+	// make minimum necessary devices
+	namespace.Dev{Name: "/dev/console", Mode: 0o600, Major: 5, Minor: 1},
+	namespace.Dev{Name: "/dev/tty1", Mode: 0o620, Major: 4, Minor: 1},
+	namespace.Dev{Name: "/dev/tty", Mode: 0o666, Major: 5, Minor: 0},
+	namespace.Dev{Name: "/dev/null", Mode: 0o666, Major: 1, Minor: 3},
+	namespace.Dev{Name: "/dev/kmsg", Mode: 0o660, Major: 1, Minor: 11},
+	// make standard symlinks
+	namespace.Symlink{Target: "/proc/self/fd", NewPath: "/dev/fd"},
+	namespace.Symlink{Target: "/proc/self/fd/0", NewPath: "/dev/stdin"},
+	namespace.Symlink{Target: "/proc/self/fd/1", NewPath: "/dev/stdout"},
+	namespace.Symlink{Target: "/proc/self/fd/2", NewPath: "/dev/stderr"},
+	namespace.Symlink{Target: "/proc/kcore", NewPath: "/dev/kcore"},
+	// dev mountpoints
+	namespace.Dir{Name: "/dev/mqueue", Mode: 0o1777},
+	namespace.Dir{Name: "/dev/shm", Mode: 0o1777},
+	namespace.Dir{Name: "/dev/pts", Mode: 0o755},
+	// mounts on /dev
+	namespace.Mount{Source: "mqueue", Target: "/dev/mqueue", FSType: "mqueue", Flags: noexec | nosuid | nodev},
+	namespace.Mount{Source: "shm", Target: "/dev/shm", FSType: "tmpfs", Flags: noexec | nosuid | nodev, Data: "mode=1777"},
+	namespace.Mount{Source: "devpts", Target: "/dev/pts", FSType: "devpts", Flags: noexec | nosuid, Data: "gid=5,mode=0620"},
 
-// mkdirall with warning
-func mkdir(path string, perm os.FileMode) {
-	err := os.MkdirAll(path, perm)
-	if err != nil {
-		log.Printf("error making directory %s: %v", path, err)
-	}
-}
+	// sysfs
+	namespace.Mount{Source: "sysfs", Target: "/sys", FSType: "sysfs", Flags: noexec | nosuid | nodev},
+	// some of the subsystems may not exist, so ignore errors
+	namespace.Mount{Source: "securityfs", Target: "/sys/kernel/security", FSType: "securityfs", Flags: noexec | nosuid | nodev, Silent: true},
+	namespace.Mount{Source: "debugfs", Target: "/sys/kernel/debug", FSType: "debugfs", Flags: noexec | nosuid | nodev, Silent: true},
+	namespace.Mount{Source: "configfs", Target: "/sys/kernel/config", FSType: "configfs", Flags: noexec | nosuid | nodev, Silent: true},
+	namespace.Mount{Source: "fusectl", Target: "/sys/fs/fuse/connections", FSType: "fusectl", Flags: noexec | nosuid | nodev, Silent: true},
+	namespace.Mount{Source: "selinuxfs", Target: "/sys/fs/selinux", FSType: "selinuxfs", Flags: noexec | nosuid, Silent: true},
+	namespace.Mount{Source: "pstore", Target: "/sys/fs/pstore", FSType: "pstore", Flags: noexec | nosuid | nodev, Silent: true},
+	namespace.Mount{Source: "efivarfs", Target: "/sys/firmware/efi/efivars", FSType: "efivarfs", Flags: noexec | nosuid | nodev, Silent: true},
 
-// list of all enabled cgroups
-func cgroupList() []string {
-	list := []string{}
-	f, err := os.Open("/proc/cgroups")
-	if err != nil {
-		log.Printf("cannot open /proc/cgroups: %v", err)
-		return list
-	}
-	defer func() { _ = f.Close() }()
-	reader := csv.NewReader(f)
-	// tab delimited
-	reader.Comma = '\t'
-	// four fields
-	reader.FieldsPerRecord = 4
-	cgroups, err := reader.ReadAll()
-	if err != nil {
-		log.Printf("cannot parse /proc/cgroups: %v", err)
-		return list
-	}
-	for _, cg := range cgroups {
-		// see if enabled
-		if cg[3] == "1" {
-			list = append(list, cg[0])
-		}
-	}
-	return list
+	// misc /proc mounted fs
+	namespace.Mount{Source: "binfmt_misc", Target: "/proc/sys/fs/binfmt_misc", FSType: "binfmt_misc", Flags: noexec | nosuid | nodev, Silent: true},
+
+	// mount cgroup root tmpfs
+	namespace.Mount{Source: "cgroup_root", Target: "/sys/fs/cgroup", FSType: "tmpfs", Flags: nodev | noexec | nosuid, Data: "mode=755,size=10m"},
+	// mount cgroups filesystems for all enabled cgroups
+	namespace.CgroupMounts{},
+
+	// use hierarchy for memory
+	namespace.Write{Path: "/sys/fs/cgroup/memory/memory.use_hierarchy", Content: "1"},
+
+	// many things assume systemd
+	namespace.Dir{Name: "/sys/fs/cgroup/systemd", Mode: 0o555},
+	namespace.Mount{Source: "cgroup", Target: "/sys/fs/cgroup/systemd", FSType: "cgroup", Data: "none,name=systemd"},
+
+	// make / rshared
+	namespace.Mount{Target: "/", Flags: rec | shared},
 }
 
 // write a file, eg sysfs
@@ -207,84 +212,7 @@ func modaliases(paths ...string) {
 }
 
 func doMounts() {
-	// mount proc filesystem
-	mountSilent("proc", "/proc", "proc", nodev|nosuid|noexec|relatime, "")
-
-	// remount rootfs read only if it is not already
-	// mountSilent("", "/", "", remount|readonly, "")
-
-	// mount tmpfs for /tmp and /run
-	mount("tmpfs", "/run", "tmpfs", nodev|nosuid|noexec|relatime, "size=10%,mode=755")
-	mount("tmpfs", "/tmp", "tmpfs", nodev|nosuid|noexec|relatime, "size=10%,mode=1777")
-
-	// add standard directories in /var
-	mkdir("/var/cache", 0o755)
-	mkdir("/var/empty", 0o555)
-	mkdir("/var/lib", 0o755)
-	mkdir("/var/local/bin", 0o755)
-	mkdir("/var/lock", 0o755)
-	mkdir("/var/log", 0o755)
-	mkdir("/var/opt", 0o755)
-	mkdir("/var/spool", 0o755)
-	mkdir("/var/tmp", 0o1777)
-	mkdir("/home", 0o755)
-	symlink("/run", "/var/run")
-
-	// mount devfs
-	mount("dev", "/dev", "devtmpfs", nosuid|noexec|relatime, "size=10m,nr_inodes=248418,mode=755")
-	// make minimum necessary devices
-	mkchar("/dev/console", 0o600, 5, 1)
-	mkchar("/dev/tty1", 0o620, 4, 1)
-	mkchar("/dev/tty", 0o666, 5, 0)
-	mkchar("/dev/null", 0o666, 1, 3)
-	mkchar("/dev/kmsg", 0o660, 1, 11)
-	// make standard symlinks
-	symlink("/proc/self/fd", "/dev/fd")
-	symlink("/proc/self/fd/0", "/dev/stdin")
-	symlink("/proc/self/fd/1", "/dev/stdout")
-	symlink("/proc/self/fd/2", "/dev/stderr")
-	symlink("/proc/kcore", "/dev/kcore")
-	// dev mountpoints
-	mkdir("/dev/mqueue", 0o1777)
-	mkdir("/dev/shm", 0o1777)
-	mkdir("/dev/pts", 0o755)
-	// mounts on /dev
-	mount("mqueue", "/dev/mqueue", "mqueue", noexec|nosuid|nodev, "")
-	mount("shm", "/dev/shm", "tmpfs", noexec|nosuid|nodev, "mode=1777")
-	mount("devpts", "/dev/pts", "devpts", noexec|nosuid, "gid=5,mode=0620")
-
-	// sysfs
-	mount("sysfs", "/sys", "sysfs", noexec|nosuid|nodev, "")
-	// some of the subsystems may not exist, so ignore errors
-	mountSilent("securityfs", "/sys/kernel/security", "securityfs", noexec|nosuid|nodev, "")
-	mountSilent("debugfs", "/sys/kernel/debug", "debugfs", noexec|nosuid|nodev, "")
-	mountSilent("configfs", "/sys/kernel/config", "configfs", noexec|nosuid|nodev, "")
-	mountSilent("fusectl", "/sys/fs/fuse/connections", "fusectl", noexec|nosuid|nodev, "")
-	mountSilent("selinuxfs", "/sys/fs/selinux", "selinuxfs", noexec|nosuid, "")
-	mountSilent("pstore", "/sys/fs/pstore", "pstore", noexec|nosuid|nodev, "")
-	mountSilent("efivarfs", "/sys/firmware/efi/efivars", "efivarfs", noexec|nosuid|nodev, "")
-
-	// misc /proc mounted fs
-	mountSilent("binfmt_misc", "/proc/sys/fs/binfmt_misc", "binfmt_misc", noexec|nosuid|nodev, "")
-
-	// mount cgroup root tmpfs
-	mount("cgroup_root", "/sys/fs/cgroup", "tmpfs", nodev|noexec|nosuid, "mode=755,size=10m")
-	// mount cgroups filesystems for all enabled cgroups
-	for _, cg := range cgroupList() {
-		path := filepath.Join("/sys/fs/cgroup", cg)
-		mkdir(path, 0o555)
-		mount(cg, path, "cgroup", noexec|nosuid|nodev, cg)
-	}
-
-	// use hierarchy for memory
-	write("/sys/fs/cgroup/memory/memory.use_hierarchy", "1")
-
-	// many things assume systemd
-	mkdir("/sys/fs/cgroup/systemd", 0o555)
-	mount("cgroup", "/sys/fs/cgroup/systemd", "cgroup", 0, "none,name=systemd")
-
-	// make / rshared
-	mount("", "/", "", rec|shared, "")
+	_ = namespace.Apply(rcNamespace, slog.Default())
 }
 
 func doHotplug() {
@@ -328,7 +256,9 @@ func doResolvConf() {
 	if err != nil {
 		return
 	}
-	mkdir(filepath.Dir(link), 0o755)
+	if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
+		log.Printf("error making directory %s: %v", filepath.Dir(link), err)
+	}
 	write(link, "")
 }
 
