@@ -1,7 +1,14 @@
 {
   "task_id": "task-replace-blkid",
   "task_description": "Replace external blkid and lsblk command invocations with pure Go block device discovery using a BlockProber interface backed by sysfs/devfs reads. This eliminates the dependency on blkid/lsblk binaries being present in the rootfs.",
-  "status": "in_progress",
+  "status": "completed",
   "feature_order": ["FEAT-001"],
-  "blocked_reason": null
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "All tests pass. golangci-lint reports 0 issues. CGO_ENABLED=0 build succeeds. Semantic review APPROVED on v2."
+  }
 }

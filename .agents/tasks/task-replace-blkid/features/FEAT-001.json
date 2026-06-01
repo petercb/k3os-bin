@@ -40,5 +40,5 @@
     "CGO_ENABLED=0 go build -o k3os ."
   ],
   "blocked_reason": null,
-  "findings": "All tests pass. /sys/block and /dev/disk/by-label are not available in the sandbox environment so the osimpl unit tests skip gracefully. Shell tests needed updating too since ShellHandler uses LiveSetup which calls BlockProber. parseDisks/splitLines/splitFields left in live.go as they are still tested directly."
+  "findings": "All tests pass. /sys/block and /dev/disk/by-label are not available in the sandbox environment so the osimpl unit tests skip gracefully. Shell tests needed updating too since ShellHandler uses LiveSetup which calls BlockProber. Review findings addressed in follow-up commit: added zram/nbd/sr/md to ListDisks filter, removed dead parseDisks/splitLines/splitFields helpers and their tests, simplified Detector closure to use method value, added label sanitization rejecting '/' and '..'."
 }
