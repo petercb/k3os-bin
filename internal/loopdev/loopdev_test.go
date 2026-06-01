@@ -12,6 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockDeviceFinder is a test double for the deviceFinder interface.
+type mockDeviceFinder struct {
+	path string
+	err  error
+}
+
+func (m *mockDeviceFinder) FindDevice() (string, error) {
+	return m.path, m.err
+}
+
 // mockSyscaller is a test double for the syscaller interface.
 type mockSyscaller struct {
 	openCalls  []openCall
@@ -19,7 +29,6 @@ type mockSyscaller struct {
 	closeMu    sync.Mutex
 	closeCalls []int
 
-	ioctlRetIntFn      func(fd int, req uint) (int, error)
 	ioctlSetIntFn      func(fd int, req uint, val int) error
 	ioctlGetStatus64Fn func(fd int, info *loopInfo64) error
 	ioctlSetStatus64Fn func(fd int, info *loopInfo64) error
@@ -50,13 +59,6 @@ func (m *mockSyscaller) Close(fd int) error {
 	return nil
 }
 
-func (m *mockSyscaller) IoctlRetInt(fd int, req uint) (int, error) {
-	if m.ioctlRetIntFn != nil {
-		return m.ioctlRetIntFn(fd, req)
-	}
-	return 0, nil
-}
-
 func (m *mockSyscaller) IoctlSetInt(fd int, req uint, val int) error {
 	if m.ioctlSetIntFn != nil {
 		return m.ioctlSetIntFn(fd, req, val)
@@ -85,16 +87,8 @@ func TestAttach_HappyPath(t *testing.T) {
 	var setFdVal int
 	mock := &mockSyscaller{
 		openCalls: []openCall{
-			{path: "/test/backing.img", fd: 10, err: nil},    // backing file
-			{path: loopControlPath, fd: 11, err: nil},        // loop-control
-			{path: loopDevicePrefix + "3", fd: 12, err: nil}, // loop device
-		},
-		ioctlRetIntFn: func(fd int, req uint) (int, error) {
-			if req == loopCtlGetFree {
-				assert.Equal(t, 11, fd)
-				return 3, nil
-			}
-			return 0, nil
+			{path: "/test/backing.img", fd: 10, err: nil}, // backing file
+			{path: "/dev/loop3", fd: 12, err: nil},        // loop device
 		},
 		ioctlSetIntFn: func(fd int, req uint, val int) error {
 			if req == loopSetFd {
@@ -109,8 +103,9 @@ func TestAttach_HappyPath(t *testing.T) {
 			return nil
 		},
 	}
+	df := &mockDeviceFinder{path: "/dev/loop3", err: nil}
 
-	a := newAttacherWith(mock)
+	a := newAttacherWith(df, mock)
 	dev, err := a.Attach("/test/backing.img", 512, true)
 	require.NoError(t, err)
 	require.NotNil(t, dev)
@@ -130,52 +125,148 @@ func TestAttach_BackingFileOpenError(t *testing.T) {
 			{path: "/nonexistent", fd: -1, err: errors.New("no such file")},
 		},
 	}
+	df := &mockDeviceFinder{path: "/dev/loop0", err: nil}
 
-	a := newAttacherWith(mock)
+	a := newAttacherWith(df, mock)
 	dev, err := a.Attach("/nonexistent", 0, true)
 	require.Error(t, err)
 	assert.Nil(t, dev)
 	assert.Contains(t, err.Error(), "opening backing file")
 }
 
-func TestAttach_LoopControlOpenError(t *testing.T) {
+func TestAttach_DeviceFinderError(t *testing.T) {
 	t.Parallel()
 
 	mock := &mockSyscaller{
 		openCalls: []openCall{
-			{path: "/test/file", fd: 10, err: nil},
-			{path: loopControlPath, fd: -1, err: errors.New("permission denied")},
+			{path: "/test/file", fd: 10, err: nil}, // backing file opens ok
 		},
 	}
+	df := &mockDeviceFinder{path: "", err: errors.New("no free loop device")}
 
-	a := newAttacherWith(mock)
+	a := newAttacherWith(df, mock)
 	dev, err := a.Attach("/test/file", 0, false)
 	require.Error(t, err)
 	assert.Nil(t, dev)
-	assert.Contains(t, err.Error(), "opening /dev/loop-control")
+	assert.Contains(t, err.Error(), "finding free loop device")
 }
 
-func TestAttach_LoopCtlGetFreeError(t *testing.T) {
+func TestAttach_InvalidDevicePath(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSyscaller{
+		openCalls: []openCall{
+			{path: "/test/file", fd: 10, err: nil}, // backing file opens ok
+		},
+	}
+	df := &mockDeviceFinder{path: "/dev/sda", err: nil}
+
+	a := newAttacherWith(df, mock)
+	dev, err := a.Attach("/test/file", 0, false)
+	require.Error(t, err)
+	assert.Nil(t, dev)
+	assert.Contains(t, err.Error(), "unexpected loop device path")
+	assert.Contains(t, err.Error(), "/dev/sda")
+}
+
+func TestAttach_LoopDeviceOpenError(t *testing.T) {
 	t.Parallel()
 
 	mock := &mockSyscaller{
 		openCalls: []openCall{
 			{path: "/test/file", fd: 10, err: nil},
-			{path: loopControlPath, fd: 11, err: nil},
-		},
-		ioctlRetIntFn: func(_ int, req uint) (int, error) {
-			if req == loopCtlGetFree {
-				return 0, errors.New("no free loop device")
-			}
-			return 0, nil
+			{path: "/dev/loop0", fd: -1, err: errors.New("permission denied")},
 		},
 	}
+	df := &mockDeviceFinder{path: "/dev/loop0", err: nil}
 
-	a := newAttacherWith(mock)
+	a := newAttacherWith(df, mock)
 	dev, err := a.Attach("/test/file", 0, false)
 	require.Error(t, err)
 	assert.Nil(t, dev)
-	assert.Contains(t, err.Error(), "LOOP_CTL_GET_FREE")
+	assert.Contains(t, err.Error(), "opening loop device")
+}
+
+func TestAttach_SetFdError(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSyscaller{
+		openCalls: []openCall{
+			{path: "/test/file", fd: 10, err: nil},
+			{path: "/dev/loop0", fd: 12, err: nil},
+		},
+		ioctlSetIntFn: func(_ int, req uint, _ int) error {
+			if req == loopSetFd {
+				return errors.New("set fd failed")
+			}
+			return nil
+		},
+	}
+	df := &mockDeviceFinder{path: "/dev/loop0", err: nil}
+
+	a := newAttacherWith(df, mock)
+	dev, err := a.Attach("/test/file", 0, true)
+	require.Error(t, err)
+	assert.Nil(t, dev)
+	assert.Contains(t, err.Error(), "LOOP_SET_FD")
+	assert.Contains(t, mock.closeCalls, 12, "loop device fd should be closed on SET_FD failure")
+}
+
+func TestAttach_SetStatus64Failure_CleansUp(t *testing.T) {
+	t.Parallel()
+
+	var clrFdCalled bool
+	mock := &mockSyscaller{
+		openCalls: []openCall{
+			{path: "/test/backing.img", fd: 10, err: nil},
+			{path: "/dev/loop0", fd: 12, err: nil},
+		},
+		ioctlSetIntFn: func(fd int, req uint, _ int) error {
+			if req == loopClrFd {
+				clrFdCalled = true
+				assert.Equal(t, 12, fd)
+			}
+			return nil
+		},
+		ioctlSetStatus64Fn: func(_ int, _ *loopInfo64) error {
+			return errors.New("status64 failed")
+		},
+	}
+	df := &mockDeviceFinder{path: "/dev/loop0", err: nil}
+
+	a := newAttacherWith(df, mock)
+	dev, err := a.Attach("/test/backing.img", 0, true)
+	require.Error(t, err)
+	assert.Nil(t, dev)
+	assert.Contains(t, err.Error(), "LOOP_SET_STATUS64")
+	assert.True(t, clrFdCalled, "LOOP_CLR_FD should be called during cleanup")
+	assert.Contains(t, mock.closeCalls, 12, "loop device fd should be closed during cleanup")
+}
+
+func TestAttach_ReadWrite(t *testing.T) {
+	t.Parallel()
+
+	var capturedInfo *loopInfo64
+	mock := &mockSyscaller{
+		openCalls: []openCall{
+			{path: "/test/rw.img", fd: 10, err: nil},
+			{path: "/dev/loop0", fd: 12, err: nil},
+		},
+		ioctlSetStatus64Fn: func(_ int, info *loopInfo64) error {
+			capturedInfo = info
+			return nil
+		},
+	}
+	df := &mockDeviceFinder{path: "/dev/loop0", err: nil}
+
+	a := newAttacherWith(df, mock)
+	dev, err := a.Attach("/test/rw.img", 0, false)
+	require.NoError(t, err)
+	require.NotNil(t, dev)
+
+	assert.Equal(t, "/dev/loop0", dev.Path())
+	require.NotNil(t, capturedInfo)
+	assert.Equal(t, uint32(0), capturedInfo.Flags) // no read-only flag
 }
 
 func TestDetach_HappyPath(t *testing.T) {
@@ -262,38 +353,6 @@ func TestSetAutoclear_GetStatusError(t *testing.T) {
 	assert.Contains(t, err.Error(), "LOOP_GET_STATUS64")
 }
 
-func TestAttach_ReadWrite(t *testing.T) {
-	t.Parallel()
-
-	var capturedInfo *loopInfo64
-	mock := &mockSyscaller{
-		openCalls: []openCall{
-			{path: "/test/rw.img", fd: 10, err: nil},
-			{path: loopControlPath, fd: 11, err: nil},
-			{path: loopDevicePrefix + "0", fd: 12, err: nil},
-		},
-		ioctlRetIntFn: func(_ int, req uint) (int, error) {
-			if req == loopCtlGetFree {
-				return 0, nil
-			}
-			return 0, nil
-		},
-		ioctlSetStatus64Fn: func(_ int, info *loopInfo64) error {
-			capturedInfo = info
-			return nil
-		},
-	}
-
-	a := newAttacherWith(mock)
-	dev, err := a.Attach("/test/rw.img", 0, false)
-	require.NoError(t, err)
-	require.NotNil(t, dev)
-
-	assert.Equal(t, "/dev/loop0", dev.Path())
-	require.NotNil(t, capturedInfo)
-	assert.Equal(t, uint32(0), capturedInfo.Flags) // no read-only flag
-}
-
 func TestSetAutoclear_AfterDetach(t *testing.T) {
 	t.Parallel()
 
@@ -313,43 +372,6 @@ func TestSetAutoclear_AfterDetach(t *testing.T) {
 	// SetAutoclear after Detach should return nil (no error, no panic).
 	err = d.SetAutoclear()
 	require.NoError(t, err)
-}
-
-func TestAttach_SetStatus64Failure_CleansUp(t *testing.T) {
-	t.Parallel()
-
-	var clrFdCalled bool
-	mock := &mockSyscaller{
-		openCalls: []openCall{
-			{path: "/test/backing.img", fd: 10, err: nil},
-			{path: loopControlPath, fd: 11, err: nil},
-			{path: loopDevicePrefix + "0", fd: 12, err: nil},
-		},
-		ioctlRetIntFn: func(_ int, req uint) (int, error) {
-			if req == loopCtlGetFree {
-				return 0, nil
-			}
-			return 0, nil
-		},
-		ioctlSetIntFn: func(fd int, req uint, _ int) error {
-			if req == loopClrFd {
-				clrFdCalled = true
-				assert.Equal(t, 12, fd)
-			}
-			return nil
-		},
-		ioctlSetStatus64Fn: func(_ int, _ *loopInfo64) error {
-			return errors.New("status64 failed")
-		},
-	}
-
-	a := newAttacherWith(mock)
-	dev, err := a.Attach("/test/backing.img", 0, true)
-	require.Error(t, err)
-	assert.Nil(t, dev)
-	assert.Contains(t, err.Error(), "LOOP_SET_STATUS64")
-	assert.True(t, clrFdCalled, "LOOP_CLR_FD should be called during cleanup")
-	assert.Contains(t, mock.closeCalls, 12, "loop device fd should be closed during cleanup")
 }
 
 func TestDetach_ConcurrentCalls(t *testing.T) {
@@ -411,10 +433,6 @@ func (c *concurrentMockSyscaller) Open(path string, flags int, perm uint32) (int
 func (c *concurrentMockSyscaller) Close(_ int) error {
 	c.closeCalls.Add(1)
 	return nil
-}
-
-func (c *concurrentMockSyscaller) IoctlRetInt(fd int, req uint) (int, error) {
-	return c.mockSyscaller.IoctlRetInt(fd, req)
 }
 
 func (c *concurrentMockSyscaller) IoctlSetInt(fd int, req uint, val int) error {
