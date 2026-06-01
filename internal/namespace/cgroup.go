@@ -4,7 +4,7 @@ package namespace
 
 import (
 	"encoding/csv"
-	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -16,16 +16,19 @@ import (
 type CgroupMounts struct{}
 
 // Create reads /proc/cgroups and mounts a cgroup filesystem for each enabled
-// subsystem under /sys/fs/cgroup/.
+// subsystem under /sys/fs/cgroup/. Errors are logged and iteration continues
+// to match the original boot behavior where individual failures do not prevent
+// remaining subsystems from being mounted.
 func (c CgroupMounts) Create() error {
 	for _, cg := range cgroupList() {
 		path := filepath.Join("/sys/fs/cgroup", cg)
 		if err := os.MkdirAll(path, 0o555); err != nil {
-			return fmt.Errorf("cgroup mkdir %s: %w", path, err)
+			log.Printf("cgroup mkdir %s: %v", path, err)
+			continue
 		}
 		flags := unix.MS_NOEXEC | unix.MS_NOSUID | unix.MS_NODEV
 		if err := unix.Mount(cg, path, "cgroup", uintptr(flags), cg); err != nil {
-			return fmt.Errorf("cgroup mount %s: %w", path, err)
+			log.Printf("cgroup mount %s: %v", path, err)
 		}
 	}
 	return nil

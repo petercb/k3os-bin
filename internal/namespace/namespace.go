@@ -73,11 +73,12 @@ type Dev struct {
 	Minor uint32
 }
 
-// Create calls unix.Mknod to create the device node. If the node already
-// exists, the error is ignored.
+// Create calls unix.Mknod to create the device node. The S_IFCHR file-type
+// bits are ORed in automatically so callers only specify permission bits.
+// If the node already exists, the error is ignored.
 func (d Dev) Create() error {
 	dev := unix.Mkdev(d.Major, d.Minor)
-	if err := unix.Mknod(d.Name, d.Mode, int(dev)); err != nil {
+	if err := unix.Mknod(d.Name, unix.S_IFCHR|d.Mode, int(dev)); err != nil {
 		if os.IsExist(err) {
 			return nil
 		}
@@ -96,9 +97,13 @@ type Symlink struct {
 	NewPath string
 }
 
-// Create calls unix.Symlink to create the symbolic link.
+// Create calls unix.Symlink to create the symbolic link. If the link already
+// exists, the error is ignored for idempotency.
 func (s Symlink) Create() error {
 	if err := unix.Symlink(s.Target, s.NewPath); err != nil {
+		if os.IsExist(err) {
+			return nil
+		}
 		return fmt.Errorf("symlink %s -> %s: %w", s.NewPath, s.Target, err)
 	}
 	return nil

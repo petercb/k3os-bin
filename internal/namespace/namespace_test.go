@@ -95,8 +95,7 @@ func TestSymlink_Create_AlreadyExists(t *testing.T) {
 	s := Symlink{Target: target, NewPath: link}
 
 	err := s.Create()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "symlink")
+	require.NoError(t, err)
 }
 
 // ---------------------------------------------------------------------------
