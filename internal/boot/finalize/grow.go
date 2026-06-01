@@ -5,6 +5,7 @@ package finalize
 import (
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -47,11 +48,12 @@ func (f *Finalizer) GrowLive() error {
 
 	slog.Debug("finalize: growing partition", "dev", dev, "num", num, "part", part)
 
-	if err := f.Cmd.Run("parted", dev, "resizepart", num, "yes", "100%"); err != nil {
-		return fmt.Errorf("parted resizepart: %w", err)
+	partNumInt, convErr := strconv.Atoi(num)
+	if convErr != nil {
+		return fmt.Errorf("parse partition number %q: %w", num, convErr)
 	}
-	if err := f.Cmd.Run("partprobe", dev); err != nil {
-		return fmt.Errorf("partprobe: %w", err)
+	if err := f.PartitionGrower.GrowPartition(dev, partNumInt); err != nil {
+		return fmt.Errorf("grow partition: %w", err)
 	}
 	if f.SleepFunc != nil {
 		f.SleepFunc(2 * time.Second)

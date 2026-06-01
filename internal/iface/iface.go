@@ -93,6 +93,11 @@ type LoopAttacher interface {
 	Attach(backingFile string, offset uint64, readOnly bool) (LoopDevice, error)
 }
 
+// PartitionGrower grows a partition to fill available space on a GPT disk.
+type PartitionGrower interface {
+	GrowPartition(device string, partNum int) error
+}
+
 // CmdlineParser abstracts kernel command-line parsing.
 type CmdlineParser interface {
 	Flag(name string) (string, bool)

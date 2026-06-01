@@ -12,11 +12,12 @@ import (
 
 // Compile-time interface checks.
 var (
-	_ iface.FileSystem    = (*MockFileSystem)(nil)
-	_ iface.CommandRunner = (*MockCommandRunner)(nil)
-	_ iface.Mounter       = (*MockMounter)(nil)
-	_ ProcessExecutor     = (*MockProcessExecutor)(nil)
-	_ iface.BlockProber   = (*MockBlockProber)(nil)
+	_ iface.FileSystem      = (*MockFileSystem)(nil)
+	_ iface.CommandRunner   = (*MockCommandRunner)(nil)
+	_ iface.Mounter         = (*MockMounter)(nil)
+	_ ProcessExecutor       = (*MockProcessExecutor)(nil)
+	_ iface.BlockProber     = (*MockBlockProber)(nil)
+	_ iface.PartitionGrower = (*MockPartitionGrower)(nil)
 )
 
 // MockFileSystem is a testable iface.FileSystem implementation.
@@ -246,3 +247,12 @@ func (f fakeDirEntry) Name() string               { return f.name }
 func (f fakeDirEntry) IsDir() bool                { return f.isDir }
 func (f fakeDirEntry) Type() os.FileMode          { return f.mode }
 func (f fakeDirEntry) Info() (os.FileInfo, error) { return fakeFileInfo(f), nil }
+
+// MockPartitionGrower is a testable iface.PartitionGrower implementation.
+type MockPartitionGrower struct {
+	mock.Mock
+}
+
+func (m *MockPartitionGrower) GrowPartition(device string, partNum int) error {
+	return m.Called(device, partNum).Error(0)
+}

@@ -42,8 +42,9 @@ func TestDiskHandler_SetupMounts_WithGrowpart(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	pg := &MockPartitionGrower{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, PartitionGrower: pg}
 	h := NewDiskHandler(deps)
 
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
@@ -51,8 +52,7 @@ func TestDiskHandler_SetupMounts_WithGrowpart(t *testing.T) {
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return([]byte("/dev/sda 2"), nil)
 	fs.On("Stat", "/dev/sda2").Return(fakeFileInfo{}, nil)
 	cmd.On("Run", "umount", targetDir).Return(nil)
-	cmd.On("Run", "parted", "/dev/sda", "resizepart", "2", "100%").Return(nil)
-	cmd.On("Run", "partprobe", "/dev/sda").Return(nil)
+	pg.On("GrowPartition", "/dev/sda", 2).Return(nil)
 	cmd.On("Run", "e2fsck", "-f", "/dev/sda2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
 	mnt.On("Mount", "LABEL=K3OS_STATE", targetDir, "", "").Return(nil).Once()
@@ -64,6 +64,7 @@ func TestDiskHandler_SetupMounts_WithGrowpart(t *testing.T) {
 	fs.AssertExpectations(t)
 	cmd.AssertExpectations(t)
 	mnt.AssertExpectations(t)
+	pg.AssertExpectations(t)
 }
 
 func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
@@ -73,8 +74,9 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	bp := &MockBlockProber{}
+	pg := &MockPartitionGrower{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, PartitionGrower: pg}
 	h := NewDiskHandler(deps)
 
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
@@ -86,8 +88,7 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 	// Now check the resolved device
 	fs.On("Stat", "/dev/sda2").Return(fakeFileInfo{}, nil)
 	cmd.On("Run", "umount", targetDir).Return(nil)
-	cmd.On("Run", "parted", "/dev/sda", "resizepart", "2", "100%").Return(nil)
-	cmd.On("Run", "partprobe", "/dev/sda").Return(nil)
+	pg.On("GrowPartition", "/dev/sda", 2).Return(nil)
 	cmd.On("Run", "e2fsck", "-f", "/dev/sda2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
 	mnt.On("Mount", "LABEL=K3OS_STATE", targetDir, "", "").Return(nil).Once()
@@ -98,6 +99,7 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 
 	bp.AssertExpectations(t)
 	cmd.AssertExpectations(t)
+	pg.AssertExpectations(t)
 }
 
 func TestDiskHandler_SetupKernelSquashfs_Copies(t *testing.T) {

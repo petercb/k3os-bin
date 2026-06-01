@@ -673,13 +673,13 @@ func TestGrowLive_Success(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: "local", SleepFunc: func(time.Duration) {}}
+	pg := &MockPartitionGrower{}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, PartitionGrower: pg, Mode: "local", SleepFunc: func(time.Duration) {}}
 
 	fs.On("ReadFile", "/k3os/system/growpart").Return([]byte("/dev/sda 2\n"), nil)
 	fi := fakeFileInfo{name: "sda2", isDir: false}
 	fs.On("Stat", "/dev/sda2").Return(fi, nil)
-	cmd.On("Run", "parted", "/dev/sda", "resizepart", "2", "yes", "100%").Return(nil)
-	cmd.On("Run", "partprobe", "/dev/sda").Return(nil)
+	pg.On("GrowPartition", "/dev/sda", 2).Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
 	fs.On("Remove", "/k3os/system/growpart").Return(nil)
 
@@ -687,6 +687,7 @@ func TestGrowLive_Success(t *testing.T) {
 	require.NoError(t, err)
 	fs.AssertExpectations(t)
 	cmd.AssertExpectations(t)
+	pg.AssertExpectations(t)
 }
 
 func TestGrowLive_BlkidFallback(t *testing.T) {
@@ -695,13 +696,13 @@ func TestGrowLive_BlkidFallback(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	bp := &MockBlockProber{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, Mode: "local", SleepFunc: func(time.Duration) {}}
+	pg := &MockPartitionGrower{}
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, PartitionGrower: pg, Mode: "local", SleepFunc: func(time.Duration) {}}
 
 	fs.On("ReadFile", "/k3os/system/growpart").Return([]byte("/dev/sda 2\n"), nil)
 	fs.On("Stat", "/dev/sda2").Return(nil, os.ErrNotExist)
 	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/nvme0n1p2", nil)
-	cmd.On("Run", "parted", "/dev/nvme0n1", "resizepart", "2", "yes", "100%").Return(nil)
-	cmd.On("Run", "partprobe", "/dev/nvme0n1").Return(nil)
+	pg.On("GrowPartition", "/dev/nvme0n1", 2).Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/nvme0n1p2").Return(nil)
 	fs.On("Remove", "/k3os/system/growpart").Return(nil)
 
@@ -710,6 +711,7 @@ func TestGrowLive_BlkidFallback(t *testing.T) {
 	fs.AssertExpectations(t)
 	cmd.AssertExpectations(t)
 	bp.AssertExpectations(t)
+	pg.AssertExpectations(t)
 }
 
 func TestGrowLive_BlkidFails(t *testing.T) {

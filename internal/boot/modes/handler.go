@@ -27,15 +27,16 @@ type ProcessExecutor interface {
 
 // Deps holds shared dependencies injected into all mode handlers.
 type Deps struct {
-	FS            iface.FileSystem
-	Cmd           iface.CommandRunner
-	Mounter       iface.Mounter
-	BlockProber   iface.BlockProber
-	Proc          ProcessExecutor
-	CopyDir       func(src, dst string) error
-	KernelVersion string
-	VersionID     string
-	SleepFunc     func(time.Duration)
+	FS              iface.FileSystem
+	Cmd             iface.CommandRunner
+	Mounter         iface.Mounter
+	BlockProber     iface.BlockProber
+	PartitionGrower iface.PartitionGrower
+	Proc            ProcessExecutor
+	CopyDir         func(src, dst string) error
+	KernelVersion   string
+	VersionID       string
+	SleepFunc       func(time.Duration)
 }
 
 // Registry maps mode names to their handler constructors. Call Get() to

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -112,12 +113,13 @@ func (h *DiskHandler) SetupMounts() error {
 	if err := h.deps.Cmd.Run("umount", targetDir); err != nil {
 		return fmt.Errorf("umount for grow: %w", err)
 	}
-	// grow: parted resizepart, partprobe, e2fsck, resize2fs
-	if err := h.deps.Cmd.Run("parted", dev, "resizepart", num, "100%"); err != nil {
-		slog.Warn("disk: parted resizepart failed", "error", err)
+	// grow: resize partition via pure Go GPT manipulation, then e2fsck + resize2fs
+	partNumInt, convErr := strconv.Atoi(num)
+	if convErr != nil {
+		return fmt.Errorf("parse partition number %q: %w", num, convErr)
 	}
-	if err := h.deps.Cmd.Run("partprobe", dev); err != nil {
-		slog.Warn("disk: partprobe failed", "error", err)
+	if err := h.deps.PartitionGrower.GrowPartition(dev, partNumInt); err != nil {
+		slog.Warn("disk: partition grow failed", "error", err)
 	}
 	if err := h.deps.Cmd.Run("e2fsck", "-f", devNum); err != nil {
 		slog.Warn("disk: e2fsck failed", "error", err)
