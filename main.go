@@ -166,10 +166,7 @@ func postChroot() {
 		ModeDetector: func() (string, error) {
 			detector := &mode.Detector{
 				CmdlineReader: readCmdline,
-				BlockProber: func(label string) (string, error) {
-					bp := osimpl.SysfsBlockProber{}
-					return bp.FindByLabel(label)
-				},
+				BlockProber:   modeDeps.BlockProber.FindByLabel,
 				StatfsChecker: statfsCheck,
 				EnvReader:     os.Getenv,
 				FileWriter:    os.WriteFile,

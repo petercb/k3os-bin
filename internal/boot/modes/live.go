@@ -132,60 +132,6 @@ func (l *LiveSetup) SetupMotd() error {
 	return nil
 }
 
-// parseDisks extracts disk names from lsblk-style output.
-// Each line is "NAME TYPE"; we want lines where TYPE is "disk".
-func parseDisks(output string) []string {
-	var disks []string
-	for _, line := range splitLines(output) {
-		fields := splitFields(line)
-		if len(fields) >= 2 && fields[1] == "disk" {
-			disks = append(disks, fields[0])
-		}
-	}
-	return disks
-}
-
-// splitLines splits a string into lines, filtering empty ones.
-func splitLines(s string) []string {
-	var lines []string
-	start := 0
-	for i := range len(s) {
-		if s[i] == '\n' {
-			line := s[start:i]
-			if line != "" {
-				lines = append(lines, line)
-			}
-			start = i + 1
-		}
-	}
-	if start < len(s) {
-		lines = append(lines, s[start:])
-	}
-	return lines
-}
-
-// splitFields splits a line into whitespace-separated fields.
-func splitFields(s string) []string {
-	var fields []string
-	start := -1
-	for i := range len(s) {
-		if s[i] == ' ' || s[i] == '\t' {
-			if start >= 0 {
-				fields = append(fields, s[start:i])
-				start = -1
-			}
-		} else {
-			if start < 0 {
-				start = i
-			}
-		}
-	}
-	if start >= 0 {
-		fields = append(fields, s[start:])
-	}
-	return fields
-}
-
 // LiveHandler implements ModeHandler for the "live" boot mode.
 type LiveHandler struct {
 	deps *Deps

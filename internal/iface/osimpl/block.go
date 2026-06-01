@@ -15,6 +15,10 @@ type SysfsBlockProber struct{}
 // FindByLabel returns the device path for a filesystem label by reading the
 // symlink at /dev/disk/by-label/<label>.
 func (SysfsBlockProber) FindByLabel(label string) (string, error) {
+	if strings.Contains(label, "/") || strings.Contains(label, "..") {
+		return "", fmt.Errorf("invalid label %q: must not contain '/' or '..'", label)
+	}
+
 	linkPath := filepath.Join("/dev/disk/by-label", label)
 	target, err := os.Readlink(linkPath)
 	if err != nil {
@@ -41,7 +45,11 @@ func (SysfsBlockProber) ListDisks() ([]string, error) {
 		name := entry.Name()
 		if strings.HasPrefix(name, "loop") ||
 			strings.HasPrefix(name, "ram") ||
-			strings.HasPrefix(name, "dm-") {
+			strings.HasPrefix(name, "dm-") ||
+			strings.HasPrefix(name, "zram") ||
+			strings.HasPrefix(name, "nbd") ||
+			strings.HasPrefix(name, "sr") ||
+			strings.HasPrefix(name, "md") {
 			continue
 		}
 		disks = append(disks, name)

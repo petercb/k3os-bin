@@ -270,18 +270,3 @@ func TestInstallHandler_Execute(t *testing.T) {
 	err := h.Execute()
 	require.NoError(t, err)
 }
-
-func TestParseDisks(t *testing.T) {
-	t.Parallel()
-
-	input := "sda    disk\nsda1   part\nsdb    disk\nnvme0n1 disk"
-	disks := parseDisks(input)
-	assert.Equal(t, []string{"sda", "sdb", "nvme0n1"}, disks)
-}
-
-func TestParseDisks_Empty(t *testing.T) {
-	t.Parallel()
-
-	disks := parseDisks("")
-	assert.Empty(t, disks)
-}

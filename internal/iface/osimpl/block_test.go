@@ -18,6 +18,20 @@ func TestSysfsBlockProber_FindByLabel_NotExist(t *testing.T) {
 	assert.Contains(t, err.Error(), "readlink")
 }
 
+func TestSysfsBlockProber_FindByLabel_InvalidLabel(t *testing.T) {
+	t.Parallel()
+
+	bp := SysfsBlockProber{}
+
+	_, err := bp.FindByLabel("../by-uuid/something")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid label")
+
+	_, err = bp.FindByLabel("foo/bar")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid label")
+}
+
 func TestSysfsBlockProber_ListDisks_NoPanic(t *testing.T) {
 	t.Parallel()
 
@@ -32,5 +46,9 @@ func TestSysfsBlockProber_ListDisks_NoPanic(t *testing.T) {
 		assert.False(t, len(d) >= 4 && d[:4] == "loop", "loop device should be filtered: %s", d)
 		assert.False(t, len(d) >= 3 && d[:3] == "ram", "ram device should be filtered: %s", d)
 		assert.False(t, len(d) >= 3 && d[:3] == "dm-", "dm device should be filtered: %s", d)
+		assert.False(t, len(d) >= 4 && d[:4] == "zram", "zram device should be filtered: %s", d)
+		assert.False(t, len(d) >= 3 && d[:3] == "nbd", "nbd device should be filtered: %s", d)
+		assert.False(t, len(d) >= 2 && d[:2] == "sr", "sr device should be filtered: %s", d)
+		assert.False(t, len(d) >= 2 && d[:2] == "md", "md device should be filtered: %s", d)
 	}
 }
