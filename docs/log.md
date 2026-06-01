@@ -501,3 +501,40 @@ Dependency upgrade for `github.com/otiai10/copy` from v1.7.0 to v1.14.1. The API
 - What went well: The backwards-compatible API meant no source changes were needed. TDD tests provided confidence the upgrade is safe.
 - What broke: Nothing. All tests pass cleanly with the new version.
 - What to change: Nothing notable for this type of minor dependency upgrade.
+
+## 2026-06-01 -- Disk library migration (task-disk-lib-migration)
+
+### Context
+
+Replace disk-related shell-outs (parted, partprobe, lsblk, losetup) with pure Go implementations using `github.com/siderolabs/go-blockdevice/v2` for GPT partition operations and the existing `BlockProber` sysfs interface for device discovery.
+
+### Actions
+
+1. **FEAT-001**: Upgraded Go from 1.24 to 1.25 in `go.mod`, `.circleci/config.yml`, `e2e/Dockerfile.e2e`, and `.devcontainer/devcontainer.json`. Added `github.com/siderolabs/go-blockdevice/v2 v2.0.6` dependency.
+2. **FEAT-002**: Created `internal/diskutil/partition.go` with `GPTPartitionGrower` implementation using go-blockdevice GPT read/write/grow. Replaced `parted resizepart` and `partprobe` calls in `internal/boot/modes/disk.go` and `internal/boot/finalize/grow.go` with the new `PartitionGrower` interface. Added `PartitionGrower` to `internal/iface/iface.go`.
+3. **FEAT-003**: Replaced `lsblk` shell-out in `internal/cliinstall/ask.go` with `BlockProber.ListDisks()`. Replaced bare `losetup -d /dev/loop0` in `PivotAndExec` with `LoopDetacher` interface. Removed `os/exec` import from `ask.go`.
+4. **FEAT-004**: Created design decision document at `docs/plans/replace-disk-shellouts-with-go-blockdevice.md` documenting which shell-outs were replaced, which remain, library evaluation rationale, new interfaces, and testing strategy.
+
+### Files Changed
+
+| Action | File |
+|--------|------|
+| Modified | `go.mod`, `go.sum` |
+| Modified | `.circleci/config.yml` |
+| Modified | `e2e/Dockerfile.e2e` |
+| Modified | `.devcontainer/devcontainer.json` |
+| Created | `internal/diskutil/partition.go` |
+| Created | `internal/diskutil/partition_test.go` |
+| Modified | `internal/iface/iface.go` |
+| Modified | `internal/boot/modes/disk.go` |
+| Modified | `internal/boot/finalize/grow.go` |
+| Modified | `internal/cliinstall/ask.go` |
+| Created | `internal/cliinstall/ask_test.go` |
+| Created | `docs/plans/replace-disk-shellouts-with-go-blockdevice.md` |
+| Modified | `docs/log.md` |
+
+### Retrospective
+
+- What went well: The `go-blockdevice/v2` library was well-suited for the use case, providing pure Go GPT manipulation with built-in kernel partition sync via BLKPG ioctls. The existing `BlockProber` interface already covered the `lsblk` replacement, minimizing new abstraction.
+- What broke: `go mod tidy` removes go-blockdevice when no code imports it yet (FEAT-001), so the dependency had to be pinned manually until FEAT-002 added code imports. golangci-lint 2.1.6 was incompatible with Go 1.25, requiring an upgrade to 2.12.2.
+- What to change: For future multi-feature dependency additions, structure the work so the first commit that adds the dependency also adds at least one import to prevent `go mod tidy` from removing it.
