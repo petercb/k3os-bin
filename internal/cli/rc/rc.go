@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/petercb/k3os-bin/internal/iface"
+	"github.com/petercb/k3os-bin/internal/iface/osimpl"
 	"github.com/petercb/k3os-bin/internal/modalias"
 	"github.com/petercb/k3os-bin/internal/namespace"
 	"github.com/u-root/u-root/pkg/libinit"
@@ -66,6 +68,9 @@ const (
 	relatime = unix.MS_RELATIME
 	shared   = unix.MS_SHARED
 )
+
+// clockSyncer is the RTC-to-system-clock synchronizer used by doClock.
+var clockSyncer iface.ClockSyncer = osimpl.RTCClockSyncer{}
 
 // rcNamespace declares all the mounts, directories, devices, and symlinks
 // that doMounts() creates during early boot.
@@ -244,9 +249,8 @@ func doHotplug() {
 }
 
 func doClock() {
-	cmd := exec.Command("/sbin/hwclock", "--hctosys", "--utc")
-	if err := cmd.Run(); err != nil {
-		log.Printf("Failed to run hwclock: %v", err)
+	if err := clockSyncer.SyncRTC(); err != nil {
+		log.Printf("Failed to sync RTC: %v", err)
 	}
 }
 
