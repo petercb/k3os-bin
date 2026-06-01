@@ -1,7 +1,7 @@
 //go:build linux
 
 // Package loopdev provides a thin wrapper around Linux loop device ioctls,
-// using golang.org/x/sys/unix instead of external dependencies.
+// using golang.org/x/sys/unix and u-root for device discovery.
 package loopdev
 
 import (
@@ -12,20 +12,18 @@ import (
 	"unsafe"
 
 	"github.com/petercb/k3os-bin/internal/iface"
+	"github.com/u-root/u-root/pkg/mount/loop"
 	"golang.org/x/sys/unix"
 )
 
 // ioctl command constants for loop device operations.
 const (
-	loopSetFd        = 0x4C00
-	loopClrFd        = 0x4C01
-	loopSetStatus64  = 0x4C04
-	loopGetStatus64  = 0x4C05
-	loopCtlGetFree   = 0x4C82
-	flagReadOnly     = 1 // LO_FLAGS_READ_ONLY (1 << 0), see linux/loop.h
-	flagAutoclear    = 4 // LO_FLAGS_AUTOCLEAR (1 << 2), see linux/loop.h
-	loopControlPath  = "/dev/loop-control"
-	loopDevicePrefix = "/dev/loop"
+	loopSetFd       = 0x4C00
+	loopClrFd       = 0x4C01
+	loopSetStatus64 = 0x4C04
+	loopGetStatus64 = 0x4C05
+	flagReadOnly    = 1 // LO_FLAGS_READ_ONLY (1 << 0), see linux/loop.h
+	flagAutoclear   = 4 // LO_FLAGS_AUTOCLEAR (1 << 2), see linux/loop.h
 )
 
 // loopInfo64 mirrors the Linux struct loop_info64.
@@ -45,12 +43,22 @@ type loopInfo64 struct {
 	Init           [2]uint64
 }
 
+// deviceFinder abstracts loop device discovery for testability.
+type deviceFinder interface {
+	FindDevice() (string, error)
+}
+
+// urootDeviceFinder is the production implementation using u-root.
+type urootDeviceFinder struct{}
+
+func (urootDeviceFinder) FindDevice() (string, error) {
+	return loop.FindDevice()
+}
+
 // syscaller abstracts low-level system call operations for testability.
 type syscaller interface {
 	Open(path string, flags int, perm uint32) (int, error)
 	Close(fd int) error
-	// IoctlRetInt performs an ioctl that returns an integer result (e.g., LOOP_CTL_GET_FREE).
-	IoctlRetInt(fd int, req uint) (int, error)
 	// IoctlSetInt performs an ioctl with an integer argument (e.g., LOOP_SET_FD, LOOP_CLR_FD).
 	IoctlSetInt(fd int, req uint, val int) error
 	// IoctlLoopGetStatus64 reads loop_info64 from the device.
@@ -68,10 +76,6 @@ func (realSyscaller) Open(path string, flags int, perm uint32) (int, error) {
 
 func (realSyscaller) Close(fd int) error {
 	return unix.Close(fd)
-}
-
-func (realSyscaller) IoctlRetInt(fd int, req uint) (int, error) {
-	return unix.IoctlRetInt(fd, req)
 }
 
 func (realSyscaller) IoctlSetInt(fd int, req uint, val int) error {
@@ -97,16 +101,17 @@ func (realSyscaller) IoctlLoopSetStatus64(fd int, info *loopInfo64) error {
 // Attacher implements iface.LoopAttacher using Linux ioctls.
 type Attacher struct {
 	sc syscaller
+	df deviceFinder
 }
 
-// NewAttacher returns an Attacher using real system calls.
+// NewAttacher returns an Attacher using real system calls and u-root device discovery.
 func NewAttacher() *Attacher {
-	return &Attacher{sc: realSyscaller{}}
+	return &Attacher{sc: realSyscaller{}, df: urootDeviceFinder{}}
 }
 
-// newAttacherWith returns an Attacher using the provided syscaller (for testing).
-func newAttacherWith(sc syscaller) *Attacher {
-	return &Attacher{sc: sc}
+// newAttacherWith returns an Attacher using the provided dependencies (for testing).
+func newAttacherWith(df deviceFinder, sc syscaller) *Attacher {
+	return &Attacher{sc: sc, df: df}
 }
 
 // Attach opens the backing file, finds a free loop device, and attaches
@@ -123,21 +128,13 @@ func (a *Attacher) Attach(backingFile string, offset uint64, readOnly bool) (ifa
 	}
 	defer func() { _ = a.sc.Close(backingFd) }()
 
-	// Get a free loop device number from /dev/loop-control.
-	ctlFd, err := a.sc.Open(loopControlPath, os.O_RDWR, 0)
+	// Find a free loop device via u-root.
+	loopPath, err := a.df.FindDevice()
 	if err != nil {
-		return nil, fmt.Errorf("opening %s: %w", loopControlPath, err)
+		return nil, fmt.Errorf("finding free loop device: %w", err)
 	}
-
-	devNum, err := a.sc.IoctlRetInt(ctlFd, loopCtlGetFree)
-	if err != nil {
-		_ = a.sc.Close(ctlFd)
-		return nil, fmt.Errorf("LOOP_CTL_GET_FREE: %w", err)
-	}
-	_ = a.sc.Close(ctlFd)
 
 	// Open the loop device.
-	loopPath := fmt.Sprintf("%s%d", loopDevicePrefix, devNum)
 	loopFd, err := a.sc.Open(loopPath, os.O_RDWR, 0)
 	if err != nil {
 		return nil, fmt.Errorf("opening loop device %s: %w", loopPath, err)
