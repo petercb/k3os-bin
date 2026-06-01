@@ -151,6 +151,24 @@ func TestAttach_DeviceFinderError(t *testing.T) {
 	assert.Contains(t, err.Error(), "finding free loop device")
 }
 
+func TestAttach_InvalidDevicePath(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSyscaller{
+		openCalls: []openCall{
+			{path: "/test/file", fd: 10, err: nil}, // backing file opens ok
+		},
+	}
+	df := &mockDeviceFinder{path: "/dev/sda", err: nil}
+
+	a := newAttacherWith(df, mock)
+	dev, err := a.Attach("/test/file", 0, false)
+	require.Error(t, err)
+	assert.Nil(t, dev)
+	assert.Contains(t, err.Error(), "unexpected loop device path")
+	assert.Contains(t, err.Error(), "/dev/sda")
+}
+
 func TestAttach_LoopDeviceOpenError(t *testing.T) {
 	t.Parallel()
 

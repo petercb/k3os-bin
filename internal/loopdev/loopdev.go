@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync/atomic"
 	"unsafe"
 
@@ -132,6 +133,9 @@ func (a *Attacher) Attach(backingFile string, offset uint64, readOnly bool) (ifa
 	loopPath, err := a.df.FindDevice()
 	if err != nil {
 		return nil, fmt.Errorf("finding free loop device: %w", err)
+	}
+	if !strings.HasPrefix(loopPath, "/dev/loop") {
+		return nil, fmt.Errorf("unexpected loop device path %q from device finder", loopPath)
 	}
 
 	// Open the loop device.
