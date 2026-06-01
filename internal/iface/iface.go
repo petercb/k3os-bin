@@ -92,3 +92,11 @@ type LoopDevice interface {
 type LoopAttacher interface {
 	Attach(backingFile string, offset uint64, readOnly bool) (LoopDevice, error)
 }
+
+// CmdlineParser abstracts kernel command-line parsing.
+type CmdlineParser interface {
+	Flag(name string) (string, bool)
+	Contains(name string) bool
+	Consoles() []string
+	Raw() string
+}

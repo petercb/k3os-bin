@@ -40,6 +40,28 @@ func (m *mockLoopAttacher) Attach(_ string, _ uint64, _ bool) (iface.LoopDevice,
 	return m.dev, nil
 }
 
+// mockCmdlineParser implements iface.CmdlineParser for testing.
+type mockCmdlineParser struct {
+	flags    map[string]string
+	contains map[string]bool
+	raw      string
+	consoles []string
+}
+
+var _ iface.CmdlineParser = (*mockCmdlineParser)(nil)
+
+func (m *mockCmdlineParser) Flag(name string) (string, bool) {
+	v, ok := m.flags[name]
+	return v, ok
+}
+
+func (m *mockCmdlineParser) Contains(name string) bool {
+	return m.contains[name]
+}
+
+func (m *mockCmdlineParser) Consoles() []string { return m.consoles }
+func (m *mockCmdlineParser) Raw() string        { return m.raw }
+
 func writeTempFile(t *testing.T, content string) string {
 	t.Helper()
 	f, err := os.CreateTemp(t.TempDir(), "proc_filesystems")
@@ -157,4 +179,66 @@ func TestMount_AttachSuccess_SetsEnvDevice(t *testing.T) {
 
 	assert.Equal(t, "/dev/loop99", os.Getenv("ENTER_DEVICE"))
 	assert.True(t, dev.detachCalled)
+}
+
+// ---------------------------------------------------------------------------
+// isDebug tests
+// ---------------------------------------------------------------------------
+
+func TestIsDebug_EnvVarTrue(t *testing.T) {
+	t.Setenv("ENTER_DEBUG", "true")
+
+	assert.True(t, isDebug())
+}
+
+func TestIsDebug_EmptyDebugCmdline(t *testing.T) {
+	t.Setenv("ENTER_DEBUG", "")
+
+	orig := DebugCmdline
+	DebugCmdline = ""
+	t.Cleanup(func() { DebugCmdline = orig })
+
+	assert.False(t, isDebug())
+}
+
+func TestIsDebug_CmdlineContainsFlag(t *testing.T) {
+	t.Setenv("ENTER_DEBUG", "")
+
+	orig := cmdlineParser
+	cmdlineParser = &mockCmdlineParser{contains: map[string]bool{"k3os.debug": true}}
+	t.Cleanup(func() { cmdlineParser = orig })
+
+	origDebug := DebugCmdline
+	DebugCmdline = "k3os.debug"
+	t.Cleanup(func() { DebugCmdline = origDebug })
+
+	assert.True(t, isDebug())
+}
+
+func TestIsDebug_CmdlineDoesNotContainFlag(t *testing.T) {
+	t.Setenv("ENTER_DEBUG", "")
+
+	orig := cmdlineParser
+	cmdlineParser = &mockCmdlineParser{contains: map[string]bool{}}
+	t.Cleanup(func() { cmdlineParser = orig })
+
+	origDebug := DebugCmdline
+	DebugCmdline = "k3os.debug"
+	t.Cleanup(func() { DebugCmdline = origDebug })
+
+	assert.False(t, isDebug())
+}
+
+func TestIsDebug_NilCmdlineParser(t *testing.T) {
+	t.Setenv("ENTER_DEBUG", "")
+
+	orig := cmdlineParser
+	cmdlineParser = nil
+	t.Cleanup(func() { cmdlineParser = orig })
+
+	origDebug := DebugCmdline
+	DebugCmdline = "k3os.debug"
+	t.Cleanup(func() { DebugCmdline = origDebug })
+
+	assert.False(t, isDebug())
 }

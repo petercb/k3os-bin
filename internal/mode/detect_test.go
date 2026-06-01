@@ -8,113 +8,33 @@ import (
 	"testing"
 	"time"
 
+	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// ---------------------------------------------------------------------------
-// parseCmdline (pure function tests)
-// ---------------------------------------------------------------------------
-
-func TestParseCmdline_Empty(t *testing.T) {
-	t.Parallel()
-	result := parseCmdline("")
-	assert.Empty(t, result.Mode)
-	assert.Empty(t, result.FallbackMode)
+// mockCmdlineParser implements iface.CmdlineParser for testing.
+type mockCmdlineParser struct {
+	flags    map[string]string
+	contains map[string]bool
+	raw      string
+	consoles []string
 }
 
-func TestParseCmdline_Rescue(t *testing.T) {
-	t.Parallel()
-	result := parseCmdline("console=ttyS0 rescue quiet")
-	assert.Equal(t, "shell", result.Mode)
+// Compile-time check.
+var _ iface.CmdlineParser = (*mockCmdlineParser)(nil)
+
+func (m *mockCmdlineParser) Flag(name string) (string, bool) {
+	v, ok := m.flags[name]
+	return v, ok
 }
 
-func TestParseCmdline_K3OSMode(t *testing.T) {
-	t.Parallel()
-	result := parseCmdline("console=ttyS0 k3os.mode=disk quiet")
-	assert.Equal(t, "disk", result.Mode)
+func (m *mockCmdlineParser) Contains(name string) bool {
+	return m.contains[name]
 }
 
-func TestParseCmdline_FallbackMode(t *testing.T) {
-	t.Parallel()
-	result := parseCmdline("console=ttyS0 k3os.fallback_mode=live")
-	assert.Empty(t, result.Mode)
-	assert.Equal(t, "live", result.FallbackMode)
-}
-
-func TestParseCmdline_ModeOverridesFallback(t *testing.T) {
-	t.Parallel()
-	result := parseCmdline("k3os.mode=install k3os.fallback_mode=live")
-	assert.Equal(t, "install", result.Mode)
-	assert.Equal(t, "live", result.FallbackMode)
-}
-
-func TestParseCmdline_RescueOverridesMode(t *testing.T) {
-	t.Parallel()
-	// rescue appears after k3os.mode; last wins as in the shell for-loop
-	result := parseCmdline("k3os.mode=disk rescue")
-	assert.Equal(t, "shell", result.Mode)
-}
-
-func TestParseCmdline_TableDriven(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name         string
-		cmdline      string
-		wantMode     string
-		wantFallback string
-	}{
-		{
-			name:     "only rescue",
-			cmdline:  "rescue",
-			wantMode: "shell",
-		},
-		{
-			name:     "mode=local",
-			cmdline:  "k3os.mode=local",
-			wantMode: "local",
-		},
-		{
-			name:     "mode=live with other args",
-			cmdline:  "console=tty1 k3os.mode=live loglevel=3",
-			wantMode: "live",
-		},
-		{
-			name:         "fallback only",
-			cmdline:      "k3os.fallback_mode=install",
-			wantFallback: "install",
-		},
-		{
-			name:         "both mode and fallback",
-			cmdline:      "k3os.mode=disk k3os.fallback_mode=live",
-			wantMode:     "disk",
-			wantFallback: "live",
-		},
-		{
-			name:    "empty string",
-			cmdline: "",
-		},
-		{
-			name:    "unrelated params only",
-			cmdline: "console=ttyS0 quiet splash",
-		},
-		{
-			name:     "mode with equals in value ignored gracefully",
-			cmdline:  "k3os.mode=shell",
-			wantMode: "shell",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			result := parseCmdline(tc.cmdline)
-			assert.Equal(t, tc.wantMode, result.Mode)
-			assert.Equal(t, tc.wantFallback, result.FallbackMode)
-		})
-	}
-}
+func (m *mockCmdlineParser) Consoles() []string { return m.consoles }
+func (m *mockCmdlineParser) Raw() string        { return m.raw }
 
 // ---------------------------------------------------------------------------
 // Detector tests
@@ -122,7 +42,7 @@ func TestParseCmdline_TableDriven(t *testing.T) {
 
 func newTestDetector() *Detector {
 	return &Detector{
-		CmdlineReader: func() (string, error) { return "", nil },
+		Cmdline:       &mockCmdlineParser{},
 		BlockProber:   func(_ string) (string, error) { return "", errors.New("not found") },
 		StatfsChecker: func(_ string) (string, error) { return "tmpfs", nil },
 		EnvReader:     func(_ string) string { return "" },
@@ -138,7 +58,7 @@ func TestDetect_CmdlineMode(t *testing.T) {
 	t.Parallel()
 
 	d := newTestDetector()
-	d.CmdlineReader = func() (string, error) { return "k3os.mode=disk", nil }
+	d.Cmdline = &mockCmdlineParser{flags: map[string]string{"k3os.mode": "disk"}}
 
 	mode, err := d.Detect(context.Background())
 	require.NoError(t, err)
@@ -149,7 +69,21 @@ func TestDetect_CmdlineRescue(t *testing.T) {
 	t.Parallel()
 
 	d := newTestDetector()
-	d.CmdlineReader = func() (string, error) { return "rescue", nil }
+	d.Cmdline = &mockCmdlineParser{contains: map[string]bool{"rescue": true}}
+
+	mode, err := d.Detect(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "shell", mode)
+}
+
+func TestDetect_RescueOverridesMode(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDetector()
+	d.Cmdline = &mockCmdlineParser{
+		flags:    map[string]string{"k3os.mode": "disk"},
+		contains: map[string]bool{"rescue": true},
+	}
 
 	mode, err := d.Detect(context.Background())
 	require.NoError(t, err)
@@ -204,7 +138,7 @@ func TestDetect_FallbackMode(t *testing.T) {
 	t.Parallel()
 
 	d := newTestDetector()
-	d.CmdlineReader = func() (string, error) { return "k3os.fallback_mode=live", nil }
+	d.Cmdline = &mockCmdlineParser{flags: map[string]string{"k3os.fallback_mode": "live"}}
 
 	mode, err := d.Detect(context.Background())
 	require.NoError(t, err)
@@ -243,22 +177,24 @@ func TestDetect_InvalidModeReturnsError(t *testing.T) {
 	t.Parallel()
 
 	d := newTestDetector()
-	d.CmdlineReader = func() (string, error) { return "k3os.mode=bogus", nil }
+	d.Cmdline = &mockCmdlineParser{flags: map[string]string{"k3os.mode": "bogus"}}
 
 	_, err := d.Detect(context.Background())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid mode")
 }
 
-func TestDetect_CmdlineReadError(t *testing.T) {
+func TestDetect_EmptyParserFallsThrough(t *testing.T) {
 	t.Parallel()
 
+	// With an empty parser and no other signals, should timeout.
 	d := newTestDetector()
-	d.CmdlineReader = func() (string, error) { return "", errors.New("read error") }
+	d.Timeout = 50 * time.Millisecond
+	d.SleepInterval = 10 * time.Millisecond
 
 	_, err := d.Detect(context.Background())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "read error")
+	assert.Contains(t, err.Error(), "failed to determine boot mode")
 }
 
 func TestDetect_WritesModefile(t *testing.T) {
@@ -266,7 +202,7 @@ func TestDetect_WritesModefile(t *testing.T) {
 
 	dir := t.TempDir()
 	d := newTestDetector()
-	d.CmdlineReader = func() (string, error) { return "k3os.mode=disk", nil }
+	d.Cmdline = &mockCmdlineParser{flags: map[string]string{"k3os.mode": "disk"}}
 	d.MkdirAll = os.MkdirAll
 	d.FileWriter = os.WriteFile
 	d.StateDir = dir
@@ -324,6 +260,59 @@ func TestDetect_WaitLoopRetries(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "disk", mode)
 	assert.GreaterOrEqual(t, callCount, 3)
+}
+
+func TestDetect_CmdlineModeTableDriven(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		flags    map[string]string
+		contains map[string]bool
+		wantMode string
+	}{
+		{
+			name:     "only rescue",
+			contains: map[string]bool{"rescue": true},
+			wantMode: "shell",
+		},
+		{
+			name:     "mode=local",
+			flags:    map[string]string{"k3os.mode": "local"},
+			wantMode: "local",
+		},
+		{
+			name:     "mode=live",
+			flags:    map[string]string{"k3os.mode": "live"},
+			wantMode: "live",
+		},
+		{
+			name:     "mode=shell",
+			flags:    map[string]string{"k3os.mode": "shell"},
+			wantMode: "shell",
+		},
+		{
+			name:     "rescue overrides mode",
+			flags:    map[string]string{"k3os.mode": "disk"},
+			contains: map[string]bool{"rescue": true},
+			wantMode: "shell",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			d := newTestDetector()
+			d.Cmdline = &mockCmdlineParser{
+				flags:    tc.flags,
+				contains: tc.contains,
+			}
+
+			mode, err := d.Detect(context.Background())
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantMode, mode)
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------

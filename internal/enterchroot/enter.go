@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/moby/sys/reexec"
+	"github.com/petercb/k3os-bin/internal/cmdline"
 	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/petercb/k3os-bin/internal/loopdev"
 	"github.com/petercb/k3os-bin/internal/mount"
@@ -36,6 +37,8 @@ var (
 	loopAttacher iface.LoopAttacher = loopdev.NewAttacher()
 	// ensureLoopFn is the default ensureloop implementation; override in tests.
 	ensureLoopFn = ensureloop
+	// cmdlineParser is the default CmdlineParser; override in tests.
+	cmdlineParser iface.CmdlineParser = cmdline.New()
 )
 
 // Enter the k3OS root
@@ -77,18 +80,11 @@ func isDebug() bool {
 		return false
 	}
 
-	bytes, err := os.ReadFile("/proc/cmdline")
-	if err != nil {
-		// ignore error
+	if cmdlineParser == nil {
 		return false
 	}
-	for _, word := range strings.Fields(string(bytes)) {
-		if word == DebugCmdline {
-			return true
-		}
-	}
 
-	return false
+	return cmdlineParser.Contains(DebugCmdline)
 }
 
 // Mount sets up the k3OS root filesystem and executes the enter-root process.

@@ -16,6 +16,7 @@ var (
 	_ iface.CommandRunner = (*MockCommandRunner)(nil)
 	_ iface.Mounter       = (*MockMounter)(nil)
 	_ iface.BlockProber   = (*MockBlockProber)(nil)
+	_ iface.CmdlineParser = (*mockCmdlineParser)(nil)
 )
 
 // MockFileSystem is a testable iface.FileSystem implementation.
@@ -220,3 +221,23 @@ func (f fakeFileInfo) ModTime() time.Time {
 }
 func (f fakeFileInfo) IsDir() bool      { return f.isDir }
 func (f fakeFileInfo) Sys() interface{} { return nil }
+
+// mockCmdlineParser implements iface.CmdlineParser for testing.
+type mockCmdlineParser struct {
+	flags    map[string]string
+	contains map[string]bool
+	raw      string
+	consoles []string
+}
+
+func (m *mockCmdlineParser) Flag(name string) (string, bool) {
+	v, ok := m.flags[name]
+	return v, ok
+}
+
+func (m *mockCmdlineParser) Contains(name string) bool {
+	return m.contains[name]
+}
+
+func (m *mockCmdlineParser) Consoles() []string { return m.consoles }
+func (m *mockCmdlineParser) Raw() string        { return m.raw }

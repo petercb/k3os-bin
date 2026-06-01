@@ -1,0 +1,14 @@
+{
+  "task_id": "task-replace-cmdline-parsing",
+  "task_description": "Replace manual /proc/cmdline parsing with u-root pkg/cmdline package via a CmdlineParser interface for testability",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "make build, make test, make lint all pass. Tests exercise real code paths via mocked CmdlineParser interface. Coverage: mode 91.2%, boot 84.4%, finalize 88.0%, cmdline 78.6%."
+  }
+}

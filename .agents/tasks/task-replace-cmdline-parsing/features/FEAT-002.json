@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-002",
+  "type": "refactor",
+  "description": "Migrate all cmdline consumers (mode detector, boot init, finalize TTYs, enterchroot) to use the CmdlineParser interface instead of manual string parsing",
+  "status": "completed",
+  "steps": [
+    "Step 1: Migrate internal/mode/detect.go - Replace CmdlineReader func() (string, error) field with Cmdline iface.CmdlineParser. Replace parseCmdline() calls with direct Cmdline.Flag('k3os.mode'), Cmdline.Flag('k3os.fallback_mode'), Cmdline.Contains('rescue'). Remove the parseCmdline() function and CmdlineResult struct. Update Detect() to check err on CmdLine (Cmdline field may have Err set - but since interface hides this, the New() constructor handles /proc/cmdline read; if it fails the Flag/Contains calls just return empty/false which is acceptable). Keep the retry loop logic intact.",
+    "Step 2: Update internal/mode/detect_test.go - Replace CmdlineReader mock with a mock CmdlineParser implementation. Update all test cases that set CmdlineReader to instead provide a mock that returns appropriate values from Flag/Contains. Remove tests for the deleted parseCmdline() function (TestParseCmdline_* tests). Add equivalent coverage through the Detector tests.",
+    "Step 3: Migrate internal/boot/init.go - Replace CmdlineReader func() (string, error) field with Cmdline iface.CmdlineParser. Replace setupDebug() to use i.Cmdline.Contains('k3os.debug') instead of reading raw string and iterating fields.",
+    "Step 4: Update internal/boot/init_test.go - Replace CmdlineReader mock setup with a mock CmdlineParser. Tests that set cmdline='root=/dev/sda1 k3os.debug quiet' should use a mock where Contains('k3os.debug') returns true.",
+    "Step 5: Migrate internal/boot/finalize/finalize.go and ttys.go - Replace CmdlineReader func() (string, error) in Finalizer struct with Cmdline iface.CmdlineParser. In SetupTTYs(), replace cmdline read + parseConsoleEntries(cmdline) with: use f.Cmdline.Raw() and pass to parseConsoleEntries(). This preserves the existing parseConsoleEntries logic (which extracts baudrate) while eliminating the func() (string, error) pattern. The parseConsoleEntries() function stays as-is since it needs baudrate info that Consoles() does not provide.",
+    "Step 6: Update internal/boot/finalize/finalize_test.go - Replace all CmdlineReader func mock setups in Finalizer construction with a mock CmdlineParser. The mock should return appropriate Raw() values for TTY tests.",
+    "Step 7: Migrate internal/enterchroot/enter.go - Replace the manual /proc/cmdline reading in isDebug() with a package-level cmdlineParser var (of type iface.CmdlineParser) similar to the existing loopAttacher pattern. In isDebug(), use cmdlineParser.Contains(DebugCmdline) instead of os.ReadFile + strings.Fields loop. Initialize the package-level var with cmdline.New() in an init() function or lazy initialization.",
+    "Step 8: Update internal/enterchroot/enter_test.go - Add tests for isDebug() using the new cmdlineParser package-level var override pattern (same as loopAttacher tests). Test that Contains(DebugCmdline) returning true enables debug.",
+    "Step 9: Update main.go if needed - The main.go sets enterchroot.DebugCmdline = 'k3os.debug'. This still works since DebugCmdline is the parameter name passed to Contains(). No change needed here unless the wiring of CmdlineParser to Init/Detector structs requires updating.",
+    "Step 10: Run full test suite: go test -race ./... to verify all tests pass.",
+    "Step 11: Run golangci-lint run ./... to verify lint passes.",
+    "Step 12: Commit changes with conventional commit message: refactor: replace manual cmdline parsing with u-root CmdlineParser interface"
+  ],
+  "acceptance_criteria": [
+    "No manual strings.Fields() + prefix matching remains for cmdline parameter parsing",
+    "All /proc/cmdline parsing uses the CmdlineParser interface",
+    "internal/mode/detect.go uses Cmdline.Flag() and Cmdline.Contains() instead of parseCmdline()",
+    "internal/boot/init.go uses Cmdline.Contains('k3os.debug') instead of string iteration",
+    "internal/boot/finalize/ttys.go uses Cmdline.Raw() to feed parseConsoleEntries()",
+    "internal/enterchroot/enter.go uses cmdlineParser.Contains() instead of os.ReadFile + Fields",
+    "go test -race ./... passes with no failures",
+    "golangci-lint run ./... passes with no errors",
+    "parseCmdline() function and CmdlineResult struct are removed from mode/detect.go"
+  ],
+  "verification": [
+    "go test -race ./...",
+    "golangci-lint run ./...",
+    "go build ./..."
+  ],
+  "blocked_reason": null,
+  "findings": "All 11 files modified cleanly. No manual strings.Fields()+prefix matching remains for cmdline parsing. Tests pass with -race. Lint is clean. The readCmdline() helper in main.go was fully removed since cmdline.New() handles /proc/cmdline reading internally. The isDebug tests in enterchroot cannot use t.Parallel() because they modify package-level vars (cmdlineParser, DebugCmdline)."
+}

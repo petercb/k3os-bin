@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/petercb/k3os-bin/internal/system"
 )
 
@@ -21,36 +21,10 @@ var ValidModes = map[string]bool{
 	"shell":   true,
 }
 
-// CmdlineResult holds the parsed kernel command line parameters relevant to
-// mode detection.
-type CmdlineResult struct {
-	Mode         string
-	FallbackMode string
-}
-
-// parseCmdline is a pure function that parses kernel command line parameters
-// for mode-related values.
-func parseCmdline(cmdline string) CmdlineResult {
-	var result CmdlineResult
-
-	for _, param := range strings.Fields(cmdline) {
-		switch {
-		case param == "rescue":
-			result.Mode = "shell"
-		case strings.HasPrefix(param, "k3os.mode="):
-			result.Mode = strings.TrimPrefix(param, "k3os.mode=")
-		case strings.HasPrefix(param, "k3os.fallback_mode="):
-			result.FallbackMode = strings.TrimPrefix(param, "k3os.fallback_mode=")
-		}
-	}
-
-	return result
-}
-
 // Detector holds the injectable dependencies for boot mode detection.
 type Detector struct {
-	// CmdlineReader reads the kernel command line (typically /proc/cmdline).
-	CmdlineReader func() (string, error)
+	// Cmdline provides parsed kernel command-line access.
+	Cmdline iface.CmdlineParser
 
 	// BlockProber checks whether a block device with the given label exists.
 	// Returns the device path if found, or an error if not.
@@ -86,24 +60,24 @@ type Detector struct {
 // shell script. It retries in a loop until a mode is found or the timeout
 // expires. The detected mode is written to the state file before returning.
 func (d *Detector) Detect(ctx context.Context) (string, error) {
-	cmdline, err := d.CmdlineReader()
-	if err != nil {
-		return "", fmt.Errorf("reading cmdline: %w", err)
+	// Check for explicit mode from cmdline.
+	mode, _ := d.Cmdline.Flag("k3os.mode")
+	if d.Cmdline.Contains("rescue") {
+		mode = "shell" // rescue always wins
 	}
-
-	parsed := parseCmdline(cmdline)
+	fallback, _ := d.Cmdline.Flag("k3os.fallback_mode")
 
 	// If the command line specifies a mode directly, use it immediately.
-	if parsed.Mode != "" {
-		return d.finalize(ctx, parsed.Mode)
+	if mode != "" {
+		return d.finalize(ctx, mode)
 	}
 
 	deadline := time.Now().Add(d.Timeout)
 
 	for {
-		mode := d.detectOnce(parsed)
-		if mode != "" {
-			return d.finalize(ctx, mode)
+		detected := d.detectOnce(fallback)
+		if detected != "" {
+			return d.finalize(ctx, detected)
 		}
 
 		if time.Now().After(deadline) {
@@ -124,7 +98,7 @@ func (d *Detector) Detect(ctx context.Context) (string, error) {
 
 // detectOnce runs a single pass through the probe logic, matching the shell
 // script's loop body ordering.
-func (d *Detector) detectOnce(parsed CmdlineResult) string {
+func (d *Detector) detectOnce(fallbackMode string) string {
 	var mode string
 
 	// Check blkid -L K3OS_STATE
@@ -139,7 +113,7 @@ func (d *Detector) detectOnce(parsed CmdlineResult) string {
 
 	// Fallback mode from cmdline
 	if mode == "" {
-		mode = parsed.FallbackMode
+		mode = fallbackMode
 	}
 
 	// Non-tmpfs root filesystem means local mode
