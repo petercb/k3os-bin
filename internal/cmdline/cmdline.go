@@ -4,6 +4,7 @@ package cmdline
 
 import (
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/petercb/k3os-bin/internal/iface"
@@ -12,40 +13,58 @@ import (
 
 // parser wraps a u-root CmdLine struct, implementing iface.CmdlineParser.
 type parser struct {
-	cl *uroot.CmdLine
+	once sync.Once
+	cl   *uroot.CmdLine
 }
 
-// New returns a CmdlineParser backed by /proc/cmdline (via u-root).
+// load performs the actual /proc/cmdline read via u-root.
+func (p *parser) load() {
+	p.cl = uroot.NewCmdLine()
+}
+
+// New returns a CmdlineParser that lazily reads /proc/cmdline on first use.
+// This allows the parser to be constructed before /proc is mounted;
+// the actual read is deferred until the first method call.
 func New() iface.CmdlineParser {
-	return &parser{cl: uroot.NewCmdLine()}
+	return &parser{}
 }
 
 // NewFromString constructs a CmdlineParser from an arbitrary raw kernel
 // command-line string. This is useful for testing without /proc/cmdline.
+// The parser is eagerly initialized since no /proc access is needed.
 func NewFromString(raw string) iface.CmdlineParser {
-	return &parser{cl: &uroot.CmdLine{
-		Raw:   raw,
-		AsMap: parseToMap(raw),
-	}}
+	p := &parser{
+		cl: &uroot.CmdLine{
+			Raw:   raw,
+			AsMap: parseToMap(raw),
+		},
+	}
+	// Mark the Once as done so load() is never called.
+	p.once.Do(func() {})
+	return p
 }
 
 // Flag returns the value of a kernel cmdline flag and whether it was set.
 func (p *parser) Flag(name string) (string, bool) {
+	p.once.Do(p.load)
 	return p.cl.Flag(name)
 }
 
 // Contains reports whether the named flag is present on the kernel cmdline.
 func (p *parser) Contains(name string) bool {
+	p.once.Do(p.load)
 	return p.cl.ContainsFlag(name)
 }
 
 // Consoles returns all console= TTY device names from the raw cmdline.
 func (p *parser) Consoles() []string {
+	p.once.Do(p.load)
 	return p.cl.Consoles()
 }
 
 // Raw returns the full unparsed kernel command-line string.
 func (p *parser) Raw() string {
+	p.once.Do(p.load)
 	return p.cl.Raw
 }
 
