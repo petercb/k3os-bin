@@ -17,6 +17,7 @@ type Finalizer struct {
 	FS             iface.FileSystem
 	Mounter        iface.Mounter
 	Cmd            iface.CommandRunner
+	BlockProber    iface.BlockProber
 	Mode           string
 	CmdlineReader  func() (string, error)
 	RandFunc       func() (uint32, error)

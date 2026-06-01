@@ -91,10 +91,10 @@ func (h *DiskHandler) SetupMounts() error {
 	}
 	dev, num := fields[0], fields[1]
 
-	// If the device+num path does not exist, probe via blkid
+	// If the device+num path does not exist, probe via BlockProber
 	devNum := dev + num
 	if _, err := h.deps.FS.Stat(devNum); err != nil {
-		part, blkErr := h.deps.Cmd.RunOutput("blkid", "-L", "K3OS_STATE")
+		part, blkErr := h.deps.BlockProber.FindByLabel("K3OS_STATE")
 		if blkErr != nil {
 			return nil
 		}

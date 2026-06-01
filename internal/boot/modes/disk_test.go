@@ -72,16 +72,17 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp}
 	h := NewDiskHandler(deps)
 
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
 	mnt.On("Mount", "LABEL=K3OS_STATE", targetDir, "", "").Return(nil).Once()
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return([]byte("/dev/vda 1"), nil)
-	// Device path from growpart doesn't exist, need blkid fallback
+	// Device path from growpart doesn't exist, need BlockProber fallback
 	fs.On("Stat", "/dev/vda1").Return(nil, os.ErrNotExist)
-	cmd.On("RunOutput", "blkid", "-L", "K3OS_STATE").Return("/dev/sda2", nil)
+	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda2", nil)
 	// Now check the resolved device
 	fs.On("Stat", "/dev/sda2").Return(fakeFileInfo{}, nil)
 	cmd.On("Run", "umount", targetDir).Return(nil)
@@ -95,6 +96,7 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 	err := h.SetupMounts()
 	require.NoError(t, err)
 
+	bp.AssertExpectations(t)
 	cmd.AssertExpectations(t)
 }
 

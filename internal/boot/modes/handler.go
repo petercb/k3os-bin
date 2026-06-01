@@ -30,6 +30,7 @@ type Deps struct {
 	FS            iface.FileSystem
 	Cmd           iface.CommandRunner
 	Mounter       iface.Mounter
+	BlockProber   iface.BlockProber
 	Proc          ProcessExecutor
 	CopyDir       func(src, dst string) error
 	KernelVersion string

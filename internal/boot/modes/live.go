@@ -53,7 +53,7 @@ func (l *LiveSetup) SetupBase() error {
 	slog.Debug("live: setting up base")
 
 	// Try ISO label first
-	device, err := l.deps.Cmd.RunOutput("blkid", "-L", "K3OS")
+	device, err := l.deps.BlockProber.FindByLabel("K3OS")
 	if err == nil && device != "" {
 		if err := l.deps.Mounter.Mount(device, baseDir, "", "ro"); err != nil {
 			return fmt.Errorf("mount K3OS ISO: %w", err)
@@ -68,9 +68,9 @@ func (l *LiveSetup) SetupBase() error {
 	}
 
 	for j := range maxRetries {
-		disks, diskErr := l.deps.Cmd.RunOutput("lsblk", "-o", "NAME,TYPE", "-n")
+		diskNames, diskErr := l.deps.BlockProber.ListDisks()
 		if diskErr == nil {
-			for _, name := range parseDisks(disks) {
+			for _, name := range diskNames {
 				dev := "/dev/" + name
 				if err := l.deps.Mounter.Mount(dev, baseDir, "", ""); err == nil {
 					return nil

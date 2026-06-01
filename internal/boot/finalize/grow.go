@@ -33,14 +33,14 @@ func (f *Finalizer) GrowLive() error {
 	num := parts[1]
 	part := dev + num
 
-	// Check if the partition device exists directly; if not, detect via blkid.
+	// Check if the partition device exists directly; if not, detect via BlockProber.
 	if _, err := f.FS.Stat(part); err != nil {
 		// Detect partition by label.
-		output, err := f.Cmd.RunOutput("blkid", "-L", "K3OS_STATE")
+		output, err := f.BlockProber.FindByLabel("K3OS_STATE")
 		if err != nil {
-			return fmt.Errorf("blkid -L K3OS_STATE: %w", err)
+			return fmt.Errorf("find K3OS_STATE by label: %w", err)
 		}
-		part = strings.TrimSpace(output)
+		part = output
 		// Derive dev and num from partition path.
 		dev, num = splitPartition(part)
 	}

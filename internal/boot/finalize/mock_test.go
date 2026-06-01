@@ -15,6 +15,7 @@ var (
 	_ iface.FileSystem    = (*MockFileSystem)(nil)
 	_ iface.CommandRunner = (*MockCommandRunner)(nil)
 	_ iface.Mounter       = (*MockMounter)(nil)
+	_ iface.BlockProber   = (*MockBlockProber)(nil)
 )
 
 // MockFileSystem is a testable iface.FileSystem implementation.
@@ -184,6 +185,24 @@ func (m *MockMounter) ForceMount(device, target, mType, options string) error {
 func (m *MockMounter) Mounted(target string) (bool, error) {
 	args := m.Called(target)
 	return args.Bool(0), args.Error(1)
+}
+
+// MockBlockProber is a testable iface.BlockProber implementation.
+type MockBlockProber struct {
+	mock.Mock
+}
+
+func (m *MockBlockProber) FindByLabel(label string) (string, error) {
+	args := m.Called(label)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockBlockProber) ListDisks() ([]string, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
 }
 
 // fakeFileInfo implements os.FileInfo for tests.
