@@ -25,6 +25,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/cli/app"
 	cliconfig "github.com/petercb/k3os-bin/internal/cli/config"
 	"github.com/petercb/k3os-bin/internal/cli/rc"
+	"github.com/petercb/k3os-bin/internal/cmdline"
 	"github.com/petercb/k3os-bin/internal/enterchroot"
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
 	"github.com/petercb/k3os-bin/internal/kernel"
@@ -136,16 +137,17 @@ func postChroot() {
 	}
 
 	// Build the finalizer.
+	cl := cmdline.New()
 	fin := &finalize.Finalizer{
-		FS:            fs,
-		Mounter:       mounter,
-		Cmd:           cmd,
-		BlockProber:   osimpl.SysfsBlockProber{},
-		SleepFunc:     time.Sleep,
-		CmdlineReader: readCmdline,
-		RandFunc:      cryptoRandUint32,
-		VirtDetector:  detectVirt,
-		ConfigRunner:  cliconfig.RunBoot,
+		FS:           fs,
+		Mounter:      mounter,
+		Cmd:          cmd,
+		BlockProber:  osimpl.SysfsBlockProber{},
+		SleepFunc:    time.Sleep,
+		Cmdline:      cl,
+		RandFunc:     cryptoRandUint32,
+		VirtDetector: detectVirt,
+		ConfigRunner: cliconfig.RunBoot,
 		ManifestCopier: func(src, dst string) error {
 			return cp.Copy(src, dst, cp.Options{
 				PreserveTimes: true,
@@ -165,7 +167,7 @@ func postChroot() {
 		Bootstrap: bs,
 		ModeDetector: func() (string, error) {
 			detector := &mode.Detector{
-				CmdlineReader: readCmdline,
+				Cmdline:       cl,
 				BlockProber:   modeDeps.BlockProber.FindByLabel,
 				StatfsChecker: statfsCheck,
 				EnvReader:     os.Getenv,
@@ -180,9 +182,9 @@ func postChroot() {
 		ModeRegistry: func(m string) (boot.ModeHandler, error) {
 			return registry.Get(m)
 		},
-		Finalizer:     fin,
-		CmdlineReader: readCmdline,
-		ExecFunc:      syscall.Exec,
+		Finalizer: fin,
+		Cmdline:   cl,
+		ExecFunc:  syscall.Exec,
 		RescueFunc: func() error {
 			return syscall.Exec("/bin/bash", []string{"bash"}, os.Environ())
 		},
@@ -219,15 +221,6 @@ func consoleRedirect() error {
 	}
 	// Do not close f; the duplicated fds keep it open.
 	return nil
-}
-
-// readCmdline reads the kernel command line from /proc/cmdline.
-func readCmdline() (string, error) {
-	data, err := os.ReadFile("/proc/cmdline")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
 }
 
 // statfsCheck returns the filesystem type name for the given path.

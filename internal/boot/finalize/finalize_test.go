@@ -72,8 +72,8 @@ func TestSetupTTYs_StandardTTYs(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, CmdlineReader: func() (string, error) {
-		return "root=/dev/sda1", nil
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Cmdline: &mockCmdlineParser{
+		raw: "root=/dev/sda1",
 	}}
 
 	fi := fakeFileInfo{name: "tty1", isDir: false}
@@ -96,8 +96,8 @@ func TestSetupTTYs_SerialConsole(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, CmdlineReader: func() (string, error) {
-		return "console=ttyS0,115200n8", nil
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Cmdline: &mockCmdlineParser{
+		raw: "console=ttyS0,115200n8",
 	}}
 
 	// No standard TTYs.
@@ -124,8 +124,8 @@ func TestSetupTTYs_SerialConsoleDeduplicated(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	// tty1 appears both as a standard TTY and in console= cmdline parameter.
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, CmdlineReader: func() (string, error) {
-		return "console=tty1,115200n8", nil
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Cmdline: &mockCmdlineParser{
+		raw: "console=tty1,115200n8",
 	}}
 
 	fi := fakeFileInfo{name: "tty1", isDir: false}
@@ -169,8 +169,8 @@ func TestSetupTTYs_NoDevices(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, CmdlineReader: func() (string, error) {
-		return "root=/dev/sda1", nil
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Cmdline: &mockCmdlineParser{
+		raw: "root=/dev/sda1",
 	}}
 
 	// No devices exist.
@@ -182,13 +182,13 @@ func TestSetupTTYs_NoDevices(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSetupTTYs_CmdlineReadError(t *testing.T) {
+func TestSetupTTYs_EmptyRawCmdline(t *testing.T) {
 	t.Parallel()
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
-	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, CmdlineReader: func() (string, error) {
-		return "", errors.New("read failed")
+	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Cmdline: &mockCmdlineParser{
+		raw: "",
 	}}
 
 	fi := fakeFileInfo{name: "tty1", isDir: false}
@@ -196,9 +196,14 @@ func TestSetupTTYs_CmdlineReadError(t *testing.T) {
 		fs.On("Stat", fmt.Sprintf("/dev/tty%d", i)).Return(fi, nil)
 	}
 
+	fs.On("ReadFile", "/etc/inittab").Return([]byte(""), nil)
+	fs.On("WriteFile", "/etc/inittab", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
+	fs.On("ReadFile", "/etc/securetty").Return([]byte(""), nil)
+	fs.On("WriteFile", "/etc/securetty", mock.AnythingOfType("[]uint8"), os.FileMode(0o644)).Return(nil)
+
 	err := f.SetupTTYs()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "read cmdline")
+	require.NoError(t, err)
+	fs.AssertExpectations(t)
 }
 
 // ---------------------------------------------------------------------------
@@ -845,9 +850,7 @@ func TestFinalizer_Run_Success(t *testing.T) {
 		Cmd:     cmd,
 		Mounter: mnt,
 		Mode:    "local",
-		CmdlineReader: func() (string, error) {
-			return "", nil
-		},
+		Cmdline: &mockCmdlineParser{raw: ""},
 		RandFunc: func() (uint32, error) {
 			return 99999, nil
 		},
@@ -927,9 +930,7 @@ func TestFinalizer_Run_StopsOnError(t *testing.T) {
 		Cmd:     cmd,
 		Mounter: mnt,
 		Mode:    "local",
-		CmdlineReader: func() (string, error) {
-			return "", nil
-		},
+		Cmdline: &mockCmdlineParser{raw: ""},
 		RandFunc: func() (uint32, error) {
 			return 0, nil
 		},

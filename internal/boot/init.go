@@ -9,7 +9,8 @@ package boot
 import (
 	"log/slog"
 	"os"
-	"strings"
+
+	"github.com/petercb/k3os-bin/internal/iface"
 )
 
 // BootstrapRunner runs the bootstrap phase.
@@ -48,7 +49,7 @@ type Init struct {
 	ModeRegistry    ModeRegistryFunc
 	Finalizer       FinalizerRunner
 	ExecFunc        func(path string, args []string, env []string) error
-	CmdlineReader   func() (string, error)
+	Cmdline         iface.CmdlineParser
 	RescueFunc      func() error
 	ConsoleRedirect func() error
 	ModeSetterFunc  func(mode string)
@@ -118,23 +119,14 @@ func (i *Init) Run() {
 	}
 }
 
-// setupDebug checks /proc/cmdline for k3os.debug and enables debug-level
-// logging if found. Errors reading the cmdline are silently ignored.
+// setupDebug checks the kernel cmdline for k3os.debug and enables debug-level
+// logging if found.
 func (i *Init) setupDebug() {
-	cmdline, err := i.CmdlineReader()
-	if err != nil {
-		slog.Debug("init: could not read cmdline for debug check", "error", err)
-		return
-	}
-
-	for _, field := range strings.Fields(cmdline) {
-		if field == "k3os.debug" {
-			slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-				Level: slog.LevelDebug,
-			})))
-			slog.Debug("init: debug mode enabled via k3os.debug cmdline")
-			return
-		}
+	if i.Cmdline != nil && i.Cmdline.Contains("k3os.debug") {
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		})))
+		slog.Debug("init: debug mode enabled via k3os.debug cmdline")
 	}
 }
 

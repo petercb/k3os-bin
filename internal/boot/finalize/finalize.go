@@ -19,7 +19,7 @@ type Finalizer struct {
 	Cmd            iface.CommandRunner
 	BlockProber    iface.BlockProber
 	Mode           string
-	CmdlineReader  func() (string, error)
+	Cmdline        iface.CmdlineParser
 	RandFunc       func() (uint32, error)
 	VirtDetector   func() ([]string, error)
 	SleepFunc      func(time.Duration)

@@ -6,9 +6,33 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// mockCmdlineParser implements iface.CmdlineParser for testing.
+type mockCmdlineParser struct {
+	flags    map[string]string
+	contains map[string]bool
+	raw      string
+	consoles []string
+}
+
+// Compile-time check.
+var _ iface.CmdlineParser = (*mockCmdlineParser)(nil)
+
+func (m *mockCmdlineParser) Flag(name string) (string, bool) {
+	v, ok := m.flags[name]
+	return v, ok
+}
+
+func (m *mockCmdlineParser) Contains(name string) bool {
+	return m.contains[name]
+}
+
+func (m *mockCmdlineParser) Consoles() []string { return m.consoles }
+func (m *mockCmdlineParser) Raw() string        { return m.raw }
 
 // fakeBootstrapper implements BootstrapRunner for testing.
 type fakeBootstrapper struct {
@@ -55,8 +79,7 @@ func TestInit_Run(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		cmdline        string
-		cmdlineErr     error
+		contains       map[string]bool
 		bootstrapErr   error
 		detectMode     string
 		detectErr      error
@@ -70,46 +93,40 @@ func TestInit_Run(t *testing.T) {
 	}{
 		{
 			name:           "full success path",
-			cmdline:        "root=/dev/sda1 quiet",
 			detectMode:     "disk",
 			expectExecPath: "/sbin/init",
 		},
 		{
 			name:         "bootstrap failure triggers rescue",
-			cmdline:      "root=/dev/sda1",
 			bootstrapErr: errors.New("bootstrap failed"),
 			expectRescue: true,
 		},
 		{
 			name:         "mode detection failure triggers rescue",
-			cmdline:      "root=/dev/sda1",
 			detectErr:    errors.New("detection failed"),
 			expectRescue: true,
 		},
 		{
 			name:         "mode registry failure triggers rescue",
-			cmdline:      "root=/dev/sda1",
 			detectMode:   "unknown",
 			registryErr:  errors.New("unknown mode"),
 			expectRescue: true,
 		},
 		{
 			name:         "mode handler execute failure triggers rescue",
-			cmdline:      "root=/dev/sda1",
 			detectMode:   "disk",
 			handlerErr:   errors.New("handler failed"),
 			expectRescue: true,
 		},
 		{
 			name:         "finalizer failure triggers rescue",
-			cmdline:      "root=/dev/sda1",
 			detectMode:   "disk",
 			finalizerErr: errors.New("finalizer failed"),
 			expectRescue: true,
 		},
 		{
 			name:           "debug mode enabled from cmdline",
-			cmdline:        "root=/dev/sda1 k3os.debug quiet",
+			contains:       map[string]bool{"k3os.debug": true},
 			detectMode:     "local",
 			expectExecPath: "/sbin/init",
 		},
@@ -126,7 +143,7 @@ func TestInit_Run(t *testing.T) {
 			var execCalled *execCall
 			var rescueCalled bool
 
-			init := &Init{
+			initOrch := &Init{
 				Bootstrap: bootstrap,
 				ModeDetector: func() (string, error) {
 					if tc.detectErr != nil {
@@ -145,19 +162,14 @@ func TestInit_Run(t *testing.T) {
 					execCalled = &execCall{path: path, args: args, env: env}
 					return tc.execErr
 				},
-				CmdlineReader: func() (string, error) {
-					if tc.cmdlineErr != nil {
-						return "", tc.cmdlineErr
-					}
-					return tc.cmdline, nil
-				},
+				Cmdline: &mockCmdlineParser{contains: tc.contains},
 				RescueFunc: func() error {
 					rescueCalled = true
 					return nil
 				},
 			}
 
-			init.Run()
+			initOrch.Run()
 
 			if tc.expectRescue {
 				assert.True(t, rescueCalled, "rescue should have been called")
@@ -176,7 +188,7 @@ func TestInit_Run_PhasesCalledInOrder(t *testing.T) {
 
 	var order []string
 
-	init := &Init{
+	initOrch := &Init{
 		Bootstrap: &fakeBootstrapperOrdered{order: &order, name: "bootstrap"},
 		ModeDetector: func() (string, error) {
 			order = append(order, "detect")
@@ -191,32 +203,30 @@ func TestInit_Run_PhasesCalledInOrder(t *testing.T) {
 			order = append(order, "exec")
 			return nil
 		},
-		CmdlineReader: func() (string, error) {
-			return "root=/dev/sda1", nil
-		},
+		Cmdline: &mockCmdlineParser{},
 		RescueFunc: func() error {
 			order = append(order, "rescue")
 			return nil
 		},
 	}
 
-	init.Run()
+	initOrch.Run()
 
 	expected := []string{"bootstrap", "detect", "registry", "handler", "finalizer", "exec"}
 	assert.Equal(t, expected, order)
 }
 
-func TestInit_Run_CmdlineReaderError(t *testing.T) {
+func TestInit_Run_NilCmdline(t *testing.T) {
 	t.Parallel()
 
-	// If cmdline can't be read, we still proceed (debug check is best-effort).
+	// If Cmdline is nil, we still proceed (debug check is guarded with nil check).
 	bootstrap := &fakeBootstrapper{}
 	finalizer := &fakeFinalizer{}
 	handler := &fakeModeHandler{}
 
 	var execCalled bool
 
-	init := &Init{
+	initOrch := &Init{
 		Bootstrap: bootstrap,
 		ModeDetector: func() (string, error) {
 			return "disk", nil
@@ -229,15 +239,13 @@ func TestInit_Run_CmdlineReaderError(t *testing.T) {
 			execCalled = true
 			return nil
 		},
-		CmdlineReader: func() (string, error) {
-			return "", errors.New("cannot read cmdline")
-		},
+		Cmdline: nil,
 		RescueFunc: func() error {
 			return nil
 		},
 	}
 
-	init.Run()
+	initOrch.Run()
 
 	assert.True(t, bootstrap.called)
 	assert.True(t, handler.called)

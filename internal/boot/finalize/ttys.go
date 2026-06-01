@@ -32,12 +32,7 @@ func (f *Finalizer) SetupTTYs() error {
 	}
 
 	// Parse cmdline for serial consoles.
-	cmdline, err := f.CmdlineReader()
-	if err != nil {
-		return fmt.Errorf("read cmdline: %w", err)
-	}
-
-	serialEntries := parseConsoleEntries(cmdline)
+	serialEntries := parseConsoleEntries(f.Cmdline.Raw())
 	for _, entry := range serialEntries {
 		if seen[entry.tty] {
 			continue
