@@ -32,6 +32,7 @@ type Deps struct {
 	Mounter         iface.Mounter
 	BlockProber     iface.BlockProber
 	PartitionGrower iface.PartitionGrower
+	LoopDetacher    iface.LoopDetacher
 	Proc            ProcessExecutor
 	CopyDir         func(src, dst string) error
 	KernelVersion   string

@@ -9,10 +9,16 @@ import (
 	"strings"
 
 	"github.com/petercb/k3os-bin/internal/config"
+	"github.com/petercb/k3os-bin/internal/iface"
+	"github.com/petercb/k3os-bin/internal/iface/osimpl"
 	"github.com/petercb/k3os-bin/internal/mode"
 	"github.com/petercb/k3os-bin/internal/questions"
 	"github.com/petercb/k3os-bin/internal/util"
 )
+
+// blockProber is the BlockProber used to enumerate disk devices.
+// Override in tests.
+var blockProber iface.BlockProber = osimpl.SysfsBlockProber{}
 
 // Ask prompts the user to choose between install and server/agent configuration.
 func Ask(cfg *config.CloudConfig) (bool, error) {
@@ -91,11 +97,10 @@ func AskInstallDevice(cfg *config.CloudConfig) error {
 		return nil
 	}
 
-	output, err := exec.Command("/bin/sh", "-c", "lsblk -r -o NAME,TYPE | grep -w disk | awk '{print $1}'").CombinedOutput()
+	fields, err := blockProber.ListDisks()
 	if err != nil {
 		return err
 	}
-	fields := strings.Fields(string(output))
 	i, err := questions.PromptFormattedOptions("Installation target. Device will be formatted", -1, fields...)
 	if err != nil {
 		return err

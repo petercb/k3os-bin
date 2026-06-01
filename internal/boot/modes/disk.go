@@ -376,7 +376,9 @@ func (h *DiskHandler) PivotAndExec() error {
 	slog.Debug("disk: pivot and exec")
 
 	// Detach loop device (best effort)
-	_ = h.deps.Cmd.Run("losetup", "-d", "/dev/loop0")
+	if h.deps.LoopDetacher != nil {
+		_ = h.deps.LoopDetacher.DetachPath("/dev/loop0")
+	}
 
 	// Make root mount private
 	if err := h.deps.Mounter.ForceMount("", "/", "none", "rprivate"); err != nil {

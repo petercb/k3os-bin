@@ -114,6 +114,7 @@ func postChroot() {
 		Mounter:         mounter,
 		BlockProber:     osimpl.SysfsBlockProber{},
 		PartitionGrower: &osimpl.PartitionGrower{},
+		LoopDetacher:    osimpl.LoopPathDetacher{},
 		Proc:            &realProcessExecutor{},
 		CopyDir:         func(src, dst string) error { return cp.Copy(src, dst) },
 		KernelVersion:   kver,

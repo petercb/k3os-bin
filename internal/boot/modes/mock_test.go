@@ -18,6 +18,7 @@ var (
 	_ ProcessExecutor       = (*MockProcessExecutor)(nil)
 	_ iface.BlockProber     = (*MockBlockProber)(nil)
 	_ iface.PartitionGrower = (*MockPartitionGrower)(nil)
+	_ iface.LoopDetacher    = (*MockLoopDetacher)(nil)
 )
 
 // MockFileSystem is a testable iface.FileSystem implementation.
@@ -255,4 +256,13 @@ type MockPartitionGrower struct {
 
 func (m *MockPartitionGrower) GrowPartition(device string, partNum int) error {
 	return m.Called(device, partNum).Error(0)
+}
+
+// MockLoopDetacher is a testable iface.LoopDetacher implementation.
+type MockLoopDetacher struct {
+	mock.Mock
+}
+
+func (m *MockLoopDetacher) DetachPath(device string) error {
+	return m.Called(device).Error(0)
 }

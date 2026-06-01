@@ -81,6 +81,11 @@ type BlockProber interface {
 	ListDisks() ([]string, error)
 }
 
+// LoopDetacher abstracts loop device detachment by path.
+type LoopDetacher interface {
+	DetachPath(device string) error
+}
+
 // LoopDevice abstracts a single attached loop device.
 type LoopDevice interface {
 	Path() string

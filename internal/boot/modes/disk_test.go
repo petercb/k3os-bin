@@ -453,11 +453,12 @@ func TestDiskHandler_PivotAndExec(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	proc := &MockProcessExecutor{}
+	ld := &MockLoopDetacher{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, Proc: proc}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, Proc: proc, LoopDetacher: ld}
 	h := NewDiskHandler(deps)
 
-	cmd.On("Run", "losetup", "-d", "/dev/loop0").Return(nil)
+	ld.On("DetachPath", "/dev/loop0").Return(nil)
 	mnt.On("ForceMount", "", "/", "none", "rprivate").Return(nil)
 	fs.On("MkdirAll", targetDir+"/.root", os.FileMode(0o755)).Return(nil)
 	proc.On("PivotRoot", targetDir, targetDir+"/.root").Return(nil)
@@ -470,6 +471,7 @@ func TestDiskHandler_PivotAndExec(t *testing.T) {
 	require.ErrorAs(t, err, &execErr)
 	assert.Equal(t, "/sbin/init", execErr.Path)
 
+	ld.AssertExpectations(t)
 	proc.AssertExpectations(t)
 }
 
@@ -480,11 +482,12 @@ func TestDiskHandler_PivotAndExec_PivotFails(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	proc := &MockProcessExecutor{}
+	ld := &MockLoopDetacher{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, Proc: proc}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, Proc: proc, LoopDetacher: ld}
 	h := NewDiskHandler(deps)
 
-	cmd.On("Run", "losetup", "-d", "/dev/loop0").Return(nil)
+	ld.On("DetachPath", "/dev/loop0").Return(nil)
 	mnt.On("ForceMount", "", "/", "none", "rprivate").Return(nil)
 	fs.On("MkdirAll", targetDir+"/.root", os.FileMode(0o755)).Return(nil)
 	proc.On("PivotRoot", targetDir, targetDir+"/.root").Return(errors.New("pivot failed"))
@@ -533,12 +536,14 @@ func TestDiskHandler_Execute_TakeoverSkipped(t *testing.T) {
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	proc := &MockProcessExecutor{}
+	ld := &MockLoopDetacher{}
 
 	deps := &Deps{
 		FS:            fs,
 		Cmd:           cmd,
 		Mounter:       mnt,
 		Proc:          proc,
+		LoopDetacher:  ld,
 		KernelVersion: "5.15.0",
 		VersionID:     "v0.21.5",
 		SleepFunc:     func(time.Duration) {},
@@ -570,7 +575,7 @@ func TestDiskHandler_Execute_TakeoverSkipped(t *testing.T) {
 	fs.On("Stat", targetDir+"/k3os/system/ephemeral").Return(nil, os.ErrNotExist)
 
 	// PivotAndExec
-	cmd.On("Run", "losetup", "-d", "/dev/loop0").Return(nil)
+	ld.On("DetachPath", "/dev/loop0").Return(nil)
 	mnt.On("ForceMount", "", "/", "none", "rprivate").Return(nil)
 	fs.On("MkdirAll", targetDir+"/.root", os.FileMode(0o755)).Return(nil)
 	proc.On("PivotRoot", targetDir, targetDir+"/.root").Return(nil)
