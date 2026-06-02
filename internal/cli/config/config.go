@@ -92,6 +92,15 @@ func RunBoot() error {
 	return cc.NewDefaultApplier().BootApply(&cfg)
 }
 
+// RunInstall performs the install-phase config application.
+func RunInstall() error {
+	cfg, err := config.ReadConfig()
+	if err != nil {
+		return err
+	}
+	return cc.NewDefaultApplier().InstallApply(&cfg)
+}
+
 // Main `config`
 func Main() error {
 	//nolint:gocritic
@@ -100,11 +109,7 @@ func Main() error {
 	} else if bootPhase {
 		return RunBoot()
 	} else if installPhase {
-		cfg, err := config.ReadConfig()
-		if err != nil {
-			return err
-		}
-		return cc.NewDefaultApplier().InstallApply(&cfg)
+		return RunInstall()
 	} else if dump {
 		cfg, err := config.ReadConfig()
 		if err != nil {

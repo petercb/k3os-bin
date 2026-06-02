@@ -5,10 +5,15 @@ import (
 	"os"
 	"os/exec"
 
+	cliconfig "github.com/petercb/k3os-bin/internal/cli/config"
 	"github.com/petercb/k3os-bin/internal/config"
 	"github.com/petercb/k3os-bin/internal/questions"
 	"gopkg.in/yaml.v3"
 )
+
+// ccApplyFunc is the function used to apply cloud-config during install.
+// Override in tests.
+var ccApplyFunc = cliconfig.RunInstall
 
 // Run executes the interactive k3OS installation and configuration workflow.
 func Run() error {
@@ -53,11 +58,7 @@ func Run() error {
 }
 
 func runCCApply() error {
-	cmd := exec.Command(os.Args[0], "config", "--install")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	return cmd.Run()
+	return ccApplyFunc()
 }
 
 func runInstall(cfg config.CloudConfig) error {
