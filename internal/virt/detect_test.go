@@ -28,7 +28,7 @@ func TestDMIDetector_Detect(t *testing.T) {
 				"board_vendor": "QEMU",
 				"bios_vendor":  "SeaBIOS",
 			},
-			expected: []string{"kvm", "qemu"},
+			expected: []string{"kvm"},
 		},
 		{
 			name: "VMware detected via sys_vendor",
@@ -38,7 +38,7 @@ func TestDMIDetector_Detect(t *testing.T) {
 				"board_vendor": "Intel Corporation",
 				"bios_vendor":  "Phoenix Technologies LTD",
 			},
-			expected: []string{"vmw", "vmware"},
+			expected: []string{"vmware"},
 		},
 		{
 			name: "Hyper-V detected via sys_vendor and product_name",
@@ -48,7 +48,7 @@ func TestDMIDetector_Detect(t *testing.T) {
 				"board_vendor": "Microsoft Corporation",
 				"bios_vendor":  "American Megatrends Inc.",
 			},
-			expected: []string{"microsoft", "hyperv"},
+			expected: []string{"hyperv"},
 		},
 		{
 			name: "VirtualBox detected via board_vendor innotek",

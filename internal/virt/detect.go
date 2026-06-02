@@ -35,22 +35,25 @@ func (d *DMIDetector) Detect() ([]string, error) {
 	productName := d.readDMIFile("product_name")
 	boardVendor := d.readDMIFile("board_vendor")
 
-	// Check for QEMU/KVM
+	// Check for QEMU/KVM — return single canonical ID to avoid duplicate symlinks
+	// in the consumer (services.go matches both "kvm" and "qemu" to the same case).
 	if containsCI(sysVendor, "QEMU") {
-		return []string{"kvm", "qemu"}, nil
+		return []string{"kvm"}, nil
 	}
 
 	// Check for Microsoft Hyper-V
 	if containsCI(sysVendor, "Microsoft") && containsCI(productName, "Virtual Machine") {
-		return []string{"microsoft", "hyperv"}, nil
+		return []string{"hyperv"}, nil
 	}
 
 	// Check for VMware
 	if containsCI(sysVendor, "VMware") {
-		return []string{"vmw", "vmware"}, nil
+		return []string{"vmware"}, nil
 	}
 
-	// Check for VirtualBox (innotek GmbH or Oracle with VirtualBox product)
+	// Check for VirtualBox (innotek GmbH or Oracle with VirtualBox product).
+	// Detected for informational purposes; no service enablement case exists
+	// in services.go because k3OS does not ship VirtualBox guest additions.
 	if containsCI(sysVendor, "innotek") || containsCI(boardVendor, "innotek") ||
 		((containsCI(sysVendor, "Oracle") || containsCI(boardVendor, "Oracle")) &&
 			containsCI(productName, "VirtualBox")) {
