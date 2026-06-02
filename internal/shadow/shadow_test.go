@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GehirnInc/crypt/sha512_crypt"
+	"github.com/go-crypt/crypt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -183,25 +183,12 @@ func TestHashPassword_RoundTripVerification(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the hash authenticates against the original password
-	crypt := sha512_crypt.New()
-	err = crypt.Verify(hash, []byte(password))
-	require.NoError(t, err, "hash should verify against the original password")
+	valid, err := crypt.CheckPassword(password, hash)
+	require.NoError(t, err)
+	assert.True(t, valid, "hash should verify against the original password")
 
 	// Verify the hash does NOT authenticate against a wrong password
-	err = crypt.Verify(hash, []byte("wrong password"))
-	assert.Error(t, err, "hash should not verify against a wrong password")
-}
-
-func TestGenerateSalt_UsesValidCryptAlphabet(t *testing.T) {
-	t.Parallel()
-
-	for range 100 {
-		salt, err := generateSalt()
-		require.NoError(t, err)
-		assert.Len(t, salt, 16)
-		for _, c := range salt {
-			assert.Contains(t, cryptAlphabet, string(c),
-				"salt character %q is outside the POSIX crypt alphabet", c)
-		}
-	}
+	valid, err = crypt.CheckPassword("wrong password", hash)
+	require.NoError(t, err)
+	assert.False(t, valid, "hash should not verify against a wrong password")
 }

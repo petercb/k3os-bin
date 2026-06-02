@@ -6,7 +6,7 @@ toolchain go1.25.1
 
 require (
 	dario.cat/mergo v1.0.2
-	github.com/GehirnInc/crypt v0.0.0-20230320061759-8cc1b52080c5
+	github.com/go-crypt/crypt v0.14.15
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-isatty v0.0.22
@@ -16,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/u-root/u-root v0.16.0
 	github.com/urfave/cli/v3 v3.9.0
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.45.0
 	golang.org/x/term v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
 	pault.ag/go/modprobe v0.1.2
@@ -24,6 +24,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/go-crypt/x v0.4.16 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

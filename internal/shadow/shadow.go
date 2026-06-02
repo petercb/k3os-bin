@@ -2,17 +2,13 @@
 package shadow
 
 import (
-	"crypto/rand"
 	"fmt"
 	"path/filepath"
 	"strings"
 
-	"github.com/GehirnInc/crypt/sha512_crypt"
+	"github.com/go-crypt/crypt/algorithm/shacrypt"
 	"github.com/petercb/k3os-bin/internal/iface"
 )
-
-// cryptAlphabet is the POSIX crypt salt character set: [./0-9A-Za-z].
-const cryptAlphabet = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 // shadowPath is the path to the shadow password file.
 const shadowPath = "/etc/shadow"
@@ -108,31 +104,17 @@ func (s Setter) SetPassword(fs iface.FileSystem, username string, password strin
 // HashPassword hashes a plaintext password using SHA-512 crypt ($6$),
 // compatible with /etc/shadow format.
 func HashPassword(plaintext string) (string, error) {
-	salt, err := generateSalt()
+	hasher, err := shacrypt.New(
+		shacrypt.WithVariant(shacrypt.VariantSHA512),
+	)
 	if err != nil {
-		return "", fmt.Errorf("generating salt: %w", err)
+		return "", fmt.Errorf("creating SHA-512 crypt hasher: %w", err)
 	}
 
-	crypt := sha512_crypt.New()
-	hash, err := crypt.Generate([]byte(plaintext), []byte("$6$"+salt))
+	digest, err := hasher.Hash(plaintext)
 	if err != nil {
 		return "", fmt.Errorf("generating SHA-512 crypt hash: %w", err)
 	}
 
-	return hash, nil
-}
-
-// generateSalt produces a 16-character random salt using the POSIX crypt
-// alphabet [./0-9A-Za-z], compatible with system tools (busybox login, PAM).
-func generateSalt() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-
-	salt := make([]byte, 16)
-	for i, v := range b {
-		salt[i] = cryptAlphabet[int(v)%len(cryptAlphabet)]
-	}
-	return string(salt), nil
+	return digest.Encode(), nil
 }
