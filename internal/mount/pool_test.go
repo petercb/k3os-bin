@@ -2,6 +2,7 @@ package mount
 
 import (
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -127,4 +128,43 @@ func TestPool_Entries_ReturnsCopy(t *testing.T) {
 	assert.Len(t, poolEntries, 2)
 	assert.Equal(t, "/a", poolEntries[0].Target)
 	assert.Equal(t, "/b", poolEntries[1].Target)
+}
+
+func TestPool_UnmountAll_ClearsPool(t *testing.T) {
+	t.Parallel()
+
+	p := NewPool(func(_ string, _ int) error { return nil })
+	p.Add(&Point{Target: "/a"})
+	p.Add(&Point{Target: "/b"})
+
+	err := p.UnmountAll(0)
+	require.NoError(t, err)
+	assert.Equal(t, 0, p.Len(), "pool should be empty after UnmountAll")
+
+	// Second call is a no-op and returns nil.
+	err = p.UnmountAll(0)
+	require.NoError(t, err)
+	assert.Equal(t, 0, p.Len())
+}
+
+func TestPool_ConcurrentAdd(t *testing.T) {
+	t.Parallel()
+
+	p := NewPool(func(_ string, _ int) error { return nil })
+
+	const goroutines = 50
+
+	var wg sync.WaitGroup
+
+	wg.Add(goroutines)
+
+	for i := range goroutines {
+		go func(n int) {
+			defer wg.Done()
+			p.Add(&Point{Target: "/mnt/" + string(rune('a'+n%26))})
+		}(i)
+	}
+
+	wg.Wait()
+	assert.Equal(t, goroutines, p.Len())
 }

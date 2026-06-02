@@ -75,6 +75,9 @@ const (
 var clockSyncer iface.ClockSyncer = osimpl.RTCClockSyncer{}
 
 // MountPool tracks all mounts performed during early boot for ordered teardown.
+// It is intended to be consumed by a single shutdown hook; concurrent writes
+// during boot are safe (mutex-protected) but callers should not call UnmountAll
+// until the boot sequence is complete.
 var MountPool = mount.NewPool(mount.Unmount)
 
 // rcNamespace declares all the mounts, directories, devices, and symlinks

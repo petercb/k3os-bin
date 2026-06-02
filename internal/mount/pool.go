@@ -38,6 +38,7 @@ func (p *Pool) Add(mp *Point) {
 }
 
 // UnmountAll unmounts all tracked mounts in reverse order, collecting errors.
+// After completion the pool is cleared, making the call idempotent.
 func (p *Pool) UnmountAll(flags int) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -49,6 +50,8 @@ func (p *Pool) UnmountAll(flags int) error {
 			errs = append(errs, err)
 		}
 	}
+
+	p.mounts = nil
 
 	return errors.Join(errs...)
 }

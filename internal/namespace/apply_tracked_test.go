@@ -93,3 +93,22 @@ func TestApplyTracked_NilPoolBehavesLikeApply(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestApplyTracked_SilentSkipNotRecorded(t *testing.T) {
+	t.Parallel()
+
+	pool := mount.NewPool(func(_ string, _ int) error { return nil })
+	creators := []Creator{
+		&fakeTrackableCreator{name: "mount-ok", target: "/mnt/ok"},
+		&fakeTrackableCreator{name: "mount-silent", target: "/mnt/silent", err: ErrSilentSkip},
+		&fakeTrackableCreator{name: "mount-ok2", target: "/mnt/ok2"},
+	}
+
+	err := ApplyTracked(creators, pool, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 2, pool.Len())
+
+	entries := pool.Entries()
+	assert.Equal(t, "/mnt/ok", entries[0].Target)
+	assert.Equal(t, "/mnt/ok2", entries[1].Target)
+}
