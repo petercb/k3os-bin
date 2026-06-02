@@ -33,7 +33,7 @@ func New() *cli.Command {
 			},
 		},
 		Commands: []*cli.Command{
-			rc.Command(),
+			rc.Command(), //nolint:staticcheck // retained for backward compatibility
 			config.Command(),
 			install.Command(),
 			upgrade.Command(),

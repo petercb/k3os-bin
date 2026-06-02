@@ -149,25 +149,3 @@ func (d *Detector) finalize(_ context.Context, mode string) (string, error) {
 	slog.Info("mode: detected boot mode", "mode", mode)
 	return mode, nil
 }
-
-// Set writes the given mode to the state file under the provided prefix path.
-// If prefix is empty, it uses the default system state path.
-func Set(mode string, prefix ...string) error {
-	var dir string
-	if len(prefix) > 0 {
-		dir = filepath.Join(prefix...)
-	} else {
-		dir = system.StatePath()
-	}
-
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("creating state dir: %w", err)
-	}
-
-	modePath := filepath.Join(dir, "mode")
-	if err := os.WriteFile(modePath, []byte(mode), 0o644); err != nil {
-		return fmt.Errorf("writing mode file: %w", err)
-	}
-
-	return nil
-}
