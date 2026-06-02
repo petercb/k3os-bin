@@ -103,6 +103,11 @@ type PartitionGrower interface {
 	GrowPartition(device string, partNum int) error
 }
 
+// ClockSyncer abstracts hardware clock to system clock synchronization.
+type ClockSyncer interface {
+	SyncRTC() error
+}
+
 // CmdlineParser abstracts kernel command-line parsing.
 type CmdlineParser interface {
 	Flag(name string) (string, bool)

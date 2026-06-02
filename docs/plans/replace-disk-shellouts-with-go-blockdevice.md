@@ -40,6 +40,7 @@ Reducing external binary dependencies improves:
 | `partprobe dev` | modes/disk.go, finalize/grow.go | Handled internally by `gpt.Table.Write()` kernel sync |
 | `lsblk -r -o NAME,TYPE` | cliinstall/ask.go | `BlockProber.ListDisks()` (sysfs /sys/block/) |
 | `losetup -d /dev/loop0` | modes/disk.go PivotAndExec | `LoopDetacher.DetachPath()` via LOOP_CLR_FD ioctl |
+| `hwclock --hctosys --utc` | cli/rc/rc.go | `RTCClockSyncer` using u-root pkg/rtc + Settimeofday |
 
 ## Shell-outs Retained (and why)
 
@@ -48,7 +49,6 @@ Reducing external binary dependencies improves:
 | `resize2fs` | modes/disk.go, finalize/grow.go | No pure Go ext4 filesystem resize exists |
 | `e2fsck` | modes/disk.go | No pure Go ext4 filesystem check exists |
 | `mdev -s` | cli/rc/rc.go | Device manager (udev-lite), no library equivalent |
-| `hwclock --hctosys` | cli/rc/rc.go | RTC clock sync, would need raw /dev/rtc0 reads |
 | `chpasswd` | cliinstall/ask.go, command/command.go | PAM/shadow file interaction |
 | `nsenter ... reboot` | cli/upgrade/upgrade.go | PID namespace entry for reboot |
 | `passwd -d rancher` | modes/live.go | PAM password removal |
