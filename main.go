@@ -10,7 +10,6 @@ import (
 	"encoding/binary"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -32,6 +31,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/mode"
 	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/petercb/k3os-bin/internal/transferroot"
+	"github.com/petercb/k3os-bin/internal/virt"
 	cli "github.com/urfave/cli/v3"
 	"golang.org/x/sys/unix"
 )
@@ -90,7 +90,7 @@ func initrd() {
 // /usr/init shell script. It wires up all real dependencies and calls
 // boot.Init.Run().
 func postChroot() {
-	// Set PATH early so exec.Command can find binaries in the rootfs.
+	// Set PATH early so os.Exec or CommandRunner can find binaries in the rootfs.
 	// This matches the original shell script: export PATH=/bin:/sbin:/usr/bin:/usr/sbin:...
 	_ = os.Setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin")
 
@@ -149,7 +149,7 @@ func postChroot() {
 		SleepFunc:       time.Sleep,
 		Cmdline:         cl,
 		RandFunc:        cryptoRandUint32,
-		VirtDetector:    detectVirt,
+		VirtDetector:    virt.NewDMIDetector().Detect,
 		ConfigRunner:    cliconfig.RunBoot,
 		ManifestCopier: func(src, dst string) error {
 			return cp.Copy(src, dst, cp.Options{
@@ -273,23 +273,6 @@ func cryptoRandUint32() (uint32, error) {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint32(buf[:]), nil
-}
-
-// detectVirt runs virt-what and returns the detected virtualization types.
-// If virt-what is not available or fails, it returns nil (non-fatal).
-func detectVirt() ([]string, error) {
-	out, err := exec.Command("virt-what").Output()
-	if err != nil {
-		return nil, nil //nolint:nilerr // virt-what failure is non-fatal
-	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	var result []string
-	for _, line := range lines {
-		if line != "" {
-			result = append(result, line)
-		}
-	}
-	return result, nil
 }
 
 // realProcessExecutor implements modes.ProcessExecutor using real syscalls.
