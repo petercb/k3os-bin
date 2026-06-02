@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/petercb/k3os-bin/internal/mount"
 	"golang.org/x/sys/unix"
 )
 
@@ -63,6 +64,17 @@ func (m Mount) Create() error {
 
 func (m Mount) String() string {
 	return fmt.Sprintf("mount{%s on %s type %s}", m.Source, m.Target, m.FSType)
+}
+
+// AsMountPoint returns a MountPoint representing this mount for pool tracking.
+func (m Mount) AsMountPoint() *mount.Point {
+	return &mount.Point{
+		Source: m.Source,
+		Target: m.Target,
+		FSType: m.FSType,
+		Flags:  m.Flags,
+		Data:   m.Data,
+	}
 }
 
 // Dev creates a device node.
