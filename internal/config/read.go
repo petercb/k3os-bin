@@ -23,6 +23,7 @@ var (
 var readers = []reader{
 	readSystemConfig,
 	readCmdline,
+	readFlagsFile,
 	readLocalConfig,
 	readCloudConfig,
 	readUserData,
