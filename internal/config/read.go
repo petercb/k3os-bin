@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -24,6 +23,7 @@ var (
 var readers = []reader{
 	readSystemConfig,
 	readCmdline,
+	readFlagsFile,
 	readLocalConfig,
 	readCloudConfig,
 	readUserData,
@@ -150,44 +150,6 @@ func readFile(path string) (map[string]interface{}, error) {
 	data := map[string]interface{}{}
 	if err := yaml.Unmarshal(f, &data); err != nil {
 		return nil, err
-	}
-
-	return data, nil
-}
-
-func readCmdline() (map[string]interface{}, error) {
-	// supporting regex https://regexr.com/4mq0s
-	parser, err := regexp.Compile(`(\"[^\"]+\")|([^\s]+=(\"[^\"]+\")|([^\s]+))`) //nolint:gocritic
-	if err != nil {
-		return nil, nil
-	}
-
-	bytes, err := os.ReadFile(cmdlineFile)
-	if os.IsNotExist(err) {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	data := map[string]interface{}{}
-	for _, item := range parser.FindAllString(string(bytes), -1) {
-		parts := strings.SplitN(item, "=", 2)
-		value := "true"
-		if len(parts) > 1 {
-			value = strings.Trim(parts[1], `"`)
-		}
-		keys := strings.Split(strings.Trim(parts[0], `"`), ".")
-		existing, ok := getValue(data, keys...)
-		if ok {
-			switch v := existing.(type) {
-			case string:
-				putValue(data, []string{v, value}, keys...)
-			case []string:
-				putValue(data, append(v, value), keys...)
-			}
-		} else {
-			putValue(data, value, keys...)
-		}
 	}
 
 	return data, nil
