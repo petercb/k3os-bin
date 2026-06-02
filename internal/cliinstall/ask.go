@@ -177,6 +177,12 @@ func AskServerAgent(cfg *config.CloudConfig) error {
 }
 
 // AskPassword prompts the user to set a password for the rancher user.
+//
+// NOTE: Unlike the previous chpasswd-based implementation, this function always
+// stores a SHA-512 hash in cfg.K3OS.Password regardless of whether the caller
+// is running as root. The old behavior stored plaintext when non-root, which was
+// a security concern. Downstream consumers (e.g., SetPassword) correctly handle
+// pre-hashed values (those starting with '$') so this is safe.
 func AskPassword(cfg *config.CloudConfig) error {
 	if len(cfg.SSHAuthorizedKeys) > 0 || cfg.K3OS.Password != "" {
 		return nil

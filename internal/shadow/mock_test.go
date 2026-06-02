@@ -1,6 +1,7 @@
 package shadow
 
 import (
+	"bytes"
 	"os"
 
 	"github.com/petercb/k3os-bin/internal/iface"
@@ -9,6 +10,33 @@ import (
 
 // Compile-time interface check.
 var _ iface.FileSystem = (*MockFileSystem)(nil)
+
+// MockFile captures data written to it for test assertions.
+type MockFile struct {
+	name string
+	buf  bytes.Buffer
+}
+
+func (f *MockFile) Read(p []byte) (int, error) {
+	return f.buf.Read(p)
+}
+
+func (f *MockFile) Write(p []byte) (int, error) {
+	return f.buf.Write(p)
+}
+
+func (f *MockFile) Close() error {
+	return nil
+}
+
+func (f *MockFile) Name() string {
+	return f.name
+}
+
+// Written returns the data written to the mock file.
+func (f *MockFile) Written() string {
+	return f.buf.String()
+}
 
 // MockFileSystem is a testable iface.FileSystem implementation backed by
 // testify/mock.
@@ -69,7 +97,7 @@ func (m *MockFileSystem) CreateTemp(dir, pattern string) (iface.File, error) {
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(iface.File), args.Error(1)
+	return args.Get(0).(*MockFile), args.Error(1)
 }
 
 func (m *MockFileSystem) Chown(name string, uid, gid int) error {

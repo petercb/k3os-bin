@@ -2,10 +2,10 @@ package shadow
 
 import (
 	"errors"
-	"os"
 	"strings"
 	"testing"
 
+	"github.com/GehirnInc/crypt/sha512_crypt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -16,26 +16,32 @@ const testShadowContent = "root:!:19000:0:99999:7:::\nrancher:$6$oldsalt$oldhash
 func TestSetPassword_PlaintextIsHashedAndWritten(t *testing.T) {
 	t.Parallel()
 
+	tmpFile := &MockFile{name: "/etc/shadow.tmp123"}
 	fs := &MockFileSystem{}
 	fs.On("ReadFile", "/etc/shadow").Return([]byte(testShadowContent), nil)
-	fs.On("WriteFile", "/etc/shadow", mock.MatchedBy(func(data []byte) bool {
-		content := string(data)
-		lines := strings.Split(content, "\n")
-		for _, line := range lines {
-			fields := strings.SplitN(line, ":", 3)
-			if len(fields) >= 2 && fields[0] == "rancher" {
-				// Must be a SHA-512 crypt hash
-				return strings.HasPrefix(fields[1], "$6$")
-			}
-		}
-		return false
-	}), os.FileMode(0o640)).Return(nil)
+	fs.On("CreateTemp", "/etc", "shadow.*").Return(tmpFile, nil)
+	fs.On("Chmod", "/etc/shadow.tmp123", mock.Anything).Return(nil)
+	fs.On("Rename", "/etc/shadow.tmp123", "/etc/shadow").Return(nil)
 
 	s := Setter{}
 	err := s.SetPassword(fs, "rancher", "hunter2")
 
 	require.NoError(t, err)
 	fs.AssertExpectations(t)
+
+	// Verify the written content contains a valid SHA-512 hash for rancher
+	written := tmpFile.Written()
+	lines := strings.Split(written, "\n")
+	found := false
+	for _, line := range lines {
+		fields := strings.SplitN(line, ":", 3)
+		if len(fields) >= 2 && fields[0] == "rancher" {
+			assert.True(t, strings.HasPrefix(fields[1], "$6$"), "hash should start with $6$")
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "rancher entry should be present in output")
 }
 
 func TestSetPassword_PrehashedUsedDirectly(t *testing.T) {
@@ -43,25 +49,29 @@ func TestSetPassword_PrehashedUsedDirectly(t *testing.T) {
 
 	preHashed := "$6$rounds=4096$saltsalt$hashedvalue"
 
+	tmpFile := &MockFile{name: "/etc/shadow.tmp123"}
 	fs := &MockFileSystem{}
 	fs.On("ReadFile", "/etc/shadow").Return([]byte(testShadowContent), nil)
-	fs.On("WriteFile", "/etc/shadow", mock.MatchedBy(func(data []byte) bool {
-		content := string(data)
-		lines := strings.Split(content, "\n")
-		for _, line := range lines {
-			fields := strings.SplitN(line, ":", 3)
-			if len(fields) >= 2 && fields[0] == "rancher" {
-				return fields[1] == preHashed
-			}
-		}
-		return false
-	}), os.FileMode(0o640)).Return(nil)
+	fs.On("CreateTemp", "/etc", "shadow.*").Return(tmpFile, nil)
+	fs.On("Chmod", "/etc/shadow.tmp123", mock.Anything).Return(nil)
+	fs.On("Rename", "/etc/shadow.tmp123", "/etc/shadow").Return(nil)
 
 	s := Setter{}
 	err := s.SetPassword(fs, "rancher", preHashed)
 
 	require.NoError(t, err)
 	fs.AssertExpectations(t)
+
+	// Verify the pre-hashed value was written directly
+	written := tmpFile.Written()
+	lines := strings.Split(written, "\n")
+	for _, line := range lines {
+		fields := strings.SplitN(line, ":", 3)
+		if len(fields) >= 2 && fields[0] == "rancher" {
+			assert.Equal(t, preHashed, fields[1])
+			break
+		}
+	}
 }
 
 func TestSetPassword_UserNotFoundReturnsError(t *testing.T) {
@@ -108,18 +118,37 @@ func TestSetPassword_ReadFileErrorIsPropagated(t *testing.T) {
 	fs.AssertExpectations(t)
 }
 
-func TestSetPassword_WriteFileErrorIsPropagated(t *testing.T) {
+func TestSetPassword_CreateTempErrorIsPropagated(t *testing.T) {
 	t.Parallel()
 
 	fs := &MockFileSystem{}
 	fs.On("ReadFile", "/etc/shadow").Return([]byte(testShadowContent), nil)
-	fs.On("WriteFile", "/etc/shadow", mock.Anything, os.FileMode(0o640)).Return(errors.New("disk full"))
+	fs.On("CreateTemp", "/etc", "shadow.*").Return(nil, errors.New("no space"))
 
 	s := Setter{}
 	err := s.SetPassword(fs, "rancher", "hunter2")
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "disk full")
+	assert.Contains(t, err.Error(), "no space")
+	fs.AssertExpectations(t)
+}
+
+func TestSetPassword_RenameErrorCleansUp(t *testing.T) {
+	t.Parallel()
+
+	tmpFile := &MockFile{name: "/etc/shadow.tmp123"}
+	fs := &MockFileSystem{}
+	fs.On("ReadFile", "/etc/shadow").Return([]byte(testShadowContent), nil)
+	fs.On("CreateTemp", "/etc", "shadow.*").Return(tmpFile, nil)
+	fs.On("Chmod", "/etc/shadow.tmp123", mock.Anything).Return(nil)
+	fs.On("Rename", "/etc/shadow.tmp123", "/etc/shadow").Return(errors.New("cross-device link"))
+	fs.On("Remove", "/etc/shadow.tmp123").Return(nil)
+
+	s := Setter{}
+	err := s.SetPassword(fs, "rancher", "hunter2")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cross-device link")
 	fs.AssertExpectations(t)
 }
 
@@ -143,4 +172,36 @@ func TestHashPassword_DifferentCallsProduceDifferentSalts(t *testing.T) {
 
 	// Different salts means different hashes even for same password
 	assert.NotEqual(t, hash1, hash2)
+}
+
+func TestHashPassword_RoundTripVerification(t *testing.T) {
+	t.Parallel()
+
+	password := "correct horse battery staple"
+
+	hash, err := HashPassword(password)
+	require.NoError(t, err)
+
+	// Verify the hash authenticates against the original password
+	crypt := sha512_crypt.New()
+	err = crypt.Verify(hash, []byte(password))
+	require.NoError(t, err, "hash should verify against the original password")
+
+	// Verify the hash does NOT authenticate against a wrong password
+	err = crypt.Verify(hash, []byte("wrong password"))
+	assert.Error(t, err, "hash should not verify against a wrong password")
+}
+
+func TestGenerateSalt_UsesValidCryptAlphabet(t *testing.T) {
+	t.Parallel()
+
+	for range 100 {
+		salt, err := generateSalt()
+		require.NoError(t, err)
+		assert.Len(t, salt, 16)
+		for _, c := range salt {
+			assert.Contains(t, cryptAlphabet, string(c),
+				"salt character %q is outside the POSIX crypt alphabet", c)
+		}
+	}
 }

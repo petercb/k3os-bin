@@ -3,13 +3,19 @@ package shadow
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/GehirnInc/crypt/sha512_crypt"
 	"github.com/petercb/k3os-bin/internal/iface"
 )
+
+// cryptAlphabet is the POSIX crypt salt character set: [./0-9A-Za-z].
+const cryptAlphabet = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+// shadowPath is the path to the shadow password file.
+const shadowPath = "/etc/shadow"
 
 // PasswordSetter sets a user's password in /etc/shadow.
 type PasswordSetter interface {
@@ -23,6 +29,10 @@ type Setter struct{}
 // Pre-hashed passwords (starting with '$') are used directly.
 // Plaintext passwords are hashed using SHA-512 crypt before writing.
 // An empty password is a no-op.
+//
+// The write is atomic: contents are written to a temporary file in the same
+// directory and then renamed over the target, so a crash cannot leave a
+// truncated shadow file.
 func (s Setter) SetPassword(fs iface.FileSystem, username string, password string) error {
 	if password == "" {
 		return nil
@@ -37,9 +47,9 @@ func (s Setter) SetPassword(fs iface.FileSystem, username string, password strin
 		}
 	}
 
-	data, err := fs.ReadFile("/etc/shadow")
+	data, err := fs.ReadFile(shadowPath)
 	if err != nil {
-		return fmt.Errorf("reading /etc/shadow: %w", err)
+		return fmt.Errorf("reading %s: %w", shadowPath, err)
 	}
 
 	lines := strings.Split(string(data), "\n")
@@ -59,12 +69,37 @@ func (s Setter) SetPassword(fs iface.FileSystem, username string, password strin
 	}
 
 	if !found {
-		return fmt.Errorf("user %s not found in /etc/shadow", username)
+		return fmt.Errorf("user %s not found in %s", username, shadowPath)
 	}
 
 	output := strings.Join(lines, "\n")
-	if err := fs.WriteFile("/etc/shadow", []byte(output), 0o640); err != nil {
-		return fmt.Errorf("writing /etc/shadow: %w", err)
+
+	// Atomic write: create temp file in same directory, write, then rename.
+	dir := filepath.Dir(shadowPath)
+	tmp, err := fs.CreateTemp(dir, "shadow.*")
+	if err != nil {
+		return fmt.Errorf("creating temp file for %s: %w", shadowPath, err)
+	}
+	tmpName := tmp.Name()
+
+	if _, err := tmp.Write([]byte(output)); err != nil {
+		_ = tmp.Close()
+		_ = fs.Remove(tmpName)
+		return fmt.Errorf("writing temp shadow file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		_ = fs.Remove(tmpName)
+		return fmt.Errorf("closing temp shadow file: %w", err)
+	}
+
+	if err := fs.Chmod(tmpName, 0o640); err != nil {
+		_ = fs.Remove(tmpName)
+		return fmt.Errorf("setting permissions on temp shadow file: %w", err)
+	}
+
+	if err := fs.Rename(tmpName, shadowPath); err != nil {
+		_ = fs.Remove(tmpName)
+		return fmt.Errorf("renaming temp file to %s: %w", shadowPath, err)
 	}
 
 	return nil
@@ -87,12 +122,17 @@ func HashPassword(plaintext string) (string, error) {
 	return hash, nil
 }
 
-// generateSalt produces a random 16-byte base64-encoded salt string.
+// generateSalt produces a 16-character random salt using the POSIX crypt
+// alphabet [./0-9A-Za-z], compatible with system tools (busybox login, PAM).
 func generateSalt() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	// Use raw encoding (no padding) for cleaner salt values
-	return base64.RawStdEncoding.EncodeToString(b), nil
+
+	salt := make([]byte, 16)
+	for i, v := range b {
+		salt[i] = cryptAlphabet[int(v)%len(cryptAlphabet)]
+	}
+	return string(salt), nil
 }
