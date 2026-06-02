@@ -26,8 +26,6 @@ func (m *mockClockSyncer) SyncRTC() error {
 }
 
 func TestDoClock_CallsSyncRTC(t *testing.T) {
-	t.Parallel()
-
 	orig := clockSyncer
 	t.Cleanup(func() { clockSyncer = orig })
 
@@ -40,8 +38,6 @@ func TestDoClock_CallsSyncRTC(t *testing.T) {
 }
 
 func TestDoClock_ErrorDoesNotPanic(t *testing.T) {
-	t.Parallel()
-
 	orig := clockSyncer
 	t.Cleanup(func() { clockSyncer = orig })
 
