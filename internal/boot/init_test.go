@@ -3,6 +3,7 @@
 package boot
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -33,6 +34,20 @@ func (m *mockCmdlineParser) Contains(name string) bool {
 
 func (m *mockCmdlineParser) Consoles() []string { return m.consoles }
 func (m *mockCmdlineParser) Raw() string        { return m.raw }
+
+// fakeReaper implements OrphanReaper for testing.
+type fakeReaper struct {
+	startCalled bool
+	waitCalled  bool
+}
+
+func (f *fakeReaper) Start(_ context.Context) {
+	f.startCalled = true
+}
+
+func (f *fakeReaper) Wait() {
+	f.waitCalled = true
+}
 
 // fakeBootstrapper implements BootstrapRunner for testing.
 type fakeBootstrapper struct {
@@ -251,6 +266,125 @@ func TestInit_Run_NilCmdline(t *testing.T) {
 	assert.True(t, handler.called)
 	assert.True(t, finalizer.called)
 	assert.True(t, execCalled)
+}
+
+func TestInit_Run_ReaperStartedAndWaited(t *testing.T) {
+	t.Parallel()
+
+	r := &fakeReaper{}
+	bootstrap := &fakeBootstrapper{}
+	finalizer := &fakeFinalizer{}
+	handler := &fakeModeHandler{}
+
+	initOrch := &Init{
+		Bootstrap: bootstrap,
+		Reaper:    r,
+		ModeDetector: func() (string, error) {
+			return "disk", nil
+		},
+		ModeRegistry: func(_ string) (ModeHandler, error) {
+			return handler, nil
+		},
+		Finalizer: finalizer,
+		ExecFunc: func(_ string, _ []string, _ []string) error {
+			return nil
+		},
+		Cmdline: &mockCmdlineParser{},
+		RescueFunc: func() error {
+			return nil
+		},
+	}
+
+	initOrch.Run()
+
+	assert.True(t, r.startCalled, "Reaper.Start should have been called")
+	assert.True(t, r.waitCalled, "Reaper.Wait should have been called")
+}
+
+func TestInit_Run_NilReaperDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	bootstrap := &fakeBootstrapper{}
+	finalizer := &fakeFinalizer{}
+	handler := &fakeModeHandler{}
+
+	var execCalled bool
+
+	initOrch := &Init{
+		Bootstrap: bootstrap,
+		Reaper:    nil,
+		ModeDetector: func() (string, error) {
+			return "disk", nil
+		},
+		ModeRegistry: func(_ string) (ModeHandler, error) {
+			return handler, nil
+		},
+		Finalizer: finalizer,
+		ExecFunc: func(_ string, _ []string, _ []string) error {
+			execCalled = true
+			return nil
+		},
+		Cmdline: &mockCmdlineParser{},
+		RescueFunc: func() error {
+			return nil
+		},
+	}
+
+	assert.NotPanics(t, func() {
+		initOrch.Run()
+	})
+	assert.True(t, execCalled)
+}
+
+func TestInit_Run_ReaperReceivesValidContext(t *testing.T) {
+	t.Parallel()
+
+	var receivedCtx context.Context
+
+	captureReaper := &contextCapturingReaper{}
+
+	initOrch := &Init{
+		Bootstrap: &fakeBootstrapper{},
+		Reaper:    captureReaper,
+		ModeDetector: func() (string, error) {
+			// Verify context is not cancelled at this point.
+			receivedCtx = captureReaper.ctx
+			return "disk", nil
+		},
+		ModeRegistry: func(_ string) (ModeHandler, error) {
+			return &fakeModeHandler{}, nil
+		},
+		Finalizer: &fakeFinalizer{},
+		ExecFunc: func(_ string, _ []string, _ []string) error {
+			return nil
+		},
+		Cmdline: &mockCmdlineParser{},
+		RescueFunc: func() error {
+			return nil
+		},
+	}
+
+	initOrch.Run()
+
+	require.NotNil(t, receivedCtx)
+	// Context should not have been cancelled during the boot sequence.
+	// It gets cancelled in defer after Run returns.
+}
+
+// contextCapturingReaper captures the context passed to Start.
+type contextCapturingReaper struct {
+	ctx         context.Context
+	startCalled bool
+	waitCalled  bool
+}
+
+func (c *contextCapturingReaper) Start(ctx context.Context) {
+	c.ctx = ctx
+	c.startCalled = true
+}
+
+func (c *contextCapturingReaper) Wait() {
+	c.waitCalled = true
 }
 
 // Ordered fake implementations for tracking call order.

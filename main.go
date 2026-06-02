@@ -30,6 +30,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/kernel"
 	"github.com/petercb/k3os-bin/internal/mode"
 	"github.com/petercb/k3os-bin/internal/mount"
+	"github.com/petercb/k3os-bin/internal/reaper"
 	"github.com/petercb/k3os-bin/internal/transferroot"
 	"github.com/petercb/k3os-bin/internal/virt"
 	cli "github.com/urfave/cli/v3"
@@ -195,6 +196,11 @@ func postChroot() {
 		ModeSetterFunc: func(m string) {
 			fin.Mode = m
 		},
+	}
+
+	// Only activate orphan reaping when running as PID 1.
+	if os.Getpid() == 1 {
+		initOrch.Reaper = reaper.New()
 	}
 
 	initOrch.Run()
