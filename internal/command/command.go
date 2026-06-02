@@ -2,12 +2,13 @@
 package command
 
 import (
-	"bytes"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
-	"strings"
+
+	"github.com/petercb/k3os-bin/internal/iface/osimpl"
+	"github.com/petercb/k3os-bin/internal/shadow"
 )
 
 // ExecuteCommand runs a list of shell commands sequentially, stopping on first failure.
@@ -24,22 +25,11 @@ func ExecuteCommand(commands []string) error {
 	return nil
 }
 
-// SetPassword sets the password for the rancher user using chpasswd.
+// SetPassword sets the password for the rancher user in /etc/shadow.
 func SetPassword(password string) error {
 	if password == "" {
 		return nil
 	}
-	cmd := exec.Command("chpasswd")
-	if strings.HasPrefix(password, "$") {
-		cmd.Args = append(cmd.Args, "-e")
-	}
-	cmd.Stdin = strings.NewReader(fmt.Sprint("rancher:", password))
-	cmd.Stdout = os.Stdout
-	errBuffer := &bytes.Buffer{}
-	cmd.Stderr = errBuffer
-	err := cmd.Run()
-	if err != nil {
-		_, _ = os.Stderr.Write(errBuffer.Bytes())
-	}
-	return err
+	s := shadow.Setter{}
+	return s.SetPassword(osimpl.OSFileSystem{}, "rancher", password)
 }

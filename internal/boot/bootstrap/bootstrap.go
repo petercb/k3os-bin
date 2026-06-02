@@ -77,8 +77,8 @@ func (b *Bootstrapper) SetupModules() error {
 }
 
 // SetupUsers creates the rancher user and sudo group using pure Go file
-// manipulation. This avoids shelling out to sed/addgroup/adduser/chpasswd
-// which require /dev/null (not available until SetupRC mounts devtmpfs).
+// manipulation. This avoids shelling out to sed/addgroup/adduser and similar
+// tools which require /dev/null (not available until SetupRC mounts devtmpfs).
 func (b *Bootstrapper) SetupUsers() error {
 	slog.Info("bootstrap: setting up users")
 

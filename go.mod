@@ -6,6 +6,7 @@ toolchain go1.25.1
 
 require (
 	dario.cat/mergo v1.0.2
+	github.com/GehirnInc/crypt v0.0.0-20230320061759-8cc1b52080c5
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-isatty v0.0.22

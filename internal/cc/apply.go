@@ -7,6 +7,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/config"
 	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
+	"github.com/petercb/k3os-bin/internal/shadow"
 )
 
 type applier func(cfg *config.CloudConfig) error
@@ -19,6 +20,7 @@ type Applier struct {
 	Sysctl     iface.SysctlApplier
 	Mounter    iface.Mounter
 	Hostname   iface.HostnameSetter
+	Password   shadow.PasswordSetter
 	modePrefix []string // injected in tests; nil preserves production default
 }
 
@@ -31,6 +33,7 @@ func NewDefaultApplier() *Applier {
 		Sysctl:   osimpl.LinuxSysctlApplier{},
 		Mounter:  osimpl.LinuxMounter{},
 		Hostname: osimpl.LinuxHostnameSetter{},
+		Password: shadow.Setter{},
 	}
 }
 
