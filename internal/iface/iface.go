@@ -68,6 +68,17 @@ type Mounter interface {
 	Mounted(target string) (bool, error)
 }
 
+// Unmounter abstracts filesystem unmount operations.
+type Unmounter interface {
+	Unmount(target string, flags int) error
+}
+
+// TrackedMounter combines mount and unmount capabilities for lifecycle tracking.
+type TrackedMounter interface {
+	Mounter
+	Unmounter
+}
+
 // HostnameSetter abstracts the syscall to set the system hostname.
 type HostnameSetter interface {
 	SetHostname(name string) error

@@ -5,11 +5,18 @@
 package namespace
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
+	"github.com/petercb/k3os-bin/internal/mount"
 	"golang.org/x/sys/unix"
 )
+
+// ErrSilentSkip is returned by Mount.Create when Silent is true and the mount
+// syscall fails. Callers should treat this as "not an error but not a
+// successful mount" -- no logging, no pool recording.
+var ErrSilentSkip = errors.New("namespace: silent mount skipped")
 
 // Creator is a single namespace element that can be created.
 type Creator interface {
@@ -43,17 +50,19 @@ type Mount struct {
 }
 
 // Create ensures the target directory exists then performs the mount syscall.
+// When Silent is true and an error occurs, ErrSilentSkip is returned so
+// callers can distinguish a silently-skipped mount from genuine success.
 func (m Mount) Create() error {
 	if err := os.MkdirAll(m.Target, 0o755); err != nil {
 		if m.Silent {
-			return nil
+			return ErrSilentSkip
 		}
 		return fmt.Errorf("mount mkdir %s: %w", m.Target, err)
 	}
 
 	if err := unix.Mount(m.Source, m.Target, m.FSType, m.Flags, m.Data); err != nil {
 		if m.Silent {
-			return nil
+			return ErrSilentSkip
 		}
 		return fmt.Errorf("mount %s on %s: %w", m.Source, m.Target, err)
 	}
@@ -63,6 +72,17 @@ func (m Mount) Create() error {
 
 func (m Mount) String() string {
 	return fmt.Sprintf("mount{%s on %s type %s}", m.Source, m.Target, m.FSType)
+}
+
+// AsMountPoint returns a MountPoint representing this mount for pool tracking.
+func (m Mount) AsMountPoint() *mount.Point {
+	return &mount.Point{
+		Source: m.Source,
+		Target: m.Target,
+		FSType: m.FSType,
+		Flags:  m.Flags,
+		Data:   m.Data,
+	}
 }
 
 // Dev creates a device node.

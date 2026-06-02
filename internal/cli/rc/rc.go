@@ -21,6 +21,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
 	"github.com/petercb/k3os-bin/internal/modalias"
+	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/petercb/k3os-bin/internal/namespace"
 	"github.com/u-root/u-root/pkg/libinit"
 	cli "github.com/urfave/cli/v3"
@@ -72,6 +73,12 @@ const (
 
 // clockSyncer is the RTC-to-system-clock synchronizer used by doClock.
 var clockSyncer iface.ClockSyncer = osimpl.RTCClockSyncer{}
+
+// MountPool tracks all mounts performed during early boot for ordered teardown.
+// It is intended to be consumed by a single shutdown hook; concurrent writes
+// during boot are safe (mutex-protected) but callers should not call UnmountAll
+// until the boot sequence is complete.
+var MountPool = mount.NewPool(mount.Unmount)
 
 // rcNamespace declares all the mounts, directories, devices, and symlinks
 // that doMounts() creates during early boot.
@@ -219,7 +226,7 @@ func modaliases(paths ...string) {
 }
 
 func doMounts() {
-	_ = namespace.Apply(rcNamespace, slog.Default())
+	_ = namespace.ApplyTracked(rcNamespace, MountPool, slog.Default())
 }
 
 func doHotplug() {

@@ -21,6 +21,11 @@ func ForceMount(_, _, _, _ string) error {
 	return unsupported("force mount")
 }
 
+// Unmount reports unsupported unmount operations on non-Linux hosts.
+func Unmount(_ string, _ int) error {
+	return unsupported("unmount")
+}
+
 func unsupported(operation string) error {
 	return fmt.Errorf("%s is only supported on linux", operation)
 }
