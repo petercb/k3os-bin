@@ -36,8 +36,8 @@ type ModeRegistryFunc func(mode string) (ModeHandler, error)
 
 // Init orchestrates the full k3OS boot sequence after entering the chroot.
 // It mirrors the flow of the original overlay/init shell script:
-//  1. Check cmdline for k3os.debug and enable debug logging
-//  2. Run bootstrap
+//  1. Run bootstrap (mounts /proc, /etc, sets up users)
+//  2. Check cmdline for k3os.debug and enable debug logging
 //  3. Redirect stdin/stdout/stderr to /dev/console
 //  4. Detect boot mode
 //  5. Look up and execute the mode-specific handler
@@ -59,7 +59,14 @@ type Init struct {
 // rescue shell. This method does not return under normal operation because
 // ExecFunc replaces the process with /sbin/init.
 func (i *Init) Run() {
-	i.setupDebug()
+	// Install a structured text handler immediately for consistent log
+	// formatting throughout the init sequence. The level starts at Info;
+	// setupDebug() lowers it to Debug after bootstrap mounts /proc.
+	logLevel := &slog.LevelVar{}
+	logLevel.Set(slog.LevelInfo)
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	})))
 
 	slog.Info("init: running bootstrap")
 	if err := i.Bootstrap.Run(); err != nil {
@@ -67,6 +74,10 @@ func (i *Init) Run() {
 		i.rescue()
 		return
 	}
+
+	// Enable debug logging after bootstrap has mounted /proc, which makes
+	// /proc/cmdline available for reading the k3os.debug flag.
+	i.setupDebug(logLevel)
 
 	// Redirect stdin/stdout/stderr to /dev/console, matching the shell's
 	// exec >/dev/console </dev/console 2>&1 after bootstrap.
@@ -120,12 +131,11 @@ func (i *Init) Run() {
 }
 
 // setupDebug checks the kernel cmdline for k3os.debug and enables debug-level
-// logging if found.
-func (i *Init) setupDebug() {
+// logging if found. It lowers the shared LevelVar rather than replacing the
+// handler, preserving consistent log formatting.
+func (i *Init) setupDebug(level *slog.LevelVar) {
 	if i.Cmdline != nil && i.Cmdline.Contains("k3os.debug") {
-		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		})))
+		level.Set(slog.LevelDebug)
 		slog.Debug("init: debug mode enabled via k3os.debug cmdline")
 	}
 }

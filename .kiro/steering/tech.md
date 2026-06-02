@@ -2,7 +2,7 @@
 
 ## Language & Runtime
 
-- **Go 1.21.9** (modernization target: ≥1.22)
+- **Go 1.25+** (module requires `go 1.25.0`, toolchain `go1.25.1`)
 - Static binary only: `CGO_ENABLED=0`, `-extldflags -static`, `-tags static_build`
 - Linux-only targets: `linux/amd64`, `linux/arm64`
 
@@ -70,11 +70,11 @@ go tool cover -func=coverage.out
 
 ```bash
 # Full test suite
-docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+docker run --rm -v "$(pwd)":/app -w /app golang:1 \
   go test -race -covermode=atomic -failfast ./...
 
 # Specific package
-docker run --rm -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+docker run --rm -v "$(pwd)":/app -w /app golang:1 \
   go test -v ./internal/config/...
 ```
 

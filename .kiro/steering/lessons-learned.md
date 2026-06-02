@@ -64,7 +64,7 @@ Docker Desktop's LinuxKit kernel has no loadable modules — `/proc/modules` is 
 ### Integration tests writing to `/proc/sys/` need `--privileged`
 The `docker run` command for Linux-only integration tests that write to `/proc/sys/` paths (sysctl tests) requires the `--privileged` flag. Without it, `/proc/sys` is mounted read-only and writes fail with permission errors. Document this in test execution commands:
 ```bash
-docker run --rm --privileged -v "$(pwd)":/app -w /app golang:1.21.9-bookworm \
+docker run --rm --privileged -v "$(pwd)":/app -w /app golang:1 \
   go test -v ./internal/iface/osimpl/...
 ```
 
@@ -79,6 +79,15 @@ The pre-commit hook runs `go mod tidy` on every commit. When a migration removes
 
 ### Extract package-level variables for testability of hardcoded paths
 Linux-only code that reads from `/proc/*` paths can be made testable by extracting the path into a `var` (e.g., `var procFilesystemsPath = "/proc/filesystems"`). Tests override the variable to point at a temp file with controlled content, using `t.Cleanup` to restore the original. This avoids needing root, Linux, or Docker for unit tests of pure logic.
+
+### Boot sequence ordering: `/proc` availability is gated by bootstrap
+The `procParser` (cmdline package) reads `/proc/cmdline` lazily on each call, but `/proc` itself is not mounted until `Bootstrap.SetupEtc()` runs. Any logic that depends on `/proc/cmdline` content (e.g., checking `k3os.debug`) must execute _after_ the bootstrap phase, not before it. This applies to any future code that reads procfs during early boot — always verify that `/proc` is mounted at the point of use.
+
+### Use `golang:1` for Docker-based Go test/build commands
+The project's `go.mod` tracks the latest stable Go version. Use `golang:1` (the latest stable major-1 tag) for Docker test runs — not a pinned old version like `golang:1.21.9-bookworm` (will fail on newer `go.mod` requirements), and not `golang:latest` (may pull a pre-release or breaking major bump). The `golang:1` tag always resolves to the latest released Go 1.x and keeps pace with `go.mod` updates.
+
+### Install slog TextHandler unconditionally for consistent log formatting
+Early-boot code that uses `slog` must install an explicit `slog.NewTextHandler` at the start of `Run()` rather than relying on Go's built-in default handler. The default handler produces a different format (`2026/01/01 INFO ...`) than TextHandler (`time=... level=... msg=...`). Use a shared `slog.LevelVar` so that `setupDebug()` can lower the level without replacing the handler, keeping formatting consistent throughout the entire init sequence.
 
 ---
 

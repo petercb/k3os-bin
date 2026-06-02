@@ -28,11 +28,15 @@ type Bootstrapper struct {
 // SetupEtc creates /etc and /proc, mounts tmpfs on /etc and proc on /proc,
 // then copies /usr/etc/* into /etc.
 //
+// Note: All log lines in the bootstrap phase use Info level because /proc is
+// not yet mounted, so k3os.debug cannot be detected and debug-level filtering
+// is not yet available.
+//
 // ForceMount is used here because /proc is not yet available at this point
 // in the boot sequence, and the regular Mount() checks /proc/self/mountinfo
 // to determine if a target is already mounted.
 func (b *Bootstrapper) SetupEtc() error {
-	slog.Debug("bootstrap: setting up /etc")
+	slog.Info("bootstrap: setting up /etc")
 
 	if err := b.FS.MkdirAll("/etc", 0o755); err != nil {
 		return fmt.Errorf("mkdir /etc: %w", err)
@@ -54,7 +58,7 @@ func (b *Bootstrapper) SetupEtc() error {
 
 // SetupModules bind-mounts kernel modules and firmware from .base if they exist.
 func (b *Bootstrapper) SetupModules() error {
-	slog.Debug("bootstrap: setting up modules")
+	slog.Info("bootstrap: setting up modules")
 
 	modulesPath := fmt.Sprintf(".base/lib/modules/%s", b.KernelVersion)
 	if _, err := b.FS.Stat(modulesPath); err == nil {
@@ -76,7 +80,7 @@ func (b *Bootstrapper) SetupModules() error {
 // manipulation. This avoids shelling out to sed/addgroup/adduser/chpasswd
 // which require /dev/null (not available until SetupRC mounts devtmpfs).
 func (b *Bootstrapper) SetupUsers() error {
-	slog.Debug("bootstrap: setting up users")
+	slog.Info("bootstrap: setting up users")
 
 	// Replace /bin/ash with /bin/bash in /etc/passwd
 	if err := b.replaceInFile("/etc/passwd", "/bin/ash", "/bin/bash"); err != nil {
@@ -146,7 +150,7 @@ func (b *Bootstrapper) appendLine(path, line string) error {
 // module loading, devtmpfs, mounts). The RCRunner field is wired to
 // rc.Run in production so the logic is called directly in-process.
 func (b *Bootstrapper) SetupRC() error {
-	slog.Debug("bootstrap: running k3os rc")
+	slog.Info("bootstrap: running k3os rc")
 	if err := b.RCRunner(); err != nil {
 		return fmt.Errorf("k3os rc: %w", err)
 	}
@@ -155,7 +159,7 @@ func (b *Bootstrapper) SetupRC() error {
 
 // SetupDirs creates the /run/k3os directory.
 func (b *Bootstrapper) SetupDirs() error {
-	slog.Debug("bootstrap: setting up dirs")
+	slog.Info("bootstrap: setting up dirs")
 	if err := b.FS.MkdirAll("/run/k3os", 0o755); err != nil {
 		return fmt.Errorf("mkdir /run/k3os: %w", err)
 	}
@@ -165,7 +169,7 @@ func (b *Bootstrapper) SetupDirs() error {
 // SetupKernel mounts the kernel squashfs and bind-mounts modules/firmware
 // from it. If the squashfs does not exist, it returns nil.
 func (b *Bootstrapper) SetupKernel() error {
-	slog.Debug("bootstrap: setting up kernel")
+	slog.Info("bootstrap: setting up kernel")
 
 	kernelPath := system.RootPath("kernel", b.KernelVersion, "kernel.squashfs")
 	if _, err := b.FS.Stat(kernelPath); err != nil {
@@ -192,7 +196,7 @@ func (b *Bootstrapper) SetupKernel() error {
 
 // SetupConfig runs "k3os config --initrd" unless the mode is "local".
 func (b *Bootstrapper) SetupConfig(mode string) error {
-	slog.Debug("bootstrap: setting up config", "mode", mode)
+	slog.Info("bootstrap: setting up config", "mode", mode)
 
 	if mode == "local" {
 		return nil
@@ -220,7 +224,7 @@ func (b *Bootstrapper) Run() error {
 	}
 
 	for _, step := range steps {
-		slog.Debug("bootstrap: running step", "step", step.name)
+		slog.Info("bootstrap: running step", "step", step.name)
 		if err := step.fn(); err != nil {
 			return fmt.Errorf("bootstrap %s: %w", step.name, err)
 		}

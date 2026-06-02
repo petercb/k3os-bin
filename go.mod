@@ -7,6 +7,7 @@ toolchain go1.25.1
 require (
 	dario.cat/mergo v1.0.2
 	github.com/go-viper/mapstructure/v2 v2.5.0
+	github.com/google/uuid v1.6.0
 	github.com/mattn/go-isatty v0.0.22
 	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.14.1
@@ -22,7 +23,6 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

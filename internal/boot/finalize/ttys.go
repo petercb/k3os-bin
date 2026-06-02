@@ -25,7 +25,7 @@ func (f *Finalizer) SetupTTYs() error {
 		tty := fmt.Sprintf("tty%d", i)
 		devPath := fmt.Sprintf("/dev/%s", tty)
 		if _, err := f.FS.Stat(devPath); err == nil {
-			inittab.WriteString(fmt.Sprintf("%s::respawn:/sbin/getty 38400 %s\n", tty, tty))
+			fmt.Fprintf(&inittab, "%s::respawn:/sbin/getty 38400 %s\n", tty, tty)
 			securetty.WriteString(tty + "\n")
 			seen[tty] = true
 		}
@@ -39,7 +39,7 @@ func (f *Finalizer) SetupTTYs() error {
 		}
 		devPath := fmt.Sprintf("/dev/%s", entry.tty)
 		if _, err := f.FS.Stat(devPath); err == nil {
-			inittab.WriteString(fmt.Sprintf("%s::respawn:/sbin/getty -L %s %s vt100\n", entry.tty, entry.baudrate, entry.tty))
+			fmt.Fprintf(&inittab, "%s::respawn:/sbin/getty -L %s %s vt100\n", entry.tty, entry.baudrate, entry.tty)
 			securetty.WriteString(entry.tty + "\n")
 			seen[entry.tty] = true
 		}
