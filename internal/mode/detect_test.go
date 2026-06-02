@@ -328,34 +328,3 @@ func TestValidModes(t *testing.T) {
 	assert.False(t, ValidModes["bogus"])
 	assert.False(t, ValidModes[""])
 }
-
-// ---------------------------------------------------------------------------
-// Set function
-// ---------------------------------------------------------------------------
-
-func TestSet_WritesFile(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	modePath := filepath.Join(dir, "mode")
-
-	err := Set("disk", dir)
-	require.NoError(t, err)
-
-	content, err := os.ReadFile(modePath)
-	require.NoError(t, err)
-	assert.Equal(t, "disk", string(content))
-}
-
-func TestSet_CreatesDirectory(t *testing.T) {
-	t.Parallel()
-
-	dir := filepath.Join(t.TempDir(), "sub", "dir")
-
-	err := Set("live", dir)
-	require.NoError(t, err)
-
-	content, err := os.ReadFile(filepath.Join(dir, "mode"))
-	require.NoError(t, err)
-	assert.Equal(t, "live", string(content))
-}

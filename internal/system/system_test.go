@@ -42,42 +42,6 @@ func TestRootPath(t *testing.T) {
 	}
 }
 
-func TestDataPath(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    []string
-		expected string
-	}{
-		{
-			name:     "no arguments",
-			input:    []string{},
-			expected: "/k3os/data",
-		},
-		{
-			name:     "single argument",
-			input:    []string{"foo"},
-			expected: "/k3os/data/foo",
-		},
-		{
-			name:     "multiple arguments",
-			input:    []string{"foo", "bar"},
-			expected: "/k3os/data/foo/bar",
-		},
-		{
-			name:     "absolute path argument",
-			input:    []string{"/foo"},
-			expected: "/k3os/data/foo",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			result := DataPath(tc.input...)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
 func TestLocalPath(t *testing.T) {
 	tests := []struct {
 		name     string

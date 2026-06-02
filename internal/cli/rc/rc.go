@@ -41,6 +41,7 @@ func Run() error {
 }
 
 // Command returns the CLI command for early phase run commands and run control.
+//
 // Deprecated: The boot sequence now calls Run() directly in-process.
 // This CLI command is retained for backward compatibility and debugging.
 func Command() *cli.Command {
