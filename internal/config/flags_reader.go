@@ -2,6 +2,7 @@ package config
 
 import (
 	"bufio"
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -11,14 +12,20 @@ import (
 // It can be overridden in tests.
 var flagsFile = "/run/k3os/config.flags"
 
-// readFlagsFile reads key=value pairs from the flags file and returns
-// a nested map using the same dot-notation semantics as cmdline parsing.
+// readFlagsFile reads key=value pairs from the flags file (/run/k3os/config.flags)
+// and returns a nested map using the same dot-notation semantics as cmdline parsing.
 // Missing file is not an error (returns nil, nil).
+//
 // The file format is one key=value per line. Lines starting with '#' are
 // comments. Values may be Go-quoted (strconv.Unquote) or plain strings.
+//
+// This format differs from flagsource.FileSource, which expects one Go-quoted
+// argument per line (no key=value splitting). The difference exists because this
+// reader produces a nested config map (dot-keys expanded), while FileSource
+// produces a flat []string args slice for flag.Parse consumption.
 func readFlagsFile() (map[string]interface{}, error) {
 	f, err := os.Open(flagsFile)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	} else if err != nil {
 		return nil, err

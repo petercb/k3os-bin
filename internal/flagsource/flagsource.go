@@ -47,6 +47,11 @@ func (s *CmdlineSource) Args() ([]string, error) {
 // FileSource reads a flags file in the uflag format: each non-empty,
 // non-comment line contains a single Go-quoted string (strconv.Unquote).
 // A missing file is not an error (the file is optional).
+//
+// This is used for files that provide raw arguments to flag.Parse (one arg per
+// line). It differs from config.readFlagsFile(), which reads key=value lines
+// from /run/k3os/config.flags and expands dot-notation keys into a nested
+// config map.
 type FileSource struct {
 	Path string
 }

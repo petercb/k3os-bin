@@ -1,9 +1,9 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strings"
-	"unicode"
 )
 
 // readCmdline reads and parses the kernel command line from cmdlineFile.
@@ -11,7 +11,7 @@ import (
 // and repeated keys accumulate into string slices.
 func readCmdline() (map[string]interface{}, error) {
 	content, err := os.ReadFile(cmdlineFile)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
@@ -58,7 +58,9 @@ func parseCmdlineArgs(raw string) map[string]interface{} {
 }
 
 // splitCmdlineTokens splits a raw command-line string on whitespace while
-// respecting quoted regions. This mirrors u-root's doParse tokenization.
+// respecting ASCII double-quoted regions. Only ASCII '"' (0x22) is treated as
+// a quote character, matching u-root's doParse tokenization and the old regex
+// behavior.
 func splitCmdlineTokens(raw string) []string {
 	lastQuote := rune(0)
 	return strings.FieldsFunc(raw, func(c rune) bool {
@@ -68,11 +70,11 @@ func splitCmdlineTokens(raw string) []string {
 			return false
 		case lastQuote != rune(0):
 			return false
-		case unicode.In(c, unicode.Quotation_Mark):
+		case c == '"':
 			lastQuote = c
 			return false
 		default:
-			return unicode.IsSpace(c)
+			return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 		}
 	})
 }

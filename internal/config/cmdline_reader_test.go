@@ -87,12 +87,64 @@ func TestParseCmdlineArgs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "fully quoted token",
+			input: `"k3os.mode=disk"`,
+			expected: map[string]interface{}{
+				"k3os": map[string]interface{}{
+					"mode": "disk",
+				},
+			},
+		},
+		{
+			name:  "mismatched quotes treats rest as one token",
+			input: `k3os.mode="disk k3os.hostname=myhost`,
+			expected: map[string]interface{}{
+				"k3os": map[string]interface{}{
+					"mode": "disk k3os.hostname=myhost",
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			result := parseCmdlineArgs(tc.input)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestSplitCmdlineTokens(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name:     "fully quoted token",
+			input:    `"k3os.mode=disk"`,
+			expected: []string{`"k3os.mode=disk"`},
+		},
+		{
+			name:     "mismatched quote groups to end",
+			input:    `k3os.mode="disk k3os.hostname=myhost`,
+			expected: []string{`k3os.mode="disk k3os.hostname=myhost`},
+		},
+		{
+			name:     "unicode quote chars are not special",
+			input:    "\u00ABk3os.mode=disk\u00BB k3os.hostname=test",
+			expected: []string{"\u00ABk3os.mode=disk\u00BB", "k3os.hostname=test"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := splitCmdlineTokens(tc.input)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

@@ -161,3 +161,37 @@ k3os.install.silent=true
 		assert.Equal(t, "true", install["silent"])
 	})
 }
+
+func TestFlagsFileOverridesCmdline(t *testing.T) {
+	// Test that flags-file values override cmdline values through the merge pipeline.
+	oldCmdlineFile := cmdlineFile
+	oldFlagsFile := flagsFile
+
+	defer func() {
+		cmdlineFile = oldCmdlineFile
+		flagsFile = oldFlagsFile
+	}()
+
+	tempDir := t.TempDir()
+
+	// Set up cmdline with password and install.silent.
+	cmdPath := filepath.Join(tempDir, "cmdline")
+	err := os.WriteFile(cmdPath, []byte("k3os.password=from-cmdline k3os.install.silent=true"), 0o644)
+	require.NoError(t, err)
+	cmdlineFile = cmdPath
+
+	// Set up flags file that overrides password but not install.silent.
+	flagsPath := filepath.Join(tempDir, "config.flags")
+	err = os.WriteFile(flagsPath, []byte("k3os.password=from-flags\n"), 0o644)
+	require.NoError(t, err)
+	flagsFile = flagsPath
+
+	// Use readersToObject with just cmdline and flags readers to test merge order.
+	cfg, err := readersToObject(readCmdline, readFlagsFile)
+	require.NoError(t, err)
+
+	// Flags file overrides cmdline for password.
+	assert.Equal(t, "from-flags", cfg.K3OS.Password)
+	// Cmdline value is preserved for install.silent (not overridden by flags file).
+	assert.True(t, cfg.K3OS.Install.Silent)
+}
