@@ -2,10 +2,6 @@
 package cliinstall
 
 import (
-	"bufio"
-	"bytes"
-	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/petercb/k3os-bin/internal/config"
@@ -13,6 +9,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
 	"github.com/petercb/k3os-bin/internal/mode"
 	"github.com/petercb/k3os-bin/internal/questions"
+	"github.com/petercb/k3os-bin/internal/shadow"
 	"github.com/petercb/k3os-bin/internal/util"
 )
 
@@ -180,6 +177,12 @@ func AskServerAgent(cfg *config.CloudConfig) error {
 }
 
 // AskPassword prompts the user to set a password for the rancher user.
+//
+// NOTE: Unlike the previous chpasswd-based implementation, this function always
+// stores a SHA-512 hash in cfg.K3OS.Password regardless of whether the caller
+// is running as root. The old behavior stored plaintext when non-root, which was
+// a security concern. Downstream consumers (e.g., SetPassword) correctly handle
+// pre-hashed values (those starting with '$') so this is safe.
 func AskPassword(cfg *config.CloudConfig) error {
 	if len(cfg.SSHAuthorizedKeys) > 0 || cfg.K3OS.Password != "" {
 		return nil
@@ -198,46 +201,13 @@ func AskPassword(cfg *config.CloudConfig) error {
 		}
 	}
 
-	if os.Getuid() != 0 {
-		cfg.K3OS.Password = pass
-		return nil
-	}
-
-	oldShadow, err := os.ReadFile("/etc/shadow")
+	hash, err := shadow.HashPassword(pass)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		os.WriteFile("/etc/shadow", oldShadow, 0o640) //nolint:errcheck
-	}()
 
-	cmd := exec.Command("chpasswd")
-	cmd.Stdin = strings.NewReader("rancher:" + pass)
-	errBuffer := &bytes.Buffer{}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = errBuffer
-
-	if err = cmd.Run(); err != nil {
-		_, _ = os.Stderr.Write(errBuffer.Bytes())
-		return err
-	}
-
-	f, err := os.Open("/etc/shadow")
-	if err != nil {
-		return err
-	}
-	defer func() { _ = f.Close() }()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		fields := strings.Split(scanner.Text(), ":")
-		if len(fields) > 1 && fields[0] == "rancher" {
-			cfg.K3OS.Password = fields[1]
-			return nil
-		}
-	}
-
-	return scanner.Err()
+	cfg.K3OS.Password = hash
+	return nil
 }
 
 // AskWifi prompts the user to configure WiFi network settings.

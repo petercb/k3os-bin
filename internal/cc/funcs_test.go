@@ -19,6 +19,11 @@ func newTestApplier(fs *MockFileSystem, cmd *MockCommandRunner, mod *MockModuleL
 	return &Applier{FS: fs, Cmd: cmd, Modules: mod, Sysctl: sys, Hostname: hn}
 }
 
+// newTestApplierWithPassword constructs an Applier with a PasswordSetter mock.
+func newTestApplierWithPassword(fs *MockFileSystem, cmd *MockCommandRunner, pw *MockPasswordSetter) *Applier {
+	return &Applier{FS: fs, Cmd: cmd, Password: pw}
+}
+
 // ---------------------------------------------------------------------------
 // ApplyModules
 // ---------------------------------------------------------------------------
@@ -379,42 +384,42 @@ func TestApplyPassword(t *testing.T) {
 	tests := []struct {
 		name        string
 		password    string
-		setupMock   func(cmd *MockCommandRunner)
+		setupMock   func(fs *MockFileSystem, pw *MockPasswordSetter)
 		wantErr     bool
 		errContains string
 	}{
 		{
 			name:     "empty password is a no-op",
 			password: "",
-			setupMock: func(_ *MockCommandRunner) {
-				// RunWithStdin must NOT be called
+			setupMock: func(_ *MockFileSystem, _ *MockPasswordSetter) {
+				// SetPassword must NOT be called
 			},
 			wantErr: false,
 		},
 		{
-			name:     "plain password calls RunWithStdin without -e flag",
+			name:     "plain password calls SetPassword with correct args",
 			password: "hunter2",
-			setupMock: func(cmd *MockCommandRunner) {
-				cmd.On("RunWithStdin", "rancher:hunter2", "chpasswd").Return(nil)
+			setupMock: func(fs *MockFileSystem, pw *MockPasswordSetter) {
+				pw.On("SetPassword", fs, "rancher", "hunter2").Return(nil)
 			},
 			wantErr: false,
 		},
 		{
-			name:     "hashed password ($ prefix) calls RunWithStdin with -e flag",
+			name:     "hashed password ($ prefix) calls SetPassword with correct args",
 			password: "$6$rounds=4096$saltsalt$hashedvalue",
-			setupMock: func(cmd *MockCommandRunner) {
-				cmd.On("RunWithStdin", "rancher:$6$rounds=4096$saltsalt$hashedvalue", "chpasswd", "-e").Return(nil)
+			setupMock: func(fs *MockFileSystem, pw *MockPasswordSetter) {
+				pw.On("SetPassword", fs, "rancher", "$6$rounds=4096$saltsalt$hashedvalue").Return(nil)
 			},
 			wantErr: false,
 		},
 		{
-			name:     "RunWithStdin error is propagated",
+			name:     "SetPassword error is propagated",
 			password: "badpass",
-			setupMock: func(cmd *MockCommandRunner) {
-				cmd.On("RunWithStdin", "rancher:badpass", "chpasswd").Return(errors.New("chpasswd failed"))
+			setupMock: func(fs *MockFileSystem, pw *MockPasswordSetter) {
+				pw.On("SetPassword", fs, "rancher", "badpass").Return(errors.New("user not found"))
 			},
 			wantErr:     true,
-			errContains: "chpasswd failed",
+			errContains: "user not found",
 		},
 	}
 
@@ -423,10 +428,11 @@ func TestApplyPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cmd := &MockCommandRunner{}
-			tc.setupMock(cmd)
+			fs := &MockFileSystem{}
+			pw := &MockPasswordSetter{}
+			tc.setupMock(fs, pw)
 
-			a := newTestApplier(nil, cmd, nil, nil, nil)
+			a := newTestApplierWithPassword(fs, nil, pw)
 			cfg := &config.CloudConfig{}
 			cfg.K3OS.Password = tc.password
 
@@ -441,7 +447,7 @@ func TestApplyPassword(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			cmd.AssertExpectations(t)
+			pw.AssertExpectations(t)
 		})
 	}
 }

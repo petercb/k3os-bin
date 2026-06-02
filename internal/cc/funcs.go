@@ -57,12 +57,7 @@ func (a *Applier) ApplyPassword(cfg *config.CloudConfig) error {
 	if cfg.K3OS.Password == "" {
 		return nil
 	}
-	cmd := "chpasswd"
-	args := []string{}
-	if strings.HasPrefix(cfg.K3OS.Password, "$") {
-		args = append(args, "-e")
-	}
-	return a.Cmd.RunWithStdin(fmt.Sprint("rancher:", cfg.K3OS.Password), cmd, args...)
+	return a.Password.SetPassword(a.FS, "rancher", cfg.K3OS.Password)
 }
 
 // ApplyRuncmd executes configured run commands.
