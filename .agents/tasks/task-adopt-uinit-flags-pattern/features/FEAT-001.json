@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Create a reusable internal/flagsource package that implements the u-root pattern of merging kernel cmdline args + flags file + environment into a single args slice. This is a standalone, testable package that composes the three sources using a clean builder pattern. It leverages u-root's existing shlex.Argv for shell-like arg splitting and the uflag.FileToArgv pattern for flags files (Go-quoted, one-per-line).",
+  "status": "completed",
+  "steps": [
+    "Create docs/plans/adopt-uinit-flags-pattern.md with the full design spec (research findings, API design, usage examples). This gets committed first as the plan artifact.",
+    "Create internal/flagsource/flagsource.go with the core package. Design: a Source interface with method Args() ([]string, error), plus concrete implementations: CmdlineSource (extracts args from a CmdlineParser via a configurable flag name, using shlex.Argv for splitting), FileSource (reads a flags file using uflag.FileToArgv-style Go-quoted-per-line format), EnvSource (reads from an env var, splits via shlex.Argv). Also provide a Merge(sources ...Source) ([]string, error) function that concatenates all sources in order.",
+    "Create internal/flagsource/flagsource_test.go with comprehensive TDD tests FIRST: test each Source implementation individually (CmdlineSource with various flag values, FileSource with valid/missing/empty files, EnvSource with set/unset vars), then test Merge with multiple sources, test error propagation, test empty sources. Use testify, t.Parallel(), table-driven tests where appropriate.",
+    "Run tests to confirm they fail (RED phase), then implement the package to make them pass (GREEN phase).",
+    "Run 'golangci-lint run ./internal/flagsource/...' and fix any issues.",
+    "Run 'make test' to confirm full test suite still passes."
+  ],
+  "acceptance_criteria": [
+    "internal/flagsource package exists with Source interface, CmdlineSource, FileSource, EnvSource implementations, and Merge function",
+    "All tests in internal/flagsource/flagsource_test.go pass",
+    "'make test' passes with no regressions",
+    "'make lint' passes clean",
+    "The package has no dependency on the config package (it is a lower-level primitive)",
+    "The package uses github.com/u-root/u-root/pkg/shlex for shell-like splitting (reusing existing dependency)",
+    "A docs/plans/adopt-uinit-flags-pattern.md spec file is committed"
+  ],
+  "verification": [
+    "go test -race -v ./internal/flagsource/...",
+    "golangci-lint run ./internal/flagsource/...",
+    "make test",
+    "make lint"
+  ],
+  "blocked_reason": null,
+  "findings": "golangci-lint 2.1.6 (pre-installed via mise) is built with Go 1.24.2 and cannot lint Go 1.25 code. Installed golangci-lint v2.12.2 at /usr/local/bin/golangci-lint (built with Go 1.25.1) to run lint successfully. The CmdlineParser.Flag() method retains surrounding quotes in the value when parsed via NewFromString, so tests use a mockCmdlineParser to verify shlex splitting independently of kernel cmdline quoting semantics. t.Setenv cannot be used with t.Parallel() in Go 1.25; TestEnvSource does not use t.Parallel() at the parent level."
+}
