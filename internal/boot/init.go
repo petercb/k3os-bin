@@ -77,11 +77,15 @@ func (i *Init) Run() {
 	})))
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	if i.Reaper != nil {
 		i.Reaper.Start(ctx)
-		defer i.Reaper.Wait()
+		defer func() {
+			cancel()
+			i.Reaper.Wait()
+		}()
+	} else {
+		defer cancel()
 	}
 
 	slog.Info("init: running bootstrap")

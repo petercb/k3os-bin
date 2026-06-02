@@ -8,6 +8,7 @@ package reaper
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -18,7 +19,7 @@ const pollInterval = 100 * time.Millisecond
 // Reaper reaps orphaned child processes using Wait4 in a background goroutine.
 type Reaper struct {
 	once    sync.Once
-	started bool
+	started atomic.Bool
 	done    chan struct{}
 }
 
@@ -32,7 +33,7 @@ func New() *Reaper {
 // Start spawns a goroutine that reaps zombie children until ctx is cancelled.
 func (r *Reaper) Start(ctx context.Context) {
 	r.once.Do(func() {
-		r.started = true
+		r.started.Store(true)
 		go r.loop(ctx)
 	})
 }
@@ -40,7 +41,7 @@ func (r *Reaper) Start(ctx context.Context) {
 // Wait blocks until the reaper goroutine exits. If Start was never called,
 // Wait returns immediately.
 func (r *Reaper) Wait() {
-	if !r.started {
+	if !r.started.Load() {
 		return
 	}
 	<-r.done
@@ -56,6 +57,7 @@ func (r *Reaper) loop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			r.reapAll()
 			return
 		case <-ticker.C:
 			r.reapAll()
