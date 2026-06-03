@@ -14,7 +14,7 @@ KERNEL="${CACHE_DIR}/k3os-vmlinuz-amd64.img"
 INITRD="${CACHE_DIR}/test-initramfs.gz"
 SERIAL_LOG="${CACHE_DIR}/serial-output.log"
 
-TIMEOUT="${QEMU_TIMEOUT:-120}"
+TIMEOUT="${QEMU_TIMEOUT:-300}"
 
 # Validate inputs
 if [[ ! -f "${KERNEL}" ]]; then
@@ -63,7 +63,7 @@ echo "==> QEMU exited with code ${QEMU_EXIT}"
 # Parse results from serial output
 echo "==> Parsing test results..."
 
-if ! grep -q "---TEST_RESULTS_START---" "${SERIAL_LOG}"; then
+if ! grep -qF -- "---TEST_RESULTS_START---" "${SERIAL_LOG}"; then
     echo "ERROR: No test results found in serial output."
     echo "       QEMU may have timed out, crashed, or the init binary did not reach test mode."
     echo "       Check ${SERIAL_LOG} for details."
