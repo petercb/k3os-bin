@@ -54,6 +54,7 @@ jobs:
   qemu-integration:
     machine:
       image: ubuntu-2404:current
+    resource_class: large
     steps:
       - checkout
       - run:

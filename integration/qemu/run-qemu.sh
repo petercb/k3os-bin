@@ -28,12 +28,13 @@ if [[ ! -f "${INITRD}" ]]; then
 fi
 
 # Determine if KVM is available
-KVM_OPTS=""
+ACCEL_OPTS=""
 if [[ -w /dev/kvm ]]; then
     echo "==> KVM available, enabling hardware acceleration."
-    KVM_OPTS="-enable-kvm"
+    ACCEL_OPTS="-enable-kvm -cpu host"
 else
-    echo "==> KVM not available, running in emulation mode (slower)."
+    echo "==> KVM not available, using TCG with multi-thread acceleration."
+    ACCEL_OPTS="-accel tcg,thread=multi -cpu max -smp 2"
 fi
 
 echo "==> Booting k3os in QEMU (timeout: ${TIMEOUT}s)..."
@@ -45,7 +46,7 @@ echo ""
 # Run QEMU and capture serial output
 set +e
 timeout "${TIMEOUT}" qemu-system-x86_64 \
-    ${KVM_OPTS} \
+    ${ACCEL_OPTS} \
     -kernel "${KERNEL}" \
     -initrd "${INITRD}" \
     -append "console=ttyS0 k3os.mode=live k3os.test_mode k3os.debug" \
