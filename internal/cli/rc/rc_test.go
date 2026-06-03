@@ -38,17 +38,19 @@ func TestRcNamespace_LastEntry(t *testing.T) {
 	assert.Contains(t, s, "mount")
 }
 
-func TestRcNamespace_ContainsCgroupMounts(t *testing.T) {
+func TestRcNamespace_ContainsCgroup2Mount(t *testing.T) {
 	t.Parallel()
 
 	found := false
 	for _, c := range rcNamespace {
-		if _, ok := c.(namespace.CgroupMounts); ok {
-			found = true
-			break
+		if m, ok := c.(namespace.Mount); ok {
+			if m.FSType == "cgroup2" && m.Target == "/sys/fs/cgroup" {
+				found = true
+				break
+			}
 		}
 	}
-	assert.True(t, found, "rcNamespace should contain a CgroupMounts entry")
+	assert.True(t, found, "rcNamespace should contain a cgroup2 mount at /sys/fs/cgroup")
 }
 
 func TestRcNamespace_ContainsDevConsole(t *testing.T) {

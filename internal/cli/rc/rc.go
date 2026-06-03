@@ -140,17 +140,8 @@ var rcNamespace = []namespace.Creator{
 	// misc /proc mounted fs
 	namespace.Mount{Source: "binfmt_misc", Target: "/proc/sys/fs/binfmt_misc", FSType: "binfmt_misc", Flags: noexec | nosuid | nodev, Silent: true},
 
-	// mount cgroup root tmpfs
-	namespace.Mount{Source: "cgroup_root", Target: "/sys/fs/cgroup", FSType: "tmpfs", Flags: nodev | noexec | nosuid, Data: "mode=755,size=10m"},
-	// mount cgroups filesystems for all enabled cgroups
-	namespace.CgroupMounts{},
-
-	// use hierarchy for memory
-	namespace.Write{Path: "/sys/fs/cgroup/memory/memory.use_hierarchy", Content: "1"},
-
-	// many things assume systemd
-	namespace.Dir{Name: "/sys/fs/cgroup/systemd", Mode: 0o555},
-	namespace.Mount{Source: "cgroup", Target: "/sys/fs/cgroup/systemd", FSType: "cgroup", Data: "none,name=systemd"},
+	// mount cgroup2 unified hierarchy
+	namespace.Mount{Source: "cgroup2", Target: "/sys/fs/cgroup", FSType: "cgroup2", Flags: nodev | noexec | nosuid},
 
 	// make / rshared
 	namespace.Mount{Target: "/", Flags: rec | shared},

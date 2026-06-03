@@ -86,6 +86,9 @@ The `procParser` (cmdline package) reads `/proc/cmdline` lazily on each call, bu
 ### Use `golang:1` for Docker-based Go test/build commands
 The project's `go.mod` tracks the latest stable Go version. Use `golang:1` (the latest stable major-1 tag) for Docker test runs — not a pinned old version like `golang:1.21.9-bookworm` (will fail on newer `go.mod` requirements), and not `golang:latest` (may pull a pre-release or breaking major bump). The `golang:1` tag always resolves to the latest released Go 1.x and keeps pace with `go.mod` updates.
 
+### k3os kernel is cgroup v2 only — no hybrid/v1 fallback
+The k3os kernel no longer enables the cgroup v1 memory controller (and likely other v1 controllers). Boot-time namespace declarations must mount `cgroup2` at `/sys/fs/cgroup` directly — not a tmpfs with per-subsystem v1 mounts. The `CgroupMounts` pattern of reading `/proc/cgroups` and mounting individual controllers is obsolete. Any future cgroup-related code should target the unified v2 hierarchy exclusively.
+
 ### Install slog TextHandler unconditionally for consistent log formatting
 Early-boot code that uses `slog` must install an explicit `slog.NewTextHandler` at the start of `Run()` rather than relying on Go's built-in default handler. The default handler produces a different format (`2026/01/01 INFO ...`) than TextHandler (`time=... level=... msg=...`). Use a shared `slog.LevelVar` so that `setupDebug()` can lower the level without replacing the handler, keeping formatting consistent throughout the entire init sequence.
 
