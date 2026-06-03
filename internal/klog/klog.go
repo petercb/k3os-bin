@@ -18,7 +18,7 @@ import (
 var openKmsg = defaultOpenKmsg
 
 func defaultOpenKmsg() (*os.File, error) {
-	return os.OpenFile("/dev/kmsg", os.O_RDWR|unix.O_CLOEXEC|unix.O_NONBLOCK|unix.O_NOCTTY, 0o666)
+	return os.OpenFile("/dev/kmsg", os.O_WRONLY|unix.O_CLOEXEC|unix.O_NONBLOCK|unix.O_NOCTTY, 0o666)
 }
 
 // EarlyLogger holds the state of a kmsg-backed slog handler established

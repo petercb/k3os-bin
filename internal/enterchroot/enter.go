@@ -88,6 +88,8 @@ func isDebug() bool {
 }
 
 // Mount sets up the k3OS root filesystem and executes the enter-root process.
+// Note: Mount() is only called from initrd() where no prior klog.Setup() has
+// run, so the conditional Setup() below will not orphan an existing fd.
 func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 	if err := ensureLoopFn(); err != nil {
 		return err
