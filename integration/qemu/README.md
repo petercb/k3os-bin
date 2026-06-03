@@ -60,8 +60,9 @@ integration/qemu/run-qemu.sh
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KERNEL_VERSION` | v0.111.0 | Pin a specific k3os-kernel release tag (set to `latest` for newest) |
+| `KERNEL_VERSION` | v0.111.0 (Makefile) | k3os-kernel release tag. Defined in the Makefile; override via env var. |
 | `QEMU_TIMEOUT` | 120 | Timeout in seconds before killing QEMU |
+| `GITHUB_TOKEN` | (unset) | Optional GitHub token for API requests (avoids rate limits) |
 
 ## Architecture
 
@@ -71,7 +72,7 @@ integration/qemu/run-qemu.sh
                     | (GitHub Release) |
                     +--------+---------+
                              |
-                    vmlinuz + base initrd
+                          vmlinuz
                              |
                              v
 +----------+      +----------+---------+
@@ -140,7 +141,6 @@ integration/qemu/
   README.md            # This file
   .cache/              # Downloaded/generated artifacts (git-ignored)
     k3os-vmlinuz-amd64.img
-    k3os-initrd-amd64.gz
     test-initramfs.gz
     serial-output.log
 ```

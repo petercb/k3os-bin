@@ -54,8 +54,6 @@ jobs:
   qemu-integration:
     machine:
       image: ubuntu-2404:current
-    environment:
-      KERNEL_VERSION: v0.111.0
     steps:
       - checkout
       - run:
@@ -99,3 +97,4 @@ workflows:
           requires:
             - test
             - e2e
+            - qemu-integration

@@ -5,7 +5,6 @@
 # and minimal filesystem scaffolding for the bootstrap phase.
 #
 # Expects:
-#   integration/qemu/.cache/k3os-initrd-amd64.gz (from download-kernel.sh)
 #   ./k3os (built binary in project root)
 #
 # Produces:

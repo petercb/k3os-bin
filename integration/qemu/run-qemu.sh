@@ -84,18 +84,18 @@ echo "        TEST RESULTS"
 echo "========================================"
 echo ""
 
-# Pretty-print if jq is available, otherwise raw output
+# Pretty-print if jq is available, otherwise raw output.
+# When jq is available, also use it for robust pass/fail extraction.
 if command -v jq &>/dev/null; then
     echo "${RESULTS}" | jq .
+    PASSED=$(echo "${RESULTS}" | jq -r '.passed')
 else
     echo "${RESULTS}"
+    PASSED=$(echo "${RESULTS}" | grep -o '"passed"[[:space:]]*:[[:space:]]*[a-z]*' | head -1 | grep -o '[a-z]*$')
 fi
 
 echo ""
 echo "========================================"
-
-# Check the passed field
-PASSED=$(echo "${RESULTS}" | grep -o '"passed"[[:space:]]*:[[:space:]]*[a-z]*' | head -1 | grep -o '[a-z]*$')
 
 if [[ "${PASSED}" == "true" ]]; then
     echo "==> ALL TESTS PASSED"

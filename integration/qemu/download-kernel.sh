@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Downloads k3os-kernel release assets for QEMU integration tests.
-# Supports KERNEL_VERSION env var to pin a version (default: latest).
+# Requires KERNEL_VERSION env var (set by the Makefile).
 # Caches downloads in integration/qemu/.cache/
 # Idempotent: skips if files already exist.
 
@@ -10,8 +10,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CACHE_DIR="${SCRIPT_DIR}/.cache"
 REPO="petercb/k3os-kernel"
 
-# Pin to a known-good kernel version. Override with KERNEL_VERSION env var.
-KERNEL_VERSION="${KERNEL_VERSION:-v0.111.0}"
+# KERNEL_VERSION must be provided by the caller (Makefile or env).
+KERNEL_VERSION="${KERNEL_VERSION:-}"
+if [[ -z "${KERNEL_VERSION}" ]]; then
+    echo "ERROR: KERNEL_VERSION must be set."
+    exit 1
+fi
+
+# Build optional auth header for GitHub API requests.
+CURL_AUTH=()
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    CURL_AUTH=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+fi
 
 mkdir -p "${CACHE_DIR}"
 
@@ -25,7 +35,7 @@ else
 fi
 
 # Fetch release metadata
-RELEASE_JSON=$(curl -fsSL "${RELEASE_URL}")
+RELEASE_JSON=$(curl -fsSL "${CURL_AUTH[@]}" "${RELEASE_URL}")
 TAG_NAME=$(echo "${RELEASE_JSON}" | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | cut -d'"' -f4)
 
 if [[ -z "${TAG_NAME}" ]]; then
@@ -36,7 +46,7 @@ fi
 echo "==> Using release: ${TAG_NAME}"
 
 # Assets to download
-ASSETS=("k3os-vmlinuz-amd64.img" "k3os-initrd-amd64.gz")
+ASSETS=("k3os-vmlinuz-amd64.img")
 
 for asset in "${ASSETS[@]}"; do
     dest="${CACHE_DIR}/${asset}"
