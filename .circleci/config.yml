@@ -51,11 +51,43 @@ jobs:
           # Tests only need UID 0 (root inside container); no extra capabilities required.
           command: docker run --rm k3os-e2e
 
+  qemu-integration:
+    machine:
+      image: ubuntu-2404:current
+    environment:
+      KERNEL_VERSION: v0.111.0
+    steps:
+      - checkout
+      - run:
+          name: Install QEMU
+          command: |
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends qemu-system-x86
+      - run:
+          name: Install Go
+          command: |
+            GO_VERSION=1.25.1
+            curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -C /usr/local -xz
+            echo 'export PATH=/usr/local/go/bin:$PATH' >> "$BASH_ENV"
+      - run:
+          name: Build k3os binary
+          command: make build
+      - run:
+          name: Run QEMU Integration Tests
+          no_output_timeout: 5m
+          command: make qemu-integration
+      - store_artifacts:
+          path: integration/qemu/.cache/serial-output.log
+          destination: qemu-serial-output.log
+
 workflows:
   continuous:
     jobs:
       - test
       - e2e:
+          requires:
+            - test
+      - qemu-integration:
           requires:
             - test
       - release:
