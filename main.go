@@ -28,7 +28,6 @@ import (
 	"github.com/petercb/k3os-bin/internal/enterchroot"
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
 	"github.com/petercb/k3os-bin/internal/kernel"
-	"github.com/petercb/k3os-bin/internal/klog"
 	"github.com/petercb/k3os-bin/internal/mode"
 	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/petercb/k3os-bin/internal/transferroot"
@@ -91,10 +90,6 @@ func initrd() {
 // /usr/init shell script. It wires up all real dependencies and calls
 // boot.Init.Run().
 func postChroot() {
-	// Set up kmsg-backed logging before anything else so all messages appear
-	// in the kernel ring buffer (dmesg).
-	logger := klog.Setup()
-
 	// Set PATH early so os.Exec or CommandRunner can find binaries in the rootfs.
 	// This matches the original shell script: export PATH=/bin:/sbin:/usr/bin:/usr/sbin:...
 	_ = os.Setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin")
@@ -200,7 +195,6 @@ func postChroot() {
 		ModeSetterFunc: func(m string) {
 			fin.Mode = m
 		},
-		LogLevel: logger.Level(),
 	}
 
 	initOrch.Run()

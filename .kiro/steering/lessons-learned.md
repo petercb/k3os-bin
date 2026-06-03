@@ -92,9 +92,6 @@ The k3os kernel no longer enables the cgroup v1 memory controller (and likely ot
 ### Install slog TextHandler unconditionally for consistent log formatting
 Early-boot code that uses `slog` must install an explicit `slog.NewTextHandler` at the start of `Run()` rather than relying on Go's built-in default handler. The default handler produces a different format (`2026/01/01 INFO ...`) than TextHandler (`time=... level=... msg=...`). Use a shared `slog.LevelVar` so that `setupDebug()` can lower the level without replacing the handler, keeping formatting consistent throughout the entire init sequence.
 
-### Early boot logging targets /dev/kmsg via internal/klog
-Pre-console boot code (enterchroot, init orchestrator) must use `klog.Setup()` to direct slog output to the kernel ring buffer. This ensures messages are visible in `dmesg` even when stderr/stdout are not connected to anything useful. The package falls back to os.Stderr transparently if /dev/kmsg is unavailable (containers, tests). Never use raw `log.Printf` or `slog.SetDefault(os.Stderr)` in early boot paths.
-
 ---
 
 ## Architecture Decisions
