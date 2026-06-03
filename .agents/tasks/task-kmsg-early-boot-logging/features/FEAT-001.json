@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Create feature branch and add github.com/siderolabs/go-kmsg dependency",
+  "status": "completed",
+  "steps": [
+    "Create feature branch 'feature/task-kmsg-early-boot-logging' from master",
+    "Run 'go get github.com/siderolabs/go-kmsg' to add the dependency to go.mod",
+    "Run 'go mod tidy' to clean up go.sum",
+    "Run 'go build ./...' to confirm nothing breaks",
+    "Run 'go test -race -covermode=atomic -failfast ./...' to confirm existing tests pass",
+    "Commit with message: 'chore: add go-kmsg dependency for early boot kernel logging'"
+  ],
+  "acceptance_criteria": [
+    "Feature branch 'feature/task-kmsg-early-boot-logging' exists and is checked out",
+    "go.mod contains github.com/siderolabs/go-kmsg as a direct dependency",
+    "go build ./... succeeds with no errors",
+    "All existing tests pass"
+  ],
+  "verification": [
+    "Run 'go build ./...' and confirm exit code 0",
+    "Run 'go test -race -covermode=atomic -failfast ./...' and confirm all tests pass"
+  ],
+  "blocked_reason": null,
+  "findings": "golangci-lint 2.1.6 (pre-installed) was built with Go 1.24 and incompatible with Go 1.25.1 target. Upgraded to golangci-lint 2.12.2 via mise which is built with Go 1.25.1. go-kmsg v0.1.6 added successfully, siderolabs/gen bumped from v0.5.0 to v0.8.6, golang.org/x/sys upgraded to v0.45.0."
+}

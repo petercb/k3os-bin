@@ -13,6 +13,7 @@ require (
 	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.14.1
 	github.com/siderolabs/go-blockdevice/v2 v2.0.6
+	github.com/siderolabs/go-kmsg v0.1.6
 	github.com/stretchr/testify v1.11.1
 	github.com/u-root/u-root v0.16.0
 	github.com/urfave/cli/v3 v3.9.0
@@ -31,7 +32,7 @@ require (
 	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	github.com/siderolabs/gen v0.5.0 // indirect
+	github.com/siderolabs/gen v0.8.6 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/vishvananda/netlink v1.3.0 // indirect

@@ -53,20 +53,29 @@ type Init struct {
 	RescueFunc      func() error
 	ConsoleRedirect func() error
 	ModeSetterFunc  func(mode string)
+	// LogLevel is an optional pre-configured LevelVar from an earlier klog.Setup()
+	// call. When set, Run() uses it for debug switching instead of creating a new
+	// handler. When nil, Run() creates its own handler targeting os.Stderr.
+	LogLevel *slog.LevelVar
 }
 
 // Run executes the full init sequence. On any phase failure it drops to the
 // rescue shell. This method does not return under normal operation because
 // ExecFunc replaces the process with /sbin/init.
 func (i *Init) Run() {
-	// Install a structured text handler immediately for consistent log
-	// formatting throughout the init sequence. The level starts at Info;
-	// setupDebug() lowers it to Debug after bootstrap mounts /proc.
-	logLevel := &slog.LevelVar{}
-	logLevel.Set(slog.LevelInfo)
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: logLevel,
-	})))
+	// Use the pre-configured LogLevel if provided (from klog.Setup in the
+	// caller). Otherwise create a local handler targeting os.Stderr for
+	// backward compatibility (tests, non-kmsg contexts).
+	var logLevel *slog.LevelVar
+	if i.LogLevel != nil {
+		logLevel = i.LogLevel
+	} else {
+		logLevel = &slog.LevelVar{}
+		logLevel.Set(slog.LevelInfo)
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: logLevel,
+		})))
+	}
 
 	slog.Info("init: running bootstrap")
 	if err := i.Bootstrap.Run(); err != nil {

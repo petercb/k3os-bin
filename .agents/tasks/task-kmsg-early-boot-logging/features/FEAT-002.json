@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Create internal/klog package that provides a kmsg-backed slog handler for early boot logging, and integrate it into enter.go and init.go",
+  "status": "completed",
+  "steps": [
+    "Create internal/klog/ package directory",
+    "Write tests first (TDD) in internal/klog/klog_test.go: test that NewHandler returns a slog.Handler backed by a kmsg.Writer; test that the handler writes structured log output to the underlying writer; test that when /dev/kmsg open fails it falls back to os.Stderr; test the line-splitting behavior via the kmsg.Writer; test that SetupEarlyLogging sets the slog default and returns a cleanup/switchover function",
+    "Implement internal/klog/klog.go (//go:build linux): a package that exports SetupEarlyLogging() which opens /dev/kmsg, wraps it with kmsg.Writer, creates a slog.NewTextHandler targeting that writer, calls slog.SetDefault, and returns both the *os.File (for closing later) and the slog.LevelVar (for debug switching). If /dev/kmsg open fails, fall back to os.Stderr transparently.",
+    "Run tests for the new package: 'go test ./internal/klog/...'",
+    "Integrate into internal/enterchroot/enter.go: at the top of Enter(), call klog.SetupEarlyLogging() instead of slog.SetDefault(...os.Stderr...). The returned LevelVar is used if ENTER_DEBUG is true. Also replace the log.Printf in setResourceLimit() with slog.Warn so all early logs go through the same kmsg-backed handler.",
+    "Integrate into internal/boot/init.go: at the top of Init.Run(), instead of creating a TextHandler targeting os.Stderr, accept an optional io.Writer (or use a package-level function) so that when kmsg is already set up from the enterchroot phase it continues writing to kmsg. After ConsoleRedirect succeeds, switch the handler's output to the console writer.",
+    "Update internal/enterchroot/enter_test.go: add tests verifying that Enter() configures slog to write to the expected writer (mock the kmsg open path via a package-level var for the open function).",
+    "Update internal/boot/init_test.go: verify the Init.Run() still works correctly with the new logging setup.",
+    "Run 'go test -race -covermode=atomic -failfast ./...' to confirm all tests pass",
+    "Run 'golangci-lint run ./...' and fix any issues",
+    "Commit with message: 'feat: wire slog to /dev/kmsg for early boot kernel ring buffer logging'"
+  ],
+  "acceptance_criteria": [
+    "internal/klog/ package exists with klog.go and klog_test.go",
+    "SetupEarlyLogging() opens /dev/kmsg, wraps with kmsg.Writer, sets slog default",
+    "Graceful fallback to os.Stderr if /dev/kmsg is unavailable",
+    "enter.go Enter() uses klog.SetupEarlyLogging() instead of raw slog.SetDefault to os.Stderr",
+    "enter.go setResourceLimit() uses slog.Warn instead of log.Printf",
+    "init.go Init.Run() receives/uses the kmsg-backed handler established by enter.go",
+    "After ConsoleRedirect, logging transitions away from kmsg (handler output switches)",
+    "All existing tests continue to pass",
+    "New tests cover the klog package at 80%+ coverage",
+    "golangci-lint passes cleanly"
+  ],
+  "verification": [
+    "Run 'go test -race -covermode=atomic -failfast ./...' and confirm all tests pass",
+    "Run 'golangci-lint run ./...' and confirm no errors",
+    "Run 'go test -cover ./internal/klog/...' and confirm >= 80% coverage"
+  ],
+  "blocked_reason": null,
+  "findings": "go-kmsg v0.1.6 was not in go.mod despite FEAT-001 marking it as added - had to run go mod tidy after importing it in klog.go. The Init.Run() method now conditionally creates its own slog handler only when LogLevel is nil, maintaining backward compatibility for existing tests that construct Init{} without the new field. golangci-lint caught an exitAfterDefer issue when using defer logger.Close() before os.Exit(1) in postChroot - resolved by removing the defer since postChroot never returns normally (it exec's into /sbin/init). Coverage for internal/klog: 94.1%."
+}
