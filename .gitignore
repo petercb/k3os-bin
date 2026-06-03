@@ -25,3 +25,6 @@ dist/
 .semrel/
 
 /k3os
+
+# QEMU integration test cache
+integration/qemu/.cache/

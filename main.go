@@ -21,6 +21,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/boot/bootstrap"
 	"github.com/petercb/k3os-bin/internal/boot/finalize"
 	"github.com/petercb/k3os-bin/internal/boot/modes"
+	"github.com/petercb/k3os-bin/internal/boot/testmode"
 	"github.com/petercb/k3os-bin/internal/cli/app"
 	cliconfig "github.com/petercb/k3os-bin/internal/cli/config"
 	"github.com/petercb/k3os-bin/internal/cli/rc"
@@ -195,6 +196,47 @@ func postChroot() {
 		ModeSetterFunc: func(m string) {
 			fin.Mode = m
 		},
+	}
+
+	// Mount /proc early so we can read /proc/cmdline for test_mode detection.
+	// Bootstrap will mount it again (harmlessly) later.
+	_ = syscall.Mount("proc", "/proc", "proc", 0, "")
+
+	// If k3os.test_mode is on the kernel cmdline, replace ExecFunc with the
+	// test mode verifier. The init sequence still runs fully (bootstrap, mode
+	// detection, mode handler, finalization) but instead of exec'ing OpenRC
+	// it runs verification checks and powers off.
+	// Also hook the RescueFunc so that test results are produced even if a
+	// phase fails and init drops to rescue.
+	if cl.Contains("k3os.test_mode") {
+		runVerifier := func() error {
+			// Open /dev/ttyS0 directly to ensure test results are written
+			// to the serial port, which QEMU captures to the log file.
+			serialOut, serErr := os.OpenFile("/dev/ttyS0", os.O_WRONLY, 0)
+			if serErr != nil {
+				// Fall back to stdout if serial port is unavailable.
+				serialOut = os.Stdout
+			}
+			v := &testmode.Verifier{
+				StatFunc:     os.Stat,
+				ReadFileFunc: os.ReadFile,
+				HostnameFunc: os.Hostname,
+				Output:       serialOut,
+				RebootFunc: func() error {
+					syscall.Sync()
+					time.Sleep(500 * time.Millisecond)
+					return syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+				},
+			}
+			return v.Run()
+		}
+
+		initOrch.ExecFunc = func(_ string, _ []string, _ []string) error {
+			return runVerifier()
+		}
+		initOrch.RescueFunc = func() error {
+			return runVerifier()
+		}
 	}
 
 	initOrch.Run()
