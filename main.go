@@ -198,6 +198,10 @@ func postChroot() {
 		},
 	}
 
+	// Mount /proc early so we can read /proc/cmdline for test_mode detection.
+	// Bootstrap will mount it again (harmlessly) later.
+	_ = syscall.Mount("proc", "/proc", "proc", 0, "")
+
 	// If k3os.test_mode is on the kernel cmdline, replace ExecFunc with the
 	// test mode verifier. The init sequence still runs fully (bootstrap, mode
 	// detection, mode handler, finalization) but instead of exec'ing OpenRC
