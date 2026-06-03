@@ -64,7 +64,7 @@ jobs:
       - run:
           name: Install Go
           command: |
-            GO_VERSION=1.25.1
+            GO_VERSION=1.25.0
             curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -C /usr/local -xz
             echo 'export PATH=/usr/local/go/bin:$PATH' >> "$BASH_ENV"
       - run:
