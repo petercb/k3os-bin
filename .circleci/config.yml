@@ -74,6 +74,18 @@ jobs:
       - store_artifacts:
           path: integration/qemu/.cache/serial-output.log
           destination: qemu-serial-output.log
+          when: always
+      - run:
+          name: Show serial output (debug)
+          when: on_fail
+          command: |
+            LOG=integration/qemu/.cache/serial-output.log
+            if [[ -f "$LOG" ]]; then
+              echo "==> Last 100 lines of serial output:"
+              tail -100 "$LOG"
+            else
+              echo "==> No serial output log found."
+            fi
 
 workflows:
   continuous:
