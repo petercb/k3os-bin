@@ -255,3 +255,121 @@ func TestSetup_KmsgWriterSplitsLines(t *testing.T) {
 	// The kmsg.Writer truncates lines longer than MaxLineLength (976) with "..."
 	assert.Contains(t, output, "...")
 }
+
+func TestDefaultEnsureKmsg_SkipsWhenKmsgExists(t *testing.T) {
+	origStatKmsg := statKmsgFn
+	origMkdirAll := mkdirAllFn
+	origForceMount := forceMountFn
+	t.Cleanup(func() {
+		statKmsgFn = origStatKmsg
+		mkdirAllFn = origMkdirAll
+		forceMountFn = origForceMount
+	})
+
+	// /dev/kmsg already exists.
+	statKmsgFn = func() error { return nil }
+
+	mountCalled := false
+	forceMountFn = func(_, _, _, _ string) error {
+		mountCalled = true
+		return nil
+	}
+
+	err := defaultEnsureKmsg()
+	require.NoError(t, err)
+	assert.False(t, mountCalled, "mount should not be called when /dev/kmsg already exists")
+}
+
+func TestDefaultEnsureKmsg_MountsDevtmpfs(t *testing.T) {
+	origStatKmsg := statKmsgFn
+	origMkdirAll := mkdirAllFn
+	origForceMount := forceMountFn
+	t.Cleanup(func() {
+		statKmsgFn = origStatKmsg
+		mkdirAllFn = origMkdirAll
+		forceMountFn = origForceMount
+	})
+
+	// /dev/kmsg does not exist.
+	statKmsgFn = func() error { return errors.New("no such file or directory") }
+
+	mkdirCalled := false
+	mkdirAllFn = func(path string, perm os.FileMode) error {
+		mkdirCalled = true
+		assert.Equal(t, "/dev", path)
+		assert.Equal(t, os.FileMode(0o755), perm)
+		return nil
+	}
+
+	var mountDevice, mountTarget, mountType, mountOpts string
+	forceMountFn = func(device, target, mType, options string) error {
+		mountDevice = device
+		mountTarget = target
+		mountType = mType
+		mountOpts = options
+		return nil
+	}
+
+	err := defaultEnsureKmsg()
+	require.NoError(t, err)
+	assert.True(t, mkdirCalled, "mkdirAll should be called")
+	assert.Equal(t, "none", mountDevice)
+	assert.Equal(t, "/dev", mountTarget)
+	assert.Equal(t, "devtmpfs", mountType)
+	assert.Equal(t, "nosuid,noexec", mountOpts)
+}
+
+func TestDefaultEnsureKmsg_MkdirAllFails_ReturnsError(t *testing.T) {
+	origStatKmsg := statKmsgFn
+	origMkdirAll := mkdirAllFn
+	origForceMount := forceMountFn
+	t.Cleanup(func() {
+		statKmsgFn = origStatKmsg
+		mkdirAllFn = origMkdirAll
+		forceMountFn = origForceMount
+	})
+
+	// /dev/kmsg does not exist.
+	statKmsgFn = func() error { return errors.New("no such file or directory") }
+
+	mkdirErr := errors.New("mkdir /dev: read-only file system")
+	mkdirAllFn = func(_ string, _ os.FileMode) error {
+		return mkdirErr
+	}
+
+	forceMountFn = func(_, _, _, _ string) error {
+		t.Fatal("mount should not be called when mkdirAll fails")
+		return nil
+	}
+
+	err := defaultEnsureKmsg()
+	require.Error(t, err)
+	assert.Equal(t, mkdirErr, err)
+}
+
+func TestDefaultEnsureKmsg_MountFails_ReturnsError(t *testing.T) {
+	origStatKmsg := statKmsgFn
+	origMkdirAll := mkdirAllFn
+	origForceMount := forceMountFn
+	t.Cleanup(func() {
+		statKmsgFn = origStatKmsg
+		mkdirAllFn = origMkdirAll
+		forceMountFn = origForceMount
+	})
+
+	// /dev/kmsg does not exist.
+	statKmsgFn = func() error { return errors.New("no such file or directory") }
+
+	mkdirAllFn = func(_ string, _ os.FileMode) error {
+		return nil
+	}
+
+	mountErr := errors.New("mount failed: no devtmpfs support")
+	forceMountFn = func(_, _, _, _ string) error {
+		return mountErr
+	}
+
+	err := defaultEnsureKmsg()
+	require.Error(t, err)
+	assert.Equal(t, mountErr, err)
+}
