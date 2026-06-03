@@ -21,6 +21,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/boot/bootstrap"
 	"github.com/petercb/k3os-bin/internal/boot/finalize"
 	"github.com/petercb/k3os-bin/internal/boot/modes"
+	"github.com/petercb/k3os-bin/internal/boot/testmode"
 	"github.com/petercb/k3os-bin/internal/cli/app"
 	cliconfig "github.com/petercb/k3os-bin/internal/cli/config"
 	"github.com/petercb/k3os-bin/internal/cli/rc"
@@ -195,6 +196,24 @@ func postChroot() {
 		ModeSetterFunc: func(m string) {
 			fin.Mode = m
 		},
+	}
+
+	// If k3os.test_mode is on the kernel cmdline, replace ExecFunc with the
+	// test mode verifier. The init sequence still runs fully (bootstrap, mode
+	// detection, mode handler, finalization) but instead of exec'ing OpenRC
+	// it runs verification checks and powers off.
+	if cl.Contains("k3os.test_mode") {
+		initOrch.ExecFunc = func(_ string, _ []string, _ []string) error {
+			v := &testmode.Verifier{
+				StatFunc:     os.Stat,
+				ReadFileFunc: os.ReadFile,
+				HostnameFunc: os.Hostname,
+				RebootFunc: func() error {
+					return syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
+				},
+			}
+			return v.Run()
+		}
 	}
 
 	initOrch.Run()
