@@ -7,6 +7,7 @@
 package boot
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
@@ -28,6 +29,12 @@ type ModeHandler interface {
 	Execute() error
 }
 
+// OrphanReaper reaps orphaned child processes when running as PID 1.
+type OrphanReaper interface {
+	Start(ctx context.Context)
+	Wait()
+}
+
 // ModeDetectorFunc detects the current boot mode and returns it.
 type ModeDetectorFunc func() (string, error)
 
@@ -45,6 +52,7 @@ type ModeRegistryFunc func(mode string) (ModeHandler, error)
 //  7. Exec /sbin/init (OpenRC)
 type Init struct {
 	Bootstrap       BootstrapRunner
+	Reaper          OrphanReaper
 	ModeDetector    ModeDetectorFunc
 	ModeRegistry    ModeRegistryFunc
 	Finalizer       FinalizerRunner
@@ -67,6 +75,18 @@ func (i *Init) Run() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level: logLevel,
 	})))
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	if i.Reaper != nil {
+		i.Reaper.Start(ctx)
+		defer func() {
+			cancel()
+			i.Reaper.Wait()
+		}()
+	} else {
+		defer cancel()
+	}
 
 	slog.Info("init: running bootstrap")
 	if err := i.Bootstrap.Run(); err != nil {

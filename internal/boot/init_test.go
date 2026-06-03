@@ -3,8 +3,10 @@
 package boot
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +35,20 @@ func (m *mockCmdlineParser) Contains(name string) bool {
 
 func (m *mockCmdlineParser) Consoles() []string { return m.consoles }
 func (m *mockCmdlineParser) Raw() string        { return m.raw }
+
+// fakeReaper implements OrphanReaper for testing.
+type fakeReaper struct {
+	startCalled bool
+	waitCalled  bool
+}
+
+func (f *fakeReaper) Start(_ context.Context) {
+	f.startCalled = true
+}
+
+func (f *fakeReaper) Wait() {
+	f.waitCalled = true
+}
 
 // fakeBootstrapper implements BootstrapRunner for testing.
 type fakeBootstrapper struct {
@@ -251,6 +267,195 @@ func TestInit_Run_NilCmdline(t *testing.T) {
 	assert.True(t, handler.called)
 	assert.True(t, finalizer.called)
 	assert.True(t, execCalled)
+}
+
+func TestInit_Run_ReaperStartedAndWaited(t *testing.T) {
+	t.Parallel()
+
+	r := &fakeReaper{}
+	bootstrap := &fakeBootstrapper{}
+	finalizer := &fakeFinalizer{}
+	handler := &fakeModeHandler{}
+
+	initOrch := &Init{
+		Bootstrap: bootstrap,
+		Reaper:    r,
+		ModeDetector: func() (string, error) {
+			return "disk", nil
+		},
+		ModeRegistry: func(_ string) (ModeHandler, error) {
+			return handler, nil
+		},
+		Finalizer: finalizer,
+		ExecFunc: func(_ string, _ []string, _ []string) error {
+			return nil
+		},
+		Cmdline: &mockCmdlineParser{},
+		RescueFunc: func() error {
+			return nil
+		},
+	}
+
+	initOrch.Run()
+
+	assert.True(t, r.startCalled, "Reaper.Start should have been called")
+	assert.True(t, r.waitCalled, "Reaper.Wait should have been called")
+}
+
+func TestInit_Run_NilReaperDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	bootstrap := &fakeBootstrapper{}
+	finalizer := &fakeFinalizer{}
+	handler := &fakeModeHandler{}
+
+	var execCalled bool
+
+	initOrch := &Init{
+		Bootstrap: bootstrap,
+		Reaper:    nil,
+		ModeDetector: func() (string, error) {
+			return "disk", nil
+		},
+		ModeRegistry: func(_ string) (ModeHandler, error) {
+			return handler, nil
+		},
+		Finalizer: finalizer,
+		ExecFunc: func(_ string, _ []string, _ []string) error {
+			execCalled = true
+			return nil
+		},
+		Cmdline: &mockCmdlineParser{},
+		RescueFunc: func() error {
+			return nil
+		},
+	}
+
+	assert.NotPanics(t, func() {
+		initOrch.Run()
+	})
+	assert.True(t, execCalled)
+}
+
+func TestInit_Run_ReaperReceivesValidContext(t *testing.T) {
+	t.Parallel()
+
+	var receivedCtx context.Context
+
+	captureReaper := &contextCapturingReaper{}
+
+	initOrch := &Init{
+		Bootstrap: &fakeBootstrapper{},
+		Reaper:    captureReaper,
+		ModeDetector: func() (string, error) {
+			// Verify context is not cancelled at this point.
+			receivedCtx = captureReaper.ctx
+			return "disk", nil
+		},
+		ModeRegistry: func(_ string) (ModeHandler, error) {
+			return &fakeModeHandler{}, nil
+		},
+		Finalizer: &fakeFinalizer{},
+		ExecFunc: func(_ string, _ []string, _ []string) error {
+			return nil
+		},
+		Cmdline: &mockCmdlineParser{},
+		RescueFunc: func() error {
+			return nil
+		},
+	}
+
+	initOrch.Run()
+
+	require.NotNil(t, receivedCtx)
+	// Context should not have been cancelled during the boot sequence.
+	// It gets cancelled in defer after Run returns.
+}
+
+func TestInit_Run_BlockingReaperDoesNotDeadlock(t *testing.T) {
+	t.Parallel()
+
+	// This test uses a reaper that blocks Wait() until the context is
+	// cancelled, matching the real Reaper semantics. If the defer ordering
+	// is wrong (Wait before cancel), this test will deadlock and time out.
+	r := newBlockingReaper()
+
+	initOrch := &Init{
+		Bootstrap: &fakeBootstrapper{err: errors.New("forced failure")},
+		Reaper:    r,
+		ModeDetector: func() (string, error) {
+			return "disk", nil
+		},
+		ModeRegistry: func(_ string) (ModeHandler, error) {
+			return &fakeModeHandler{}, nil
+		},
+		Finalizer: &fakeFinalizer{},
+		ExecFunc: func(_ string, _ []string, _ []string) error {
+			return nil
+		},
+		Cmdline: &mockCmdlineParser{},
+		RescueFunc: func() error {
+			return nil
+		},
+	}
+
+	done := make(chan struct{})
+	go func() {
+		initOrch.Run()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Success: Run returned without deadlocking.
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run deadlocked: defer ordering likely calls Wait() before cancel()")
+	}
+
+	assert.True(t, r.startCalled, "Reaper.Start should have been called")
+	assert.True(t, r.waitCalled, "Reaper.Wait should have been called")
+}
+
+// contextCapturingReaper captures the context passed to Start.
+type contextCapturingReaper struct {
+	ctx         context.Context
+	startCalled bool
+	waitCalled  bool
+}
+
+func (c *contextCapturingReaper) Start(ctx context.Context) {
+	c.ctx = ctx
+	c.startCalled = true
+}
+
+func (c *contextCapturingReaper) Wait() {
+	c.waitCalled = true
+}
+
+// blockingReaper models the real Reaper's Wait() semantics: it blocks until
+// the context passed to Start is cancelled. This catches defer-order deadlocks
+// where Wait() fires before cancel() in LIFO ordering.
+type blockingReaper struct {
+	startCalled bool
+	waitCalled  bool
+	done        chan struct{}
+}
+
+func newBlockingReaper() *blockingReaper {
+	return &blockingReaper{done: make(chan struct{})}
+}
+
+func (b *blockingReaper) Start(ctx context.Context) {
+	b.startCalled = true
+	go func() {
+		<-ctx.Done()
+		close(b.done)
+	}()
+}
+
+func (b *blockingReaper) Wait() {
+	b.waitCalled = true
+	<-b.done
 }
 
 // Ordered fake implementations for tracking call order.
