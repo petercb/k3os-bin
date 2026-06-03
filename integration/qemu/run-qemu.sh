@@ -44,16 +44,17 @@ echo "    Output:  ${SERIAL_LOG}"
 echo ""
 
 # Run QEMU and capture serial output.
-# Use -serial file: to guarantee output is captured even if QEMU is killed.
-# Also log to a chardev for real-time CI feedback via -chardev stdio.
+# Uses -serial file: to guarantee output is captured even if QEMU is killed.
+# Options aligned with petercb/k3os scripts/run-qemu for proven CI behavior.
 set +e
-timeout --foreground "${TIMEOUT}" qemu-system-x86_64 \
+timeout --foreground --signal=KILL "${TIMEOUT}" qemu-system-x86_64 \
     ${ACCEL_OPTS} \
-    -smp "${SMP:-4}" \
+    -smp "${SMP:-2}" \
     -m "${MEMORY:-2048}" \
+    -rtc base=utc,clock=rt \
     -kernel "${KERNEL}" \
     -initrd "${INITRD}" \
-    -append "console=ttyS0 k3os.mode=live k3os.test_mode k3os.debug" \
+    -append "console=ttyS0 loglevel=4 printk.devkmsg=on k3os.mode=live k3os.test_mode k3os.debug" \
     -nographic \
     -serial "file:${SERIAL_LOG}" \
     -no-reboot
