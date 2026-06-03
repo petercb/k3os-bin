@@ -48,6 +48,31 @@ else
     ACCEL_OPTS="-accel tcg,thread=multi -cpu max -smp 2"
 fi
 
+# Without KVM, full kernel boot under TCG emulation is impractically slow
+# (>10 minutes on typical CI VMs). Skip the test unless explicitly required.
+if [[ -z "${ACCEL_OPTS##*tcg*}" ]]; then
+    if [[ "${REQUIRE_KVM:-false}" == "true" ]]; then
+        echo "ERROR: KVM required (REQUIRE_KVM=true) but not available."
+        exit 1
+    fi
+    echo ""
+    echo "========================================"
+    echo "  QEMU INTEGRATION TEST SKIPPED"
+    echo "========================================"
+    echo ""
+    echo "  KVM hardware acceleration is not available."
+    echo "  Full kernel boot under TCG emulation is too slow for CI."
+    echo ""
+    echo "  To run this test, use a host with KVM support:"
+    echo "    - Linux with nested virtualization enabled"
+    echo "    - Self-hosted CI runner with /dev/kvm access"
+    echo "    - Local development machine"
+    echo ""
+    echo "  Set REQUIRE_KVM=true to make this a hard failure."
+    echo "========================================"
+    exit 0
+fi
+
 echo "==> Booting k3os in QEMU (timeout: ${TIMEOUT}s)..."
 echo "    Kernel:  ${KERNEL}"
 echo "    Initrd:  ${INITRD}"
