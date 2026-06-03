@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/siderolabs/go-kmsg"
 	"golang.org/x/sys/unix"
 )
@@ -17,28 +18,32 @@ import (
 // openKmsg is the function used to open /dev/kmsg; override in tests.
 var openKmsg = defaultOpenKmsg
 
-// ensureKmsg creates the /dev/kmsg char device node if it does not already
-// exist. During early boot (enter-root reexec, post-chroot), /dev may not
-// have devtmpfs mounted yet, so the device node may be missing.
+// ensureKmsg ensures /dev/kmsg is available by mounting devtmpfs if needed.
+// During early boot (enter-root reexec, post-chroot), /dev may not have
+// devtmpfs mounted yet, so /dev/kmsg may be missing.
 // Override in tests.
 var ensureKmsg = defaultEnsureKmsg
+
+// Package-level vars for test injection.
+var (
+	statKmsgFn   = func() error { _, err := os.Stat("/dev/kmsg"); return err }
+	mkdirAllFn   = os.MkdirAll
+	forceMountFn = mount.ForceMount
+)
 
 func defaultOpenKmsg() (*os.File, error) {
 	return os.OpenFile("/dev/kmsg", os.O_WRONLY|unix.O_CLOEXEC|unix.O_NONBLOCK|unix.O_NOCTTY, 0o666)
 }
 
 func defaultEnsureKmsg() error {
-	if err := os.MkdirAll("/dev", 0o755); err != nil {
+	// If /dev/kmsg already exists, the device is available -- skip mounting.
+	if statKmsgFn() == nil {
+		return nil
+	}
+	if err := mkdirAllFn("/dev", 0o755); err != nil {
 		return err
 	}
-	dev := unix.Mkdev(1, 11)
-	if err := unix.Mknod("/dev/kmsg", unix.S_IFCHR|0o666, int(dev)); err != nil {
-		if os.IsExist(err) {
-			return nil
-		}
-		return err
-	}
-	return nil
+	return forceMountFn("none", "/dev", "devtmpfs", "nosuid,noexec")
 }
 
 // EarlyLogger holds the state of a kmsg-backed slog handler established
