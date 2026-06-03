@@ -54,7 +54,6 @@ jobs:
   qemu-integration:
     machine:
       image: ubuntu-2404:current
-    resource_class: large
     steps:
       - checkout
       - run:
@@ -73,7 +72,7 @@ jobs:
           command: make build
       - run:
           name: Run QEMU Integration Tests
-          no_output_timeout: 5m
+          no_output_timeout: 10m
           command: make qemu-integration
       - store_artifacts:
           path: integration/qemu/.cache/serial-output.log

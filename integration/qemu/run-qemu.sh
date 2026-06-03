@@ -14,7 +14,7 @@ KERNEL="${CACHE_DIR}/k3os-vmlinuz-amd64.img"
 INITRD="${CACHE_DIR}/test-initramfs.gz"
 SERIAL_LOG="${CACHE_DIR}/serial-output.log"
 
-TIMEOUT="${QEMU_TIMEOUT:-300}"
+TIMEOUT="${QEMU_TIMEOUT:-540}"
 
 # Validate inputs
 if [[ ! -f "${KERNEL}" ]]; then
