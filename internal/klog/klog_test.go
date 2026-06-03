@@ -166,6 +166,67 @@ func TestSetup_WritesStructuredOutput(t *testing.T) {
 	assert.Contains(t, output, "resource=RLIMIT_NOFILE")
 }
 
+func TestSetup_EnsureKmsgSucceeds_ThenOpenSucceeds(t *testing.T) {
+	// Create a pipe to simulate /dev/kmsg.
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = r.Close()
+		_ = w.Close()
+	})
+
+	// Record call order to prove ensureKmsg runs before openKmsg.
+	var callOrder []string
+
+	origOpen := openKmsg
+	openKmsg = func() (*os.File, error) {
+		callOrder = append(callOrder, "open")
+		return w, nil
+	}
+	t.Cleanup(func() { openKmsg = origOpen })
+
+	origEnsure := ensureKmsg
+	ensureKmsg = func() error {
+		callOrder = append(callOrder, "ensure")
+		return nil
+	}
+	t.Cleanup(func() { ensureKmsg = origEnsure })
+
+	logger := Setup()
+	require.NotNil(t, logger)
+	t.Cleanup(func() { logger.Close() })
+
+	// Verify ensureKmsg is called before openKmsg.
+	require.Equal(t, []string{"ensure", "open"}, callOrder)
+
+	// Logger should have successfully opened the file.
+	assert.NotNil(t, logger.file)
+}
+
+func TestSetup_EnsureKmsgFails_FallbackToStderr(t *testing.T) {
+	origOpen := openKmsg
+	openKmsg = func() (*os.File, error) {
+		return nil, errors.New("no such file or directory")
+	}
+	t.Cleanup(func() { openKmsg = origOpen })
+
+	origEnsure := ensureKmsg
+	ensureKmsg = func() error {
+		return errors.New("operation not permitted")
+	}
+	t.Cleanup(func() { ensureKmsg = origEnsure })
+
+	logger := Setup()
+	require.NotNil(t, logger)
+	t.Cleanup(func() { logger.Close() })
+
+	// When ensureKmsg fails and openKmsg also fails, fallback to stderr.
+	assert.Nil(t, logger.file)
+
+	// slog should still be functional (writing to stderr fallback).
+	assert.NotPanics(t, func() { slog.Info("fallback after ensure failure") })
+}
+
 func TestSetup_KmsgWriterSplitsLines(t *testing.T) {
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
