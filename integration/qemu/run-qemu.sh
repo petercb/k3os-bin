@@ -27,13 +27,24 @@ if [[ ! -f "${INITRD}" ]]; then
     exit 1
 fi
 
-# Determine if KVM is available
+# Try to enable KVM if not already available
+if [[ ! -w /dev/kvm ]]; then
+    echo "==> /dev/kvm not writable, attempting to load KVM modules..."
+    sudo modprobe kvm 2>/dev/null || true
+    # Try both Intel and AMD; one will fail silently
+    sudo modprobe kvm-intel 2>/dev/null || sudo modprobe kvm-amd 2>/dev/null || true
+    # Give udev a moment to create the device node
+    sleep 1
+fi
+
+# Determine acceleration strategy
 ACCEL_OPTS=""
 if [[ -w /dev/kvm ]]; then
     echo "==> KVM available, enabling hardware acceleration."
     ACCEL_OPTS="-enable-kvm -cpu host"
 else
-    echo "==> KVM not available, using TCG with multi-thread acceleration."
+    echo "==> WARNING: KVM not available. TCG emulation will be used (very slow)."
+    echo "==> Consider running on a host with nested virtualization support."
     ACCEL_OPTS="-accel tcg,thread=multi -cpu max -smp 2"
 fi
 

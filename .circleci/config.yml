@@ -62,6 +62,17 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y --no-install-recommends qemu-system-x86
       - run:
+          name: Enable KVM
+          command: |
+            sudo modprobe kvm 2>/dev/null || true
+            sudo modprobe kvm-intel 2>/dev/null || sudo modprobe kvm-amd 2>/dev/null || true
+            if [[ -e /dev/kvm ]]; then
+              sudo chmod 666 /dev/kvm
+              echo "KVM enabled successfully"
+            else
+              echo "WARNING: KVM not available - QEMU tests will use slow TCG emulation"
+            fi
+      - run:
           name: Install Go
           command: |
             GO_VERSION=1.25.0
