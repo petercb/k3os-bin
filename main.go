@@ -202,12 +202,14 @@ func postChroot() {
 	// test mode verifier. The init sequence still runs fully (bootstrap, mode
 	// detection, mode handler, finalization) but instead of exec'ing OpenRC
 	// it runs verification checks and powers off.
+	// Also hook the RescueFunc so that test results are produced even if a
+	// phase fails and init drops to rescue.
 	if cl.Contains("k3os.test_mode") {
-		initOrch.ExecFunc = func(_ string, _ []string, _ []string) error {
+		runVerifier := func() error {
 			// Open /dev/ttyS0 directly to ensure test results are written
 			// to the serial port, which QEMU captures to the log file.
-			serialOut, err := os.OpenFile("/dev/ttyS0", os.O_WRONLY, 0)
-			if err != nil {
+			serialOut, serErr := os.OpenFile("/dev/ttyS0", os.O_WRONLY, 0)
+			if serErr != nil {
 				// Fall back to stdout if serial port is unavailable.
 				serialOut = os.Stdout
 			}
@@ -221,6 +223,13 @@ func postChroot() {
 				},
 			}
 			return v.Run()
+		}
+
+		initOrch.ExecFunc = func(_ string, _ []string, _ []string) error {
+			return runVerifier()
+		}
+		initOrch.RescueFunc = func() error {
+			return runVerifier()
 		}
 	}
 
