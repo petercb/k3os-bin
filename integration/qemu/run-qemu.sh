@@ -14,7 +14,7 @@ KERNEL="${CACHE_DIR}/k3os-vmlinuz-amd64.img"
 INITRD="${CACHE_DIR}/test-initramfs.gz"
 SERIAL_LOG="${CACHE_DIR}/serial-output.log"
 
-TIMEOUT="${QEMU_TIMEOUT:-540}"
+TIMEOUT="${QEMU_TIMEOUT:-600}"
 
 # Validate inputs
 if [[ ! -f "${KERNEL}" ]]; then
@@ -27,50 +27,14 @@ if [[ ! -f "${INITRD}" ]]; then
     exit 1
 fi
 
-# Try to enable KVM if not already available
-if [[ ! -w /dev/kvm ]]; then
-    echo "==> /dev/kvm not writable, attempting to load KVM modules..."
-    sudo modprobe kvm 2>/dev/null || true
-    # Try both Intel and AMD; one will fail silently
-    sudo modprobe kvm-intel 2>/dev/null || sudo modprobe kvm-amd 2>/dev/null || true
-    # Give udev a moment to create the device node
-    sleep 1
-fi
-
-# Determine acceleration strategy
+# Detect KVM availability (available on bare-metal, not in Docker executors)
 ACCEL_OPTS=""
-if [[ -w /dev/kvm ]]; then
+if [[ -w /dev/kvm ]] 2>/dev/null; then
     echo "==> KVM available, enabling hardware acceleration."
-    ACCEL_OPTS="-enable-kvm -cpu host"
+    ACCEL_OPTS="-accel kvm -cpu host"
 else
-    echo "==> WARNING: KVM not available. TCG emulation will be used (very slow)."
-    echo "==> Consider running on a host with nested virtualization support."
-    ACCEL_OPTS="-accel tcg,thread=multi -cpu max -smp 2"
-fi
-
-# Without KVM, full kernel boot under TCG emulation is impractically slow
-# (>10 minutes on typical CI VMs). Skip the test unless explicitly required.
-if [[ -z "${ACCEL_OPTS##*tcg*}" ]]; then
-    if [[ "${REQUIRE_KVM:-false}" == "true" ]]; then
-        echo "ERROR: KVM required (REQUIRE_KVM=true) but not available."
-        exit 1
-    fi
-    echo ""
-    echo "========================================"
-    echo "  QEMU INTEGRATION TEST SKIPPED"
-    echo "========================================"
-    echo ""
-    echo "  KVM hardware acceleration is not available."
-    echo "  Full kernel boot under TCG emulation is too slow for CI."
-    echo ""
-    echo "  To run this test, use a host with KVM support:"
-    echo "    - Linux with nested virtualization enabled"
-    echo "    - Self-hosted CI runner with /dev/kvm access"
-    echo "    - Local development machine"
-    echo ""
-    echo "  Set REQUIRE_KVM=true to make this a hard failure."
-    echo "========================================"
-    exit 0
+    echo "==> KVM not available, using TCG multi-thread emulation."
+    ACCEL_OPTS="-accel tcg,thread=multi -cpu max"
 fi
 
 echo "==> Booting k3os in QEMU (timeout: ${TIMEOUT}s)..."
@@ -83,12 +47,13 @@ echo ""
 set +e
 timeout "${TIMEOUT}" qemu-system-x86_64 \
     ${ACCEL_OPTS} \
+    -smp "${SMP:-4}" \
+    -m "${MEMORY:-2048}" \
     -kernel "${KERNEL}" \
     -initrd "${INITRD}" \
     -append "console=ttyS0 k3os.mode=live k3os.test_mode k3os.debug" \
     -nographic \
-    -serial stdio \
-    -m 512 \
+    -serial mon:stdio \
     -no-reboot \
     2>&1 | tee "${SERIAL_LOG}"
 QEMU_EXIT=$?
