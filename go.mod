@@ -13,6 +13,7 @@ require (
 	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.14.1
 	github.com/siderolabs/go-blockdevice/v2 v2.0.6
+	github.com/siderolabs/go-kmsg v0.1.6
 	github.com/stretchr/testify v1.11.1
 	github.com/u-root/u-root v0.16.0
 	github.com/urfave/cli/v3 v3.9.0

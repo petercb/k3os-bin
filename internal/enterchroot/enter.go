@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -19,6 +18,7 @@ import (
 	"github.com/moby/sys/reexec"
 	"github.com/petercb/k3os-bin/internal/cmdline"
 	"github.com/petercb/k3os-bin/internal/iface"
+	"github.com/petercb/k3os-bin/internal/klog"
 	"github.com/petercb/k3os-bin/internal/loopdev"
 	"github.com/petercb/k3os-bin/internal/mount"
 	"golang.org/x/sys/unix"
@@ -43,10 +43,10 @@ var (
 
 // Enter the k3OS root
 func Enter() {
+	logger := klog.Setup()
+
 	if os.Getenv("ENTER_DEBUG") == "true" {
-		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		})))
+		logger.SetDebug()
 	}
 
 	setResourceLimit(unix.RLIMIT_NOFILE, 1048576, 1048576)
@@ -67,7 +67,7 @@ func setResourceLimit(resource int, current, maximum uint64) {
 	lim := unix.Rlimit{Cur: current, Max: maximum}
 	err := unix.Setrlimit(resource, &lim)
 	if err != nil {
-		log.Printf("Failed to set rlimit %x: %v", resource, err)
+		slog.Warn("failed to set rlimit", "resource", resource, "error", err)
 	}
 }
 
@@ -94,9 +94,8 @@ func Mount(dataDir string, args []string, stdout, stderr io.Writer) error {
 	}
 
 	if isDebug() {
-		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-		})))
+		logger := klog.Setup()
+		logger.SetDebug()
 		_ = os.Setenv("ENTER_DEBUG", "true")
 	}
 
