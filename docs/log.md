@@ -538,3 +538,33 @@ Replace disk-related shell-outs (parted, partprobe, lsblk, losetup) with pure Go
 - What went well: The `go-blockdevice/v2` library was well-suited for the use case, providing pure Go GPT manipulation with built-in kernel partition sync via BLKPG ioctls. The existing `BlockProber` interface already covered the `lsblk` replacement, minimizing new abstraction.
 - What broke: `go mod tidy` removes go-blockdevice when no code imports it yet (FEAT-001), so the dependency had to be pinned manually until FEAT-002 added code imports. golangci-lint 2.1.6 was incompatible with Go 1.25, requiring an upgrade to 2.12.2.
 - What to change: For future multi-feature dependency additions, structure the work so the first commit that adds the dependency also adds at least one import to prevent `go mod tidy` from removing it.
+
+## 2025-07-15 -- kmsg early boot logging (task-kmsg-early-boot-logging)
+
+### Context
+
+Early boot log messages (before console device setup) were written to os.Stderr and lost when running as PID 1 on bare initramfs. Needed a way to make these messages visible via `dmesg`.
+
+### Actions
+
+1. **FEAT-001**: Added `github.com/siderolabs/go-kmsg v0.1.6` dependency. Upgraded golangci-lint from 2.1.6 to 2.12.2 (required for Go 1.25.1 compatibility).
+2. **FEAT-002**: Created `internal/klog` package with `Setup()` function that opens `/dev/kmsg`, wraps with `kmsg.Writer` (line splitting, truncation to 976 chars), and sets up `slog.NewTextHandler` targeting it. Graceful fallback to `os.Stderr` if `/dev/kmsg` is unavailable. Integrated into `enter.go` (Enter function), `main.go` (postChroot), and `init.go` (Init struct with LogLevel field). Replaced `log.Printf` in `setResourceLimit()` with `slog.Warn`.
+3. **FEAT-003**: Documented the design in `docs/plans/kmsg-early-boot-logging.md`, updated changelog and lessons-learned.
+
+### Key Files
+
+| Action | File |
+|--------|------|
+| Created | `internal/klog/klog.go` |
+| Created | `internal/klog/klog_test.go` |
+| Modified | `internal/enterchroot/enter.go` |
+| Modified | `internal/boot/init.go` |
+| Modified | `main.go` |
+| Modified | `go.mod`, `go.sum` |
+| Created | `docs/plans/kmsg-early-boot-logging.md` |
+
+### Retrospective
+
+- What went well: The `go-kmsg` library handles kernel ring buffer protocol details (line splitting, size limits) cleanly. The `slog.LevelVar` pattern allows sharing level control between enterchroot and init phases without replacing the handler.
+- What broke: golangci-lint 2.1.6 was incompatible with Go 1.25.1 and needed upgrading. The go-kmsg dependency was removed by `go mod tidy` when no code imported it yet (resolved by adding it in the same commit as the first import).
+- What to change: When adding dependencies that target kernel interfaces like `/dev/kmsg`, test in containers early since the fallback path is what exercises in most dev environments.
