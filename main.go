@@ -204,10 +204,18 @@ func postChroot() {
 	// it runs verification checks and powers off.
 	if cl.Contains("k3os.test_mode") {
 		initOrch.ExecFunc = func(_ string, _ []string, _ []string) error {
+			// Open /dev/ttyS0 directly to ensure test results are written
+			// to the serial port, which QEMU captures to the log file.
+			serialOut, err := os.OpenFile("/dev/ttyS0", os.O_WRONLY, 0)
+			if err != nil {
+				// Fall back to stdout if serial port is unavailable.
+				serialOut = os.Stdout
+			}
 			v := &testmode.Verifier{
 				StatFunc:     os.Stat,
 				ReadFileFunc: os.ReadFile,
 				HostnameFunc: os.Hostname,
+				Output:       serialOut,
 				RebootFunc: func() error {
 					return syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF)
 				},
