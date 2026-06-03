@@ -17,8 +17,28 @@ import (
 // openKmsg is the function used to open /dev/kmsg; override in tests.
 var openKmsg = defaultOpenKmsg
 
+// ensureKmsg creates the /dev/kmsg char device node if it does not already
+// exist. During early boot (enter-root reexec, post-chroot), /dev may not
+// have devtmpfs mounted yet, so the device node may be missing.
+// Override in tests.
+var ensureKmsg = defaultEnsureKmsg
+
 func defaultOpenKmsg() (*os.File, error) {
 	return os.OpenFile("/dev/kmsg", os.O_WRONLY|unix.O_CLOEXEC|unix.O_NONBLOCK|unix.O_NOCTTY, 0o666)
+}
+
+func defaultEnsureKmsg() error {
+	if err := os.MkdirAll("/dev", 0o755); err != nil {
+		return err
+	}
+	dev := unix.Mkdev(1, 11)
+	if err := unix.Mknod("/dev/kmsg", unix.S_IFCHR|0o666, int(dev)); err != nil {
+		if os.IsExist(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 // EarlyLogger holds the state of a kmsg-backed slog handler established
@@ -36,6 +56,11 @@ type EarlyLogger struct {
 func Setup() *EarlyLogger {
 	levelVar := &slog.LevelVar{}
 	levelVar.Set(slog.LevelInfo)
+
+	// Ensure the /dev/kmsg device node exists. If this fails, we proceed
+	// anyway -- the existing stderr fallback handles the case where
+	// /dev/kmsg still cannot be opened.
+	_ = ensureKmsg()
 
 	f, err := openKmsg()
 	if err != nil {
