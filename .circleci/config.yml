@@ -87,6 +87,50 @@ jobs:
               echo "==> No serial output log found."
             fi
 
+  qemu-integration-disk:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Install QEMU and tools
+          command: |
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends \
+              qemu-system-x86 qemu-utils cpio e2fsprogs
+      - run:
+          name: Install Go
+          command: |
+            GO_VERSION=1.25.1
+            sudo rm -rf /usr/local/go
+            curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" | sudo tar -C /usr/local -xz
+            echo 'export PATH=/usr/local/go/bin:$PATH' >> "$BASH_ENV"
+      - run:
+          name: Build k3os binary
+          command: make build
+      - run:
+          name: Run QEMU Disk Mode Integration Tests
+          no_output_timeout: 15m
+          environment:
+            QEMU_TIMEOUT: "600"
+          command: make qemu-integration-disk
+      - store_artifacts:
+          path: integration/qemu/.cache/serial-output-disk.log
+          destination: qemu-serial-output-disk.log
+          when: always
+      - run:
+          name: Show serial output (debug)
+          when: on_fail
+          command: |
+            LOG=integration/qemu/.cache/serial-output-disk.log
+            if [[ -f "$LOG" ]]; then
+              echo "==> Last 100 lines of serial output:"
+              tail -100 "$LOG"
+            else
+              echo "==> No serial output log found."
+            fi
+
 workflows:
   continuous:
     jobs:
@@ -95,6 +139,10 @@ workflows:
           requires:
             - test
       - qemu-integration:
+          context: github
+          requires:
+            - test
+      - qemu-integration-disk:
           context: github
           requires:
             - test
@@ -108,3 +156,4 @@ workflows:
             - test
             - e2e
             - qemu-integration
+            - qemu-integration-disk

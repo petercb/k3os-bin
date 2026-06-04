@@ -1,4 +1,4 @@
-.PHONY: build test lint e2e all qemu-download-kernel qemu-build-initramfs qemu-integration
+.PHONY: build test lint e2e all qemu-download-kernel qemu-build-initramfs qemu-integration qemu-disk-image qemu-integration-disk
 
 # k3os-kernel release version used for QEMU integration tests.
 # Override via env var: KERNEL_VERSION=v0.112.0 make qemu-integration
@@ -25,5 +25,11 @@ qemu-build-initramfs: build qemu-download-kernel
 
 qemu-integration: qemu-build-initramfs
 	integration/qemu/run-qemu.sh
+
+qemu-disk-image: build
+	integration/qemu/build-disk-image.sh
+
+qemu-integration-disk: qemu-build-initramfs qemu-disk-image
+	integration/qemu/run-qemu-disk.sh
 
 all: build test lint e2e
