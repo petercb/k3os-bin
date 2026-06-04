@@ -83,9 +83,10 @@ func (v *Verifier) Run() error {
 func (v *Verifier) verify() *Results {
 	bootstrapPhase := v.checkBootstrap()
 	modePhase := v.checkModeDetection()
+	executionPhase := v.checkModeExecution()
 	finalizationPhase := v.checkFinalization()
 
-	phases := []Phase{bootstrapPhase, modePhase, finalizationPhase}
+	phases := []Phase{bootstrapPhase, modePhase, executionPhase, finalizationPhase}
 
 	totalChecks := 0
 	passedChecks := 0
@@ -148,6 +149,94 @@ func (v *Verifier) checkModeDetection() Phase {
 		Name:   "mode_detection",
 		Passed: passed,
 		Checks: checks,
+	}
+}
+
+func (v *Verifier) checkModeExecution() Phase {
+	checks := []Check{
+		v.checkModeTarget(),
+	}
+
+	passed := true
+	for _, c := range checks {
+		if !c.Passed {
+			passed = false
+			break
+		}
+	}
+
+	return Phase{
+		Name:   "mode_execution",
+		Passed: passed,
+		Checks: checks,
+	}
+}
+
+// checkModeTarget verifies that the mode handler successfully set up its
+// target filesystem. For disk mode, /run/k3os/target must be mounted and
+// contain the k3os system directory. For live mode, the overlay should exist.
+func (v *Verifier) checkModeTarget() Check {
+	// Read the detected mode to determine what to check.
+	modeData, err := v.ReadFileFunc("/run/k3os/mode")
+	if err != nil {
+		return Check{
+			Name:   "mode_target",
+			Passed: false,
+			Detail: fmt.Sprintf("cannot determine mode: %v", err),
+		}
+	}
+
+	mode := strings.TrimSpace(string(modeData))
+
+	switch mode {
+	case "disk":
+		// Disk mode should have K3OS_STATE mounted at /run/k3os/target
+		// with the k3os system directory present.
+		_, err := v.StatFunc("/run/k3os/target/k3os/system")
+		if err != nil {
+			return Check{
+				Name:   "mode_target",
+				Passed: false,
+				Detail: "disk mode: /run/k3os/target/k3os/system not found (K3OS_STATE mount failed)",
+			}
+		}
+		return Check{
+			Name:   "mode_target",
+			Passed: true,
+			Detail: "disk mode: /run/k3os/target/k3os/system exists",
+		}
+	case "live":
+		// Live mode should have the overlay root set up.
+		_, err := v.StatFunc("/run/k3os/target")
+		if err != nil {
+			return Check{
+				Name:   "mode_target",
+				Passed: false,
+				Detail: "live mode: /run/k3os/target not found",
+			}
+		}
+		return Check{
+			Name:   "mode_target",
+			Passed: true,
+			Detail: "live mode: /run/k3os/target exists",
+		}
+	default:
+		// For other modes (local, shell, install), the target directory
+		// existence is sufficient evidence the handler ran.
+		_, err := v.StatFunc("/run/k3os/target")
+		if err != nil {
+			// Not all modes create a target dir; treat as soft pass.
+			return Check{
+				Name:   "mode_target",
+				Passed: true,
+				Detail: fmt.Sprintf("%s mode: /run/k3os/target not required", mode),
+			}
+		}
+		return Check{
+			Name:   "mode_target",
+			Passed: true,
+			Detail: fmt.Sprintf("%s mode: /run/k3os/target exists", mode),
+		}
 	}
 }
 

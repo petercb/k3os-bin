@@ -23,12 +23,12 @@ func fakeStat(_ string) (os.FileInfo, error) {
 // fakeFileInfo implements os.FileInfo for testing.
 type fakeFileInfo struct{}
 
-func (fakeFileInfo) Name() string      { return "fake" }
-func (fakeFileInfo) Size() int64       { return 0 }
-func (fakeFileInfo) Mode() os.FileMode { return 0 }
+func (fakeFileInfo) Name() string       { return "fake" }
+func (fakeFileInfo) Size() int64        { return 0 }
+func (fakeFileInfo) Mode() os.FileMode  { return 0 }
 func (fakeFileInfo) ModTime() time.Time { return time.Time{} }
-func (fakeFileInfo) IsDir() bool       { return false }
-func (fakeFileInfo) Sys() any          { return nil }
+func (fakeFileInfo) IsDir() bool        { return false }
+func (fakeFileInfo) Sys() any           { return nil }
 
 func TestVerifier_Run_AllPassing(t *testing.T) {
 	t.Parallel()
@@ -72,8 +72,8 @@ func TestVerifier_Run_AllPassing(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &results))
 
 	assert.True(t, results.Passed)
-	assert.Equal(t, "5/5 checks passed", results.Summary)
-	assert.Len(t, results.Phases, 3)
+	assert.Equal(t, "6/6 checks passed", results.Summary)
+	assert.Len(t, results.Phases, 4)
 
 	// Verify each phase passed.
 	for _, phase := range results.Phases {
@@ -130,7 +130,7 @@ func TestVerifier_Run_SomeFailing(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &results))
 
 	assert.False(t, results.Passed)
-	assert.Equal(t, "3/5 checks passed", results.Summary)
+	assert.Equal(t, "3/6 checks passed", results.Summary)
 
 	// Bootstrap phase: proc_mounted fails, etc_populated passes.
 	bootstrap := results.Phases[0]
@@ -147,7 +147,7 @@ func TestVerifier_Run_SomeFailing(t *testing.T) {
 	assert.False(t, modeDetection.Checks[1].Passed) // mode_file
 
 	// Finalization phase: hostname passes.
-	finalization := results.Phases[2]
+	finalization := results.Phases[3]
 	assert.Equal(t, "finalization", finalization.Name)
 	assert.True(t, finalization.Passed)
 }
@@ -226,7 +226,7 @@ func TestVerifier_Run_EmptyHostname(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &results))
 
 	assert.False(t, results.Passed)
-	finalization := results.Phases[2]
+	finalization := results.Phases[3]
 	assert.False(t, finalization.Passed)
 	assert.Equal(t, "hostname_set", finalization.Checks[0].Name)
 	assert.False(t, finalization.Checks[0].Passed)

@@ -27,7 +27,8 @@ func TestDiskHandler_SetupMounts_Success(t *testing.T) {
 
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
 	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda1", nil)
-	mnt.On("Mount", "/dev/sda1", targetDir, "", "").Return(nil)
+	bp.On("ProbeFS", "/dev/sda1").Return("ext4")
+	mnt.On("Mount", "/dev/sda1", targetDir, "ext4", "").Return(nil)
 	// No growpart marker
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return(nil, os.ErrNotExist)
 
@@ -53,14 +54,15 @@ func TestDiskHandler_SetupMounts_WithGrowpart(t *testing.T) {
 
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
 	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda2", nil)
-	mnt.On("Mount", "/dev/sda2", targetDir, "", "").Return(nil).Once()
+	bp.On("ProbeFS", "/dev/sda2").Return("ext4")
+	mnt.On("Mount", "/dev/sda2", targetDir, "ext4", "").Return(nil).Once()
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return([]byte("/dev/sda 2"), nil)
 	fs.On("Stat", "/dev/sda2").Return(fakeFileInfo{}, nil)
 	cmd.On("Run", "umount", targetDir).Return(nil)
 	pg.On("GrowPartition", "/dev/sda", 2).Return(nil)
 	cmd.On("Run", "e2fsck", "-f", "/dev/sda2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
-	mnt.On("Mount", "/dev/sda2", targetDir, "", "").Return(nil).Once()
+	mnt.On("Mount", "/dev/sda2", targetDir, "ext4", "").Return(nil).Once()
 	fs.On("Remove", targetDir+"/k3os/system/growpart").Return(nil)
 
 	err := h.SetupMounts()
@@ -87,7 +89,8 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
 	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda2", nil)
-	mnt.On("Mount", "/dev/sda2", targetDir, "", "").Return(nil).Once()
+	bp.On("ProbeFS", "/dev/sda2").Return("ext4")
+	mnt.On("Mount", "/dev/sda2", targetDir, "ext4", "").Return(nil).Once()
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return([]byte("/dev/vda 1"), nil)
 	// Device path from growpart doesn't exist, need BlockProber fallback
 	fs.On("Stat", "/dev/vda1").Return(nil, os.ErrNotExist)
@@ -97,7 +100,7 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 	pg.On("GrowPartition", "/dev/sda", 2).Return(nil)
 	cmd.On("Run", "e2fsck", "-f", "/dev/sda2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
-	mnt.On("Mount", "/dev/sda2", targetDir, "", "").Return(nil).Once()
+	mnt.On("Mount", "/dev/sda2", targetDir, "ext4", "").Return(nil).Once()
 	fs.On("Remove", targetDir+"/k3os/system/growpart").Return(nil)
 
 	err := h.SetupMounts()
@@ -124,7 +127,8 @@ func TestDiskHandler_SetupMounts_RetriesDeviceResolution(t *testing.T) {
 	// First two attempts fail, third succeeds
 	bp.On("FindByLabel", "K3OS_STATE").Return("", errors.New("readlink: no such file")).Twice()
 	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/vda2", nil).Once()
-	mnt.On("Mount", "/dev/vda2", targetDir, "", "").Return(nil)
+	bp.On("ProbeFS", "/dev/vda2").Return("ext4")
+	mnt.On("Mount", "/dev/vda2", targetDir, "ext4", "").Return(nil)
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return(nil, os.ErrNotExist)
 
 	err := h.SetupMounts()
@@ -608,7 +612,8 @@ func TestDiskHandler_Execute_TakeoverSkipped(t *testing.T) {
 	// SetupMounts
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
 	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda1", nil)
-	mnt.On("Mount", "/dev/sda1", targetDir, "", "").Return(nil)
+	bp.On("ProbeFS", "/dev/sda1").Return("ext4")
+	mnt.On("Mount", "/dev/sda1", targetDir, "ext4", "").Return(nil)
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return(nil, os.ErrNotExist)
 
 	// SetupK3OS - already exists
