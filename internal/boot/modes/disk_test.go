@@ -20,12 +20,14 @@ func TestDiskHandler_SetupMounts_Success(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, SleepFunc: func(time.Duration) {}}
 	h := NewDiskHandler(deps)
 
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
-	mnt.On("Mount", "LABEL=K3OS_STATE", targetDir, "", "").Return(nil)
+	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda1", nil)
+	mnt.On("Mount", "/dev/sda1", targetDir, "", "").Return(nil)
 	// No growpart marker
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return(nil, os.ErrNotExist)
 
@@ -34,6 +36,7 @@ func TestDiskHandler_SetupMounts_Success(t *testing.T) {
 
 	fs.AssertExpectations(t)
 	mnt.AssertExpectations(t)
+	bp.AssertExpectations(t)
 }
 
 func TestDiskHandler_SetupMounts_WithGrowpart(t *testing.T) {
@@ -42,20 +45,22 @@ func TestDiskHandler_SetupMounts_WithGrowpart(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 	pg := &MockPartitionGrower{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, PartitionGrower: pg}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, PartitionGrower: pg, SleepFunc: func(time.Duration) {}}
 	h := NewDiskHandler(deps)
 
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
-	mnt.On("Mount", "LABEL=K3OS_STATE", targetDir, "", "").Return(nil).Once()
+	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda2", nil)
+	mnt.On("Mount", "/dev/sda2", targetDir, "", "").Return(nil).Once()
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return([]byte("/dev/sda 2"), nil)
 	fs.On("Stat", "/dev/sda2").Return(fakeFileInfo{}, nil)
 	cmd.On("Run", "umount", targetDir).Return(nil)
 	pg.On("GrowPartition", "/dev/sda", 2).Return(nil)
 	cmd.On("Run", "e2fsck", "-f", "/dev/sda2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
-	mnt.On("Mount", "LABEL=K3OS_STATE", targetDir, "", "").Return(nil).Once()
+	mnt.On("Mount", "/dev/sda2", targetDir, "", "").Return(nil).Once()
 	fs.On("Remove", targetDir+"/k3os/system/growpart").Return(nil)
 
 	err := h.SetupMounts()
@@ -65,6 +70,7 @@ func TestDiskHandler_SetupMounts_WithGrowpart(t *testing.T) {
 	cmd.AssertExpectations(t)
 	mnt.AssertExpectations(t)
 	pg.AssertExpectations(t)
+	bp.AssertExpectations(t)
 }
 
 func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
@@ -76,22 +82,22 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 	bp := &MockBlockProber{}
 	pg := &MockPartitionGrower{}
 
-	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, PartitionGrower: pg}
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, PartitionGrower: pg, SleepFunc: func(time.Duration) {}}
 	h := NewDiskHandler(deps)
 
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
-	mnt.On("Mount", "LABEL=K3OS_STATE", targetDir, "", "").Return(nil).Once()
+	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda2", nil)
+	mnt.On("Mount", "/dev/sda2", targetDir, "", "").Return(nil).Once()
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return([]byte("/dev/vda 1"), nil)
 	// Device path from growpart doesn't exist, need BlockProber fallback
 	fs.On("Stat", "/dev/vda1").Return(nil, os.ErrNotExist)
-	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda2", nil)
 	// Now check the resolved device
 	fs.On("Stat", "/dev/sda2").Return(fakeFileInfo{}, nil)
 	cmd.On("Run", "umount", targetDir).Return(nil)
 	pg.On("GrowPartition", "/dev/sda", 2).Return(nil)
 	cmd.On("Run", "e2fsck", "-f", "/dev/sda2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
-	mnt.On("Mount", "LABEL=K3OS_STATE", targetDir, "", "").Return(nil).Once()
+	mnt.On("Mount", "/dev/sda2", targetDir, "", "").Return(nil).Once()
 	fs.On("Remove", targetDir+"/k3os/system/growpart").Return(nil)
 
 	err := h.SetupMounts()
@@ -100,6 +106,53 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 	bp.AssertExpectations(t)
 	cmd.AssertExpectations(t)
 	pg.AssertExpectations(t)
+}
+
+func TestDiskHandler_SetupMounts_RetriesDeviceResolution(t *testing.T) {
+	t.Parallel()
+
+	fs := &MockFileSystem{}
+	cmd := &MockCommandRunner{}
+	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
+
+	sleepCount := 0
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, SleepFunc: func(time.Duration) { sleepCount++ }}
+	h := NewDiskHandler(deps)
+
+	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
+	// First two attempts fail, third succeeds
+	bp.On("FindByLabel", "K3OS_STATE").Return("", errors.New("readlink: no such file")).Twice()
+	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/vda2", nil).Once()
+	mnt.On("Mount", "/dev/vda2", targetDir, "", "").Return(nil)
+	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return(nil, os.ErrNotExist)
+
+	err := h.SetupMounts()
+	require.NoError(t, err)
+	assert.Equal(t, 2, sleepCount)
+
+	bp.AssertExpectations(t)
+	mnt.AssertExpectations(t)
+}
+
+func TestDiskHandler_SetupMounts_DeviceResolutionTimeout(t *testing.T) {
+	t.Parallel()
+
+	fs := &MockFileSystem{}
+	cmd := &MockCommandRunner{}
+	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
+
+	deps := &Deps{FS: fs, Cmd: cmd, Mounter: mnt, BlockProber: bp, SleepFunc: func(time.Duration) {}}
+	h := NewDiskHandler(deps)
+
+	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
+	// All attempts fail
+	bp.On("FindByLabel", "K3OS_STATE").Return("", errors.New("readlink: no such file"))
+
+	err := h.SetupMounts()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found after")
 }
 
 func TestDiskHandler_SetupKernelSquashfs_Copies(t *testing.T) {
@@ -535,6 +588,7 @@ func TestDiskHandler_Execute_TakeoverSkipped(t *testing.T) {
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
+	bp := &MockBlockProber{}
 	proc := &MockProcessExecutor{}
 	ld := &MockLoopDetacher{}
 
@@ -542,6 +596,7 @@ func TestDiskHandler_Execute_TakeoverSkipped(t *testing.T) {
 		FS:            fs,
 		Cmd:           cmd,
 		Mounter:       mnt,
+		BlockProber:   bp,
 		Proc:          proc,
 		LoopDetacher:  ld,
 		KernelVersion: "5.15.0",
@@ -552,7 +607,8 @@ func TestDiskHandler_Execute_TakeoverSkipped(t *testing.T) {
 
 	// SetupMounts
 	fs.On("MkdirAll", targetDir, os.FileMode(0o755)).Return(nil)
-	mnt.On("Mount", "LABEL=K3OS_STATE", targetDir, "", "").Return(nil)
+	bp.On("FindByLabel", "K3OS_STATE").Return("/dev/sda1", nil)
+	mnt.On("Mount", "/dev/sda1", targetDir, "", "").Return(nil)
 	fs.On("ReadFile", targetDir+"/k3os/system/growpart").Return(nil, os.ErrNotExist)
 
 	// SetupK3OS - already exists
