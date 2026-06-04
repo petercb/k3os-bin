@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/siderolabs/go-blockdevice/v2/blkid"
 )
 
 // SysfsBlockProber implements iface.BlockProber using Linux sysfs/devfs.
@@ -55,4 +57,15 @@ func (SysfsBlockProber) ListDisks() ([]string, error) {
 		disks = append(disks, name)
 	}
 	return disks, nil
+}
+
+// ProbeFS returns the filesystem type name for a block device path using
+// go-blockdevice/v2's blkid probe. Returns empty string if the filesystem
+// type cannot be determined.
+func (SysfsBlockProber) ProbeFS(device string) string {
+	info, err := blkid.ProbePath(device, blkid.WithSkipLocking(true))
+	if err != nil {
+		return ""
+	}
+	return info.Name
 }

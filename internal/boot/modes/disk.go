@@ -84,7 +84,14 @@ func (h *DiskHandler) SetupMounts() error {
 	if err != nil {
 		return fmt.Errorf("mount K3OS_STATE: %w", err)
 	}
-	if mntErr := h.deps.Mounter.Mount(device, targetDir, "", ""); mntErr != nil {
+
+	// Probe the device for its filesystem type. Passing an empty fstype to
+	// mount(2) requires the kernel to auto-detect, which fails if the fs
+	// module isn't loaded yet. Using the probed type avoids ENODEV errors.
+	fsType := h.deps.BlockProber.ProbeFS(device)
+	slog.Debug("disk: probed filesystem", "device", device, "fstype", fsType)
+
+	if mntErr := h.deps.Mounter.Mount(device, targetDir, fsType, ""); mntErr != nil {
 		return fmt.Errorf("mount K3OS_STATE: %w", mntErr)
 	}
 
@@ -144,7 +151,7 @@ func (h *DiskHandler) SetupMounts() error {
 		}
 	}
 
-	if err := h.deps.Mounter.Mount(device, targetDir, "", ""); err != nil {
+	if err := h.deps.Mounter.Mount(device, targetDir, fsType, ""); err != nil {
 		return fmt.Errorf("remount K3OS_STATE: %w", err)
 	}
 	if err := h.deps.FS.Remove(growpartPath); err != nil {

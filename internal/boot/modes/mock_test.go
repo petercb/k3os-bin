@@ -221,6 +221,11 @@ func (m *MockBlockProber) ListDisks() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (m *MockBlockProber) ProbeFS(device string) string {
+	args := m.Called(device)
+	return args.String(0)
+}
+
 // fakeFileInfo implements os.FileInfo for tests.
 type fakeFileInfo struct {
 	name  string

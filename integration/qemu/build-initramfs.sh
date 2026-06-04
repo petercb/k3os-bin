@@ -79,6 +79,9 @@ cp "${WORK_DIR}/usr/etc/passwd" "${WORK_DIR}/etc/passwd"
 cp "${WORK_DIR}/usr/etc/shadow" "${WORK_DIR}/etc/shadow"
 cp "${WORK_DIR}/usr/etc/group" "${WORK_DIR}/etc/group"
 
+# Create /etc/ssh directory (local mode handler expects it for SSH key persistence)
+mkdir -p "${WORK_DIR}/etc/ssh"
+
 # Create /dev/console placeholder (QEMU provides the real device)
 touch "${WORK_DIR}/dev/console"
 
