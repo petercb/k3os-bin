@@ -72,7 +72,7 @@ func TestVerifier_Run_AllPassing(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &results))
 
 	assert.True(t, results.Passed)
-	assert.Equal(t, "7/7 checks passed", results.Summary)
+	assert.Equal(t, "8/8 checks passed", results.Summary)
 	assert.Len(t, results.Phases, 4)
 
 	// Verify each phase passed.
@@ -130,7 +130,7 @@ func TestVerifier_Run_SomeFailing(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &results))
 
 	assert.False(t, results.Passed)
-	assert.Equal(t, "4/7 checks passed", results.Summary)
+	assert.Equal(t, "4/8 checks passed", results.Summary)
 
 	// Bootstrap phase: proc_mounted fails, etc_populated passes.
 	bootstrap := results.Phases[0]

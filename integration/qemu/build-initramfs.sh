@@ -92,8 +92,20 @@ touch "${WORK_DIR}/dev/console"
 MODULES_TAR="${CACHE_DIR}/k3os-modules-amd64.tar.gz"
 if [[ -f "${MODULES_TAR}" ]]; then
     echo "    [modules] Extracting kernel modules..."
+    # Extract tarball — structure varies between builds.
     tar -xzf "${MODULES_TAR}" -C "${WORK_DIR}" 2>/dev/null || true
-    echo "    [modules] Installed: $(find "${WORK_DIR}/lib/modules" -name '*.ko*' 2>/dev/null | wc -l) module files"
+
+    # Detect where modules ended up and normalize to /lib/modules/.
+    # Tarball may extract as: modules/<ver>/, lib/modules/<ver>/, or <prefix>/lib/modules/<ver>/
+    if [[ -d "${WORK_DIR}/modules" && ! -d "${WORK_DIR}/modules/lib" ]]; then
+        # Case: modules/<version>/... — move to lib/modules/
+        mkdir -p "${WORK_DIR}/lib/modules"
+        mv "${WORK_DIR}/modules"/* "${WORK_DIR}/lib/modules/" 2>/dev/null || true
+        rmdir "${WORK_DIR}/modules" 2>/dev/null || true
+    fi
+
+    MODULE_COUNT=$(find "${WORK_DIR}/lib/modules" -type f 2>/dev/null | wc -l)
+    echo "    [modules] Installed: ${MODULE_COUNT} files in /lib/modules"
 else
     echo "    [modules] No modules tarball found at ${MODULES_TAR}, skipping."
     echo "              (Run 'make qemu-download-kernel' to fetch kernel assets.)"
