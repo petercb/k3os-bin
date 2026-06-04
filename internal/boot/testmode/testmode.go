@@ -135,6 +135,7 @@ func (v *Verifier) checkModeDetection() Phase {
 	checks := []Check{
 		v.checkRunK3osExists(),
 		v.checkModeFile(),
+		v.checkExpectedMode(),
 	}
 
 	passed := true
@@ -155,6 +156,7 @@ func (v *Verifier) checkModeDetection() Phase {
 func (v *Verifier) checkModeExecution() Phase {
 	checks := []Check{
 		v.checkModeTarget(),
+		v.checkPivotRoot(),
 	}
 
 	passed := true
@@ -231,6 +233,42 @@ func (v *Verifier) checkModeTarget() Check {
 			Passed: true,
 			Detail: fmt.Sprintf("%s mode: no target check required", mode),
 		}
+	}
+}
+
+// checkPivotRoot verifies whether a disk-mode pivot_root occurred by checking
+// for the /.root directory (the old root mountpoint). If k3os.mode= is set
+// on the cmdline, this isn't a disk-mode boot and the check soft-passes.
+// Otherwise (auto-detect mode), /.root must exist proving disk handler ran.
+func (v *Verifier) checkPivotRoot() Check {
+	cmdline, _ := v.ReadFileFunc("/proc/cmdline")
+	cmdlineStr := string(cmdline)
+
+	// If k3os.mode= is set on cmdline, this isn't a disk-mode boot; soft pass.
+	for _, field := range strings.Fields(cmdlineStr) {
+		if strings.HasPrefix(field, "k3os.mode=") {
+			return Check{
+				Name:   "pivot_root",
+				Passed: true,
+				Detail: "k3os.mode= set on cmdline, pivot_root check not applicable",
+			}
+		}
+	}
+
+	// No explicit mode override means this was a disk-mode auto-detect boot.
+	// After pivot_root, /.root should exist as the old root mountpoint.
+	_, err := v.StatFunc("/.root")
+	if err != nil {
+		return Check{
+			Name:   "pivot_root",
+			Passed: false,
+			Detail: "/.root not found (pivot_root from disk mode did not occur)",
+		}
+	}
+	return Check{
+		Name:   "pivot_root",
+		Passed: true,
+		Detail: "/.root exists (pivot_root from disk mode succeeded)",
 	}
 }
 
@@ -336,6 +374,62 @@ func (v *Verifier) checkModeFile() Check {
 		Name:   "mode_file",
 		Passed: true,
 		Detail: fmt.Sprintf("/run/k3os/mode contains valid mode: %q", mode),
+	}
+}
+
+// checkExpectedMode reads k3os.test_expected_mode from /proc/cmdline and
+// verifies the detected mode matches. If the parameter is absent, the check
+// is a soft pass (no expectation configured).
+func (v *Verifier) checkExpectedMode() Check {
+	cmdline, err := v.ReadFileFunc("/proc/cmdline")
+	if err != nil {
+		return Check{
+			Name:   "expected_mode",
+			Passed: true,
+			Detail: "cannot read /proc/cmdline, skipping expected mode check",
+		}
+	}
+
+	// Parse k3os.test_expected_mode=<value> from cmdline.
+	var expected string
+	for _, field := range strings.Fields(string(cmdline)) {
+		if strings.HasPrefix(field, "k3os.test_expected_mode=") {
+			expected = strings.TrimPrefix(field, "k3os.test_expected_mode=")
+			break
+		}
+	}
+
+	if expected == "" {
+		return Check{
+			Name:   "expected_mode",
+			Passed: true,
+			Detail: "no k3os.test_expected_mode set, skipping",
+		}
+	}
+
+	// Read the actual detected mode.
+	modeData, err := v.ReadFileFunc("/run/k3os/mode")
+	if err != nil {
+		return Check{
+			Name:   "expected_mode",
+			Passed: false,
+			Detail: fmt.Sprintf("expected mode %q but cannot read /run/k3os/mode: %v", expected, err),
+		}
+	}
+
+	actual := strings.TrimSpace(string(modeData))
+	if actual != expected {
+		return Check{
+			Name:   "expected_mode",
+			Passed: false,
+			Detail: fmt.Sprintf("expected mode %q but got %q", expected, actual),
+		}
+	}
+
+	return Check{
+		Name:   "expected_mode",
+		Passed: true,
+		Detail: fmt.Sprintf("mode matches expected: %q", expected),
 	}
 }
 

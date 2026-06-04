@@ -71,7 +71,7 @@ timeout --foreground --signal=KILL "${TIMEOUT}" qemu-system-x86_64 \
     -rtc base=utc,clock=rt \
     -kernel "${KERNEL}" \
     -initrd "${INITRD}" \
-    -append "console=ttyS0 loglevel=4 printk.devkmsg=on k3os.test_mode k3os.debug" \
+    -append "console=ttyS0 loglevel=4 printk.devkmsg=on k3os.test_mode k3os.test_expected_mode=local k3os.debug" \
     -drive "file=${DISK_SNAPSHOT},format=qcow2,if=virtio,id=state" \
     -nographic \
     -serial "file:${SERIAL_LOG}" \
@@ -125,18 +125,27 @@ echo ""
 echo "========================================"
 
 if [[ "${PASSED}" == "true" ]]; then
-    # Even if structured tests passed, check for ERROR-level log entries
-    # that indicate runtime failures not caught by the verifier.
-    ERROR_LINES=$(grep -c 'level=ERROR' "${SERIAL_LOG}" 2>/dev/null || true)
-    if [[ "${ERROR_LINES}" -gt 0 ]]; then
+    # If structured checks passed, verify no critical mode handler errors.
+    # Finalization errors (missing OpenRC services) are expected in the
+    # minimal test environment and are not considered failures.
+    CRITICAL_ERRORS=$(grep 'level=ERROR' "${SERIAL_LOG}" 2>/dev/null | grep -c 'mode handler failed' || true)
+    if [[ "${CRITICAL_ERRORS}" -gt 0 ]]; then
         echo ""
-        echo "WARNING: ${ERROR_LINES} ERROR-level log entries found in serial output:"
-        grep 'level=ERROR' "${SERIAL_LOG}" | head -10
+        echo "FAILURE: Mode handler errors found in serial output:"
+        grep 'level=ERROR' "${SERIAL_LOG}" | grep 'mode handler' || true
         echo ""
-        echo "==> DISK MODE: TESTS PASSED (with warnings — review errors above)"
-    else
-        echo "==> DISK MODE: ALL TESTS PASSED"
+        echo "==> DISK MODE: TESTS FAILED (mode handler error detected)"
+        exit 1
     fi
+    # Report any other errors as informational.
+    OTHER_ERRORS=$(grep -c 'level=ERROR' "${SERIAL_LOG}" 2>/dev/null || true)
+    if [[ "${OTHER_ERRORS}" -gt 0 ]]; then
+        echo ""
+        echo "INFO: ${OTHER_ERRORS} non-critical ERROR entries (expected in minimal test env):"
+        grep 'level=ERROR' "${SERIAL_LOG}" 2>/dev/null | grep -m 5 "" || true
+    fi
+    echo ""
+    echo "==> DISK MODE: ALL TESTS PASSED"
     exit 0
 else
     echo "==> DISK MODE: TESTS FAILED"

@@ -46,7 +46,7 @@ fi
 echo "==> Using release: ${TAG_NAME}"
 
 # Assets to download
-ASSETS=("k3os-vmlinuz-amd64.img")
+ASSETS=("k3os-vmlinuz-amd64.img" "k3os-modules-amd64.tar.gz")
 
 for asset in "${ASSETS[@]}"; do
     dest="${CACHE_DIR}/${asset}"
