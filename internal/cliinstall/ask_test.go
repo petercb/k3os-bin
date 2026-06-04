@@ -23,6 +23,10 @@ func (m *mockBlockProber) ListDisks() ([]string, error) {
 	return m.disks, m.err
 }
 
+func (m *mockBlockProber) ProbeFS(_ string) string {
+	return ""
+}
+
 func TestAskInstallDevice_AlreadySet(t *testing.T) {
 	t.Parallel()
 

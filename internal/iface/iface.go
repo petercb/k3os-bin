@@ -90,6 +90,9 @@ type BlockProber interface {
 	FindByLabel(label string) (string, error)
 	// ListDisks returns device names of all block devices of type "disk".
 	ListDisks() ([]string, error)
+	// ProbeFS returns the filesystem type name for a block device path
+	// (e.g., "ext4", "xfs", "vfat"). Returns empty string if unknown.
+	ProbeFS(device string) string
 }
 
 // LoopDetacher abstracts loop device detachment by path.
