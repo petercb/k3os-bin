@@ -48,11 +48,16 @@ Reducing external binary dependencies improves:
 |-----------|----------|--------|
 | `resize2fs` | modes/disk.go, finalize/grow.go | No pure Go ext4 filesystem resize exists |
 | `e2fsck` | modes/disk.go | No pure Go ext4 filesystem check exists |
-| `mdev -s` | cli/rc/rc.go | Device manager (udev-lite), no library equivalent |
 | `chpasswd` | cliinstall/ask.go, command/command.go | PAM/shadow file interaction |
 | `nsenter ... reboot` | cli/upgrade/upgrade.go | PID namespace entry for reboot |
 | `passwd -d rancher` | modes/live.go | PAM password removal |
 | `cp -r` / `cp -f` | modes/disk.go | File copy (could use otiai10/copy but low priority) |
+
+## Shell-outs Eliminated
+
+| Shell-out | Location | Replacement |
+|-----------|----------|-------------|
+| `mdev -s` | cli/rc/rc.go | `internal/devpopulate.PopulateDev()` — pure Go sysfs walk + blkid probe |
 
 ## New Interfaces
 

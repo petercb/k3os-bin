@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"strings"
 	"testing"
 
 	"github.com/petercb/k3os-bin/internal/namespace"
@@ -124,4 +125,73 @@ func TestDoLoopback_UsesLibinitNetInit(t *testing.T) {
 		return true
 	})
 	assert.False(t, foundExecCommand, "doLoopback must not call exec.Command")
+}
+
+func TestDoHotplug_UsesDevpopulateNotMdev(t *testing.T) {
+	t.Parallel()
+
+	// Parse rc.go and verify doHotplug does NOT shell out to mdev.
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "rc.go", nil, parser.AllErrors)
+	require.NoError(t, err, "failed to parse rc.go")
+
+	// Find the doHotplug function.
+	var doHotplugDecl *ast.FuncDecl
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if ok && fn.Name.Name == "doHotplug" {
+			doHotplugDecl = fn
+			break
+		}
+	}
+	require.NotNil(t, doHotplugDecl, "doHotplug function must exist in rc.go")
+
+	// Verify it does NOT call exec.Command (no shelling out to mdev).
+	foundExecCommand := false
+	ast.Inspect(doHotplugDecl.Body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		ident, ok := sel.X.(*ast.Ident)
+		if ok && ident.Name == "exec" && sel.Sel.Name == "Command" {
+			foundExecCommand = true
+		}
+		return true
+	})
+	assert.False(t, foundExecCommand, "doHotplug must not call exec.Command (no mdev shell-out)")
+
+	// Verify it does NOT reference the mdev binary path.
+	foundMdev := false
+	ast.Inspect(doHotplugDecl.Body, func(n ast.Node) bool {
+		lit, ok := n.(*ast.BasicLit)
+		if ok && strings.Contains(lit.Value, "mdev") {
+			foundMdev = true
+		}
+		return true
+	})
+	assert.False(t, foundMdev, "doHotplug must not reference mdev")
+
+	// Verify it calls devpopulate.PopulateDev (or equivalent).
+	foundPopulateDev := false
+	ast.Inspect(doHotplugDecl.Body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		ident, ok := sel.X.(*ast.Ident)
+		if ok && ident.Name == "devpopulate" && sel.Sel.Name == "PopulateDev" {
+			foundPopulateDev = true
+		}
+		return true
+	})
+	assert.True(t, foundPopulateDev, "doHotplug must call devpopulate.PopulateDev()")
 }
