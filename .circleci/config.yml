@@ -95,6 +95,7 @@ workflows:
           requires:
             - test
       - qemu-integration:
+          context: github
           requires:
             - test
       - release:
