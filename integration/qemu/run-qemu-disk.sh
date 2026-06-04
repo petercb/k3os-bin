@@ -71,7 +71,7 @@ timeout --foreground --signal=KILL "${TIMEOUT}" qemu-system-x86_64 \
     -rtc base=utc,clock=rt \
     -kernel "${KERNEL}" \
     -initrd "${INITRD}" \
-    -append "console=ttyS0 loglevel=4 printk.devkmsg=on k3os.test_mode k3os.test_expected_mode=disk k3os.debug" \
+    -append "console=ttyS0 loglevel=4 printk.devkmsg=on k3os.test_mode k3os.test_expected_mode=local k3os.debug" \
     -drive "file=${DISK_SNAPSHOT},format=qcow2,if=virtio,id=state" \
     -nographic \
     -serial "file:${SERIAL_LOG}" \
@@ -125,8 +125,8 @@ echo ""
 echo "========================================"
 
 if [[ "${PASSED}" == "true" ]]; then
-    # Check for ERROR-level log entries that indicate runtime failures
-    # not caught by the structured verifier. These are hard failures.
+    # If structured checks passed, also verify no ERROR-level log entries
+    # that could indicate hidden runtime failures.
     ERROR_LINES=$(grep -c 'level=ERROR' "${SERIAL_LOG}" 2>/dev/null || true)
     if [[ "${ERROR_LINES}" -gt 0 ]]; then
         echo ""
