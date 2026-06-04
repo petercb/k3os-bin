@@ -12,6 +12,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22
 	github.com/moby/sys/reexec v0.1.0
 	github.com/otiai10/copy v1.14.1
+	github.com/rekby/mbr v1.2.0
 	github.com/siderolabs/go-blockdevice/v2 v2.0.6
 	github.com/stretchr/testify v1.11.1
 	github.com/u-root/u-root v0.16.0

@@ -112,7 +112,8 @@ type LoopAttacher interface {
 	Attach(backingFile string, offset uint64, readOnly bool) (LoopDevice, error)
 }
 
-// PartitionGrower grows a partition to fill available space on a GPT disk.
+// PartitionGrower grows a partition to fill available space.
+// Implementations should support both GPT and MBR (DOS) partition tables.
 type PartitionGrower interface {
 	GrowPartition(device string, partNum int) error
 }
