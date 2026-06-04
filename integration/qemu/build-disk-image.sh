@@ -96,12 +96,30 @@ sudo mkdir -p "${MOUNT_DIR}/run/k3os"
 # Create /dev/console placeholder
 sudo touch "${MOUNT_DIR}/dev/console"
 
-# Minimal /bin/sh fallback
-cat << 'SHELL' | sudo tee "${MOUNT_DIR}/bin/sh" > /dev/null
+# Minimal /bin/sh fallback - use busybox from the host initramfs build
+# (the disk image builder runs after build-initramfs, so we can reference
+# the cached busybox). If not available, use a no-op stub.
+BUSYBOX_SRC="${CACHE_DIR}/busybox"
+if [[ ! -f "${BUSYBOX_SRC}" ]]; then
+    # Try system busybox
+    for candidate in /bin/busybox /usr/bin/busybox; do
+        if [[ -x "${candidate}" ]]; then
+            BUSYBOX_SRC="${candidate}"
+            break
+        fi
+    done
+fi
+if [[ -f "${BUSYBOX_SRC}" ]]; then
+    sudo cp "${BUSYBOX_SRC}" "${MOUNT_DIR}/bin/busybox"
+    sudo chmod 755 "${MOUNT_DIR}/bin/busybox"
+    sudo ln -sf busybox "${MOUNT_DIR}/bin/sh"
+else
+    cat << 'SHELL' | sudo tee "${MOUNT_DIR}/bin/sh" > /dev/null
 #!/sbin/init
 exit 1
 SHELL
-sudo chmod 755 "${MOUNT_DIR}/bin/sh"
+    sudo chmod 755 "${MOUNT_DIR}/bin/sh"
+fi
 
 # Unmount
 echo "    [unmount] Unmounting image..."
