@@ -90,8 +90,9 @@ sudo cp "${MOUNT_DIR}/etc/shadow" "${MOUNT_DIR}/usr/etc/shadow"
 sudo cp "${MOUNT_DIR}/etc/group" "${MOUNT_DIR}/usr/etc/group"
 
 # /etc/ssh is required by the local mode handler (SSH key persistence).
-# After pivot_root, the second-phase detects mode=local and SetupSSH()
-# copies /etc/ssh to /var/lib/rancher/k3os/ssh.
+# After pivot_root, SetupEtc() mounts tmpfs on /etc and copies /usr/etc/ there,
+# so we must place ssh in /usr/etc/ssh for it to appear in /etc/ssh.
+sudo mkdir -p "${MOUNT_DIR}/usr/etc/ssh"
 sudo mkdir -p "${MOUNT_DIR}/etc/ssh"
 
 # Core directories the second-phase binary expects
