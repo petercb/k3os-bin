@@ -9,10 +9,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
-	targetDir = "/run/k3os/target"
+	targetDir       = "/run/k3os/target"
+	stateLabel      = "K3OS_STATE"
+	stateMaxRetries = 10
+	stateRetrySleep = 1 * time.Second
 )
 
 // ErrExecCalled is a sentinel error returned when Execute() successfully
@@ -75,8 +79,13 @@ func (h *DiskHandler) SetupMounts() error {
 	if err := h.deps.FS.MkdirAll(targetDir, 0o755); err != nil {
 		return fmt.Errorf("mkdir target: %w", err)
 	}
-	if err := h.deps.Mounter.Mount("LABEL=K3OS_STATE", targetDir, "", ""); err != nil {
+
+	device, err := h.resolveStateDevice()
+	if err != nil {
 		return fmt.Errorf("mount K3OS_STATE: %w", err)
+	}
+	if mntErr := h.deps.Mounter.Mount(device, targetDir, "", ""); mntErr != nil {
+		return fmt.Errorf("mount K3OS_STATE: %w", mntErr)
 	}
 
 	growpartPath := filepath.Join(targetDir, "k3os/system/growpart")
@@ -135,13 +144,34 @@ func (h *DiskHandler) SetupMounts() error {
 		}
 	}
 
-	if err := h.deps.Mounter.Mount("LABEL=K3OS_STATE", targetDir, "", ""); err != nil {
+	if err := h.deps.Mounter.Mount(device, targetDir, "", ""); err != nil {
 		return fmt.Errorf("remount K3OS_STATE: %w", err)
 	}
 	if err := h.deps.FS.Remove(growpartPath); err != nil {
 		slog.Warn("disk: failed to remove growpart marker", "error", err)
 	}
 	return nil
+}
+
+// resolveStateDevice resolves the K3OS_STATE label to an actual device path
+// using the BlockProber, retrying up to stateMaxRetries times with a sleep
+// between attempts. During early boot the /dev/disk/by-label symlinks may
+// not yet be populated (udev race), so we wait for the device to appear.
+func (h *DiskHandler) resolveStateDevice() (string, error) {
+	sleepFn := h.deps.SleepFunc
+	if sleepFn == nil {
+		sleepFn = time.Sleep
+	}
+
+	for i := range stateMaxRetries {
+		device, err := h.deps.BlockProber.FindByLabel(stateLabel)
+		if err == nil && device != "" {
+			return device, nil
+		}
+		slog.Debug("disk: waiting for K3OS_STATE device", "attempt", i+1, "error", err)
+		sleepFn(stateRetrySleep)
+	}
+	return "", fmt.Errorf("device with label %q not found after %d attempts", stateLabel, stateMaxRetries)
 }
 
 // SetupKernelSquashfs copies kernel.squashfs from .base to target if not present.
