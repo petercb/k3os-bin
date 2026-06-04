@@ -57,7 +57,7 @@ CLI Usage (user mode):
 
 1. **Boot (init)**: Kernel loads the binary as `/init` (live) or `/sbin/init` (local). The binary relocates the root filesystem from ramfs/tmpfs, remounts root as read-write, mounts the squashfs data image, sets up an overlay filesystem, then hands off to the shell init system.
 
-2. **Run Control (`k3os rc`)**: Early-boot phase that mounts essential filesystems (proc, sys, dev, cgroups), starts hotplug/mdev, sets the hardware clock, configures loopback networking, sets the hostname, and writes resolv.conf.
+2. **Run Control (`k3os rc`)**: Early-boot phase that mounts essential filesystems (proc, sys, dev, cgroups), populates device nodes and `/dev/disk/by-label` symlinks (pure Go), sets the hardware clock, configures loopback networking, sets the hostname, and writes resolv.conf.
 
 3. **Configuration (`k3os config`)**: Reads and merges `config.yaml` from multiple sources (system, local, cloud-config data sources, kernel cmdline), then applies configuration in phases:
    - `--initrd`: modules, sysctls, hostname, write-files, environment, initcmd

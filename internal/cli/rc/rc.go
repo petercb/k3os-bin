@@ -14,10 +14,10 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/petercb/k3os-bin/internal/devpopulate"
 	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
 	"github.com/petercb/k3os-bin/internal/modalias"
@@ -221,14 +221,18 @@ func doMounts() {
 }
 
 func doHotplug() {
-	mdev := "/usr/sbin/mdev"
-
-	// start mdev for hotplug (if supported)
-	hotplug := "/proc/sys/kernel/hotplug"
-	if exists(hotplug) {
-		write(hotplug, mdev)
+	// Populate /dev with device nodes and create /dev/disk/by-label and
+	// /dev/disk/by-uuid symlinks. This replaces the previous "mdev -s"
+	// shell-out with a pure Go implementation that:
+	//   1. Walks /sys/class/block and ensures device nodes exist (via Mknod;
+	//      on devtmpfs this is a harmless no-op as nodes already exist).
+	//   2. Probes each block device for filesystem labels/UUIDs using
+	//      go-blockdevice/v2's blkid and creates the appropriate symlinks.
+	if err := devpopulate.PopulateDev(devpopulate.DefaultOptions()); err != nil {
+		log.Printf("Failed to populate /dev: %v", err)
 	}
 
+	// Trigger USB uevent replay for hotplug devices.
 	devices := "/sys/devices"
 	files := readdir(devices)
 	for _, f := range files {
@@ -238,12 +242,7 @@ func doHotplug() {
 		}
 	}
 
-	cmd := exec.Command(mdev, "-s")
-	if err := cmd.Run(); err != nil {
-		log.Printf("Failed to run %s -s: %v", mdev, err)
-	}
-
-	// mdev only supports hot plug, so also add all existing cold plug devices
+	// Load kernel modules for all existing cold plug devices.
 	modaliases(glob("/sys/bus/*/devices/*/modalias")...)
 }
 

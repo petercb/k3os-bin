@@ -79,75 +79,13 @@ cp "${WORK_DIR}/usr/etc/passwd" "${WORK_DIR}/etc/passwd"
 cp "${WORK_DIR}/usr/etc/shadow" "${WORK_DIR}/etc/shadow"
 cp "${WORK_DIR}/usr/etc/group" "${WORK_DIR}/etc/group"
 
-# Create /bin/sh - use busybox if available, otherwise a no-op stub.
-# A working shell is needed for /usr/sbin/mdev script execution.
-BUSYBOX=""
-for candidate in /bin/busybox /usr/bin/busybox; do
-    if [[ -x "${candidate}" ]] && file "${candidate}" | grep -q "statically linked"; then
-        BUSYBOX="${candidate}"
-        break
-    fi
-done
-# Try to find any busybox (even dynamically linked, copy it)
-if [[ -z "${BUSYBOX}" ]]; then
-    for candidate in /bin/busybox /usr/bin/busybox; do
-        if [[ -x "${candidate}" ]]; then
-            BUSYBOX="${candidate}"
-            break
-        fi
-    done
-fi
-# As last resort, download a static busybox
-if [[ -z "${BUSYBOX}" ]]; then
-    echo "    [download] Fetching static busybox for initramfs..."
-    BUSYBOX="${CACHE_DIR}/busybox"
-    curl -fsSL -o "${BUSYBOX}" \
-        "https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox"
-    chmod 755 "${BUSYBOX}"
-fi
-
-echo "    [shell] Using busybox: ${BUSYBOX}"
-cp "${BUSYBOX}" "${WORK_DIR}/bin/busybox"
-chmod 755 "${WORK_DIR}/bin/busybox"
-# Cache busybox for other scripts (e.g., build-disk-image.sh)
-cp "${BUSYBOX}" "${CACHE_DIR}/busybox" 2>/dev/null || true
-ln -sf busybox "${WORK_DIR}/bin/sh"
-ln -sf busybox "${WORK_DIR}/bin/dd"
-ln -sf busybox "${WORK_DIR}/bin/tr"
-ln -sf busybox "${WORK_DIR}/bin/ln"
-ln -sf busybox "${WORK_DIR}/bin/mkdir"
-ln -sf busybox "${WORK_DIR}/bin/basename"
-
-# Create /usr/sbin/mdev stub that creates /dev/disk/by-label symlinks.
-# The k3os rc phase calls "mdev -s" for device hotplug. In a real system
-# udev would create /dev/disk/by-label/ symlinks, but in this minimal
-# test initramfs we do it manually by reading ext4 superblock labels.
-mkdir -p "${WORK_DIR}/usr/sbin"
-cat > "${WORK_DIR}/usr/sbin/mdev" << 'MDEV'
-#!/bin/sh
-# Minimal mdev replacement for integration tests.
-# Creates /dev/disk/by-label/ symlinks by reading ext4 volume labels
-# from block device superblocks.
-mkdir -p /dev/disk/by-label
-
-# Scan all block devices in /sys/class/block
-for dev in /sys/class/block/*; do
-    name=$(basename "$dev")
-    devpath="/dev/${name}"
-    [ -b "$devpath" ] || continue
-
-    # Read ext4 superblock label: superblock starts at byte 1024,
-    # s_volume_name is at offset 120 within it = byte 1144, 16 bytes long.
-    label=$(dd if="$devpath" bs=1 skip=1144 count=16 2>/dev/null | tr -d '\0')
-    if [ -n "$label" ]; then
-        ln -sf "../../${name}" "/dev/disk/by-label/${label}"
-    fi
-done
-MDEV
-chmod 755 "${WORK_DIR}/usr/sbin/mdev"
-
 # Create /dev/console placeholder (QEMU provides the real device)
 touch "${WORK_DIR}/dev/console"
+
+# NOTE: busybox and /usr/sbin/mdev are no longer needed in the initramfs.
+# The k3os binary now handles /dev population and /dev/disk/by-label symlink
+# creation natively via the internal devpopulate package (pure Go replacement
+# for "mdev -s"). This eliminates the external busybox dependency.
 
 # Repack the initramfs
 echo "    [pack] Creating cpio archive..."

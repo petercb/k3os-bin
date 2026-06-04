@@ -538,3 +538,52 @@ Replace disk-related shell-outs (parted, partprobe, lsblk, losetup) with pure Go
 - What went well: The `go-blockdevice/v2` library was well-suited for the use case, providing pure Go GPT manipulation with built-in kernel partition sync via BLKPG ioctls. The existing `BlockProber` interface already covered the `lsblk` replacement, minimizing new abstraction.
 - What broke: `go mod tidy` removes go-blockdevice when no code imports it yet (FEAT-001), so the dependency had to be pinned manually until FEAT-002 added code imports. golangci-lint 2.1.6 was incompatible with Go 1.25, requiring an upgrade to 2.12.2.
 - What to change: For future multi-feature dependency additions, structure the work so the first commit that adds the dependency also adds at least one import to prevent `go mod tidy` from removing it.
+
+
+## 2026-06-04 -- Replace mdev -s shell-out with pure Go devpopulate
+
+### Context
+
+Replace the `mdev -s` shell-out in `doHotplug()` with a pure Go implementation that walks `/sys/class/block`, creates device nodes via `unix.Mknod` (harmless no-op on devtmpfs), and probes each block device for filesystem labels/UUIDs using `go-blockdevice/v2/blkid` to create `/dev/disk/by-label/` and `/dev/disk/by-uuid/` symlinks.
+
+This also eliminates the busybox dependency and mock mdev shell script from the QEMU integration test initramfs.
+
+### Actions
+
+1. **TDD RED**: Created `internal/devpopulate/devpopulate_test.go` with 13 tests covering symlink creation, partition detection (virtio and NVMe naming), error handling, idempotency, and device node creation paths. Added AST-based test in `internal/cli/rc/rc_test.go` verifying `doHotplug` calls `devpopulate.PopulateDev()` and does not reference `exec.Command` or `mdev`.
+2. **TDD GREEN**: Created `internal/devpopulate/devpopulate.go` implementing `PopulateDev()` with:
+   - `Prober` interface for testability (production impl: `BlkidProber` using `go-blockdevice/v2/blkid`)
+   - `ensureDeviceNode()` reading major:minor from sysfs `/dev` file and calling `unix.Mknod`
+   - `createSymlink()` for `/dev/disk/by-label/` and `/dev/disk/by-uuid/` relative symlinks
+   - `isPartition()` helper supporting virtio (vda1), SCSI (sda1), and NVMe (nvme0n1p1) naming
+3. **Integration**: Updated `internal/cli/rc/rc.go` `doHotplug()` to call `devpopulate.PopulateDev(devpopulate.DefaultOptions())`. Removed `os/exec` import and mdev binary path references.
+4. **Test cleanup**: Removed mock mdev script and busybox from `integration/qemu/build-initramfs.sh`. Removed busybox from `integration/qemu/build-disk-image.sh`.
+5. **Documentation**: Updated `docs/PRD.md`, `docs/plans/replace-disk-shellouts-with-go-blockdevice.md`, and `docs/log.md`.
+
+### Key Design Decisions
+
+- **No new dependencies**: Uses `go-blockdevice/v2/blkid` (already in go.mod) and `golang.org/x/sys/unix` (already imported). Only transitive deps added: `go.uber.org/zap`, `github.com/siderolabs/go-pointer`.
+- **Dual-mode operation**: `CreateNodes: true` (default) ensures device nodes exist via Mknod. On modern devtmpfs kernels this is a harmless EEXIST no-op. On minimal environments it acts as the mdev cold-plug equivalent.
+- **Testability**: `Prober` interface + configurable `Options` struct allows full unit testing without real block devices.
+
+### Files Changed
+
+| Action | File |
+|--------|------|
+| Created | `internal/devpopulate/devpopulate.go` |
+| Created | `internal/devpopulate/devpopulate_test.go` |
+| Modified | `internal/cli/rc/rc.go` |
+| Modified | `internal/cli/rc/rc_test.go` |
+| Modified | `integration/qemu/build-initramfs.sh` |
+| Modified | `integration/qemu/build-disk-image.sh` |
+| Modified | `docs/PRD.md` |
+| Modified | `docs/plans/replace-disk-shellouts-with-go-blockdevice.md` |
+| Modified | `go.mod` |
+| Modified | `go.sum` |
+| Modified | `docs/log.md` |
+
+### Retrospective
+
+- What went well: The `go-blockdevice/v2/blkid` package already in the dependency tree provides exactly the filesystem probing needed. The interface-based design makes the package fully testable without root or real devices. Removing busybox simplifies the test infrastructure significantly.
+- What broke: Nothing. All 30 packages pass, zero lint issues on changed files.
+- What to change: Future consideration: add uevent netlink listener for true hotplug support (currently only cold-plug is handled).
