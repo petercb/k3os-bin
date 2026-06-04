@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -169,6 +170,8 @@ func ForceMount(device, target, mType, options string) error {
 }
 
 func mount(device, target, mType string, flag uintptr, data string) error {
+	device = resolveDevice(device)
+
 	if err := unix.Mount(device, target, mType, flag, data); err != nil {
 		return err
 	}
@@ -178,4 +181,35 @@ func mount(device, target, mType string, flag uintptr, data string) error {
 		return unix.Mount(device, target, mType, flag|unix.MS_REMOUNT, data)
 	}
 	return nil
+}
+
+// resolveDevice translates LABEL=<label> and UUID=<uuid> device specifiers
+// into their actual device paths by reading the corresponding symlink under
+// /dev/disk/by-label/ or /dev/disk/by-uuid/. If the specifier doesn't use
+// these prefixes, or the symlink cannot be resolved, the original device
+// string is returned unchanged.
+func resolveDevice(device string) string {
+	var linkPath string
+
+	switch {
+	case strings.HasPrefix(device, "LABEL="):
+		label := device[len("LABEL="):]
+		linkPath = filepath.Join("/dev/disk/by-label", label)
+	case strings.HasPrefix(device, "UUID="):
+		uuid := device[len("UUID="):]
+		linkPath = filepath.Join("/dev/disk/by-uuid", uuid)
+	default:
+		return device
+	}
+
+	target, err := os.Readlink(linkPath)
+	if err != nil {
+		return device
+	}
+
+	if filepath.IsAbs(target) {
+		return filepath.Clean(target)
+	}
+
+	return filepath.Clean(filepath.Join(filepath.Dir(linkPath), target))
 }
