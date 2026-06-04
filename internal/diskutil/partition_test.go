@@ -37,7 +37,7 @@ func TestGPTPartitionGrower_DeviceOpenFailure(t *testing.T) {
 
 	err := grower.GrowPartition("/dev/nonexistent-device-xyz", 1)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "open block device")
+	assert.Contains(t, err.Error(), "unsupported partition table type")
 }
 
 func TestGPTPartitionGrower_ImplementsInterface(t *testing.T) {

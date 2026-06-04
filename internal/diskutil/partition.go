@@ -5,23 +5,46 @@ package diskutil
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/siderolabs/go-blockdevice/v2/block"
 	"github.com/siderolabs/go-blockdevice/v2/partitioning/gpt"
 )
 
-// GPTPartitionGrower implements iface.PartitionGrower using go-blockdevice/v2.
-type GPTPartitionGrower struct{}
+// GPTPartitionGrower implements iface.PartitionGrower for GPT disks only.
+//
+// Deprecated: Use PartitionGrower instead, which handles both GPT and MBR.
+type GPTPartitionGrower = PartitionGrower
 
-// GrowPartition opens the block device, reads its GPT, and grows the
+// PartitionGrower implements iface.PartitionGrower with support for both GPT
+// and MBR (DOS) partition tables. It detects the partition table type and
+// dispatches to the appropriate grow strategy:
+//   - GPT: pure Go via go-blockdevice/v2 (reads/writes GPT directly)
+//   - MBR: shells out to sfdisk (the standard Linux MBR manipulation tool)
+type PartitionGrower struct{}
+
+// GrowPartition detects the partition table type on the device and grows the
 // specified partition (1-indexed) to fill all available contiguous space.
-// It writes the updated GPT and syncs the kernel partition table via BLKPG
-// ioctls (no external partprobe needed).
-func (g *GPTPartitionGrower) GrowPartition(device string, partNum int) error {
+func (g *PartitionGrower) GrowPartition(device string, partNum int) error {
 	if partNum < 1 {
 		return fmt.Errorf("invalid partition number %d: must be >= 1", partNum)
 	}
 
+	tableType := ProbePartitionTableType(device)
+	slog.Debug("diskutil: detected partition table", "device", device, "type", string(tableType))
+
+	switch tableType {
+	case PartitionTableGPT:
+		return growGPT(device, partNum)
+	case PartitionTableMBR:
+		return growMBR(device, partNum)
+	default:
+		return fmt.Errorf("unsupported partition table type on %s: %s", device, tableType)
+	}
+}
+
+// growGPT grows a GPT partition using go-blockdevice/v2.
+func growGPT(device string, partNum int) error {
 	blockDev, err := block.NewFromPath(device, block.OpenForWrite())
 	if err != nil {
 		return fmt.Errorf("open block device %s: %w", device, err)

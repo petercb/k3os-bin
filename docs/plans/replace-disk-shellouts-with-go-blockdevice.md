@@ -58,11 +58,14 @@ Reducing external binary dependencies improves:
 | Shell-out | Location | Replacement |
 |-----------|----------|-------------|
 | `mdev -s` | cli/rc/rc.go | `internal/devpopulate.PopulateDev()` — pure Go sysfs walk + blkid probe |
+| `parted resizepart` | modes/disk.go | `PartitionGrower.GrowPartition()` — GPT: pure Go via go-blockdevice/v2; MBR: pure Go via rekby/mbr |
+| `partprobe` | modes/disk.go | Handled by go-blockdevice/v2 BLKPG ioctls (GPT path) |
 
 ## New Interfaces
 
 ```go
-// PartitionGrower grows a partition to fill available space on a GPT disk.
+// PartitionGrower grows a partition to fill available space.
+// Supports both GPT (pure Go) and MBR (via sfdisk shell-out).
 type PartitionGrower interface {
     GrowPartition(device string, partNum int) error
 }
