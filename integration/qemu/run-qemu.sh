@@ -102,9 +102,23 @@ echo ""
 echo "========================================"
 
 if [[ "${PASSED}" == "true" ]]; then
-    echo "==> ALL TESTS PASSED"
+    # Even if structured tests passed, check for ERROR-level log entries
+    # that indicate runtime failures not caught by the verifier.
+    ERROR_LINES=$(grep -c 'level=ERROR' "${SERIAL_LOG}" 2>/dev/null || true)
+    if [[ "${ERROR_LINES}" -gt 0 ]]; then
+        echo ""
+        echo "WARNING: ${ERROR_LINES} ERROR-level log entries found in serial output:"
+        grep 'level=ERROR' "${SERIAL_LOG}" | head -10
+        echo ""
+        echo "==> TESTS PASSED (with warnings — review errors above)"
+    else
+        echo "==> ALL TESTS PASSED"
+    fi
     exit 0
 else
     echo "==> TESTS FAILED"
+    echo ""
+    echo "==> Serial output errors:"
+    grep 'level=ERROR' "${SERIAL_LOG}" 2>/dev/null | head -10 || true
     exit 1
 fi

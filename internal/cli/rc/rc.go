@@ -221,16 +221,11 @@ func doMounts() {
 }
 
 func doHotplug() {
-	// Populate /dev with device nodes and create /dev/disk/by-label and
-	// /dev/disk/by-uuid symlinks. This replaces the previous "mdev -s"
-	// shell-out with a pure Go implementation that:
-	//   1. Walks /sys/class/block and ensures device nodes exist (via Mknod;
-	//      on devtmpfs this is a harmless no-op as nodes already exist).
-	//   2. Probes each block device for filesystem labels/UUIDs using
-	//      go-blockdevice/v2's blkid and creates the appropriate symlinks.
-	if err := devpopulate.PopulateDev(devpopulate.DefaultOptions()); err != nil {
-		log.Printf("Failed to populate /dev: %v", err)
-	}
+	// Load kernel modules for all existing cold plug devices FIRST.
+	// This ensures drivers (e.g., virtio_blk, ext4) are loaded before we
+	// attempt to probe block devices for filesystem labels. Without this,
+	// devices may not yet appear in /sys/class/block when devpopulate runs.
+	modaliases(glob("/sys/bus/*/devices/*/modalias")...)
 
 	// Trigger USB uevent replay for hotplug devices.
 	devices := "/sys/devices"
@@ -242,8 +237,19 @@ func doHotplug() {
 		}
 	}
 
-	// Load kernel modules for all existing cold plug devices.
-	modaliases(glob("/sys/bus/*/devices/*/modalias")...)
+	// Populate /dev with device nodes and create /dev/disk/by-label and
+	// /dev/disk/by-uuid symlinks. This replaces the previous "mdev -s"
+	// shell-out with a pure Go implementation that:
+	//   1. Walks /sys/class/block and ensures device nodes exist (via Mknod;
+	//      on devtmpfs this is a harmless no-op as nodes already exist).
+	//   2. Probes each block device for filesystem labels/UUIDs using
+	//      go-blockdevice/v2's blkid and creates the appropriate symlinks.
+	//
+	// NOTE: modaliases() must run before this to ensure drivers are loaded
+	// and devices are visible in sysfs.
+	if err := devpopulate.PopulateDev(devpopulate.DefaultOptions()); err != nil {
+		log.Printf("Failed to populate /dev: %v", err)
+	}
 }
 
 func doClock() {
