@@ -135,6 +135,7 @@ func (v *Verifier) checkModeDetection() Phase {
 	checks := []Check{
 		v.checkRunK3osExists(),
 		v.checkModeFile(),
+		v.checkExpectedMode(),
 	}
 
 	passed := true
@@ -336,6 +337,62 @@ func (v *Verifier) checkModeFile() Check {
 		Name:   "mode_file",
 		Passed: true,
 		Detail: fmt.Sprintf("/run/k3os/mode contains valid mode: %q", mode),
+	}
+}
+
+// checkExpectedMode reads k3os.test_expected_mode from /proc/cmdline and
+// verifies the detected mode matches. If the parameter is absent, the check
+// is a soft pass (no expectation configured).
+func (v *Verifier) checkExpectedMode() Check {
+	cmdline, err := v.ReadFileFunc("/proc/cmdline")
+	if err != nil {
+		return Check{
+			Name:   "expected_mode",
+			Passed: true,
+			Detail: "cannot read /proc/cmdline, skipping expected mode check",
+		}
+	}
+
+	// Parse k3os.test_expected_mode=<value> from cmdline.
+	var expected string
+	for _, field := range strings.Fields(string(cmdline)) {
+		if strings.HasPrefix(field, "k3os.test_expected_mode=") {
+			expected = strings.TrimPrefix(field, "k3os.test_expected_mode=")
+			break
+		}
+	}
+
+	if expected == "" {
+		return Check{
+			Name:   "expected_mode",
+			Passed: true,
+			Detail: "no k3os.test_expected_mode set, skipping",
+		}
+	}
+
+	// Read the actual detected mode.
+	modeData, err := v.ReadFileFunc("/run/k3os/mode")
+	if err != nil {
+		return Check{
+			Name:   "expected_mode",
+			Passed: false,
+			Detail: fmt.Sprintf("expected mode %q but cannot read /run/k3os/mode: %v", expected, err),
+		}
+	}
+
+	actual := strings.TrimSpace(string(modeData))
+	if actual != expected {
+		return Check{
+			Name:   "expected_mode",
+			Passed: false,
+			Detail: fmt.Sprintf("expected mode %q but got %q", expected, actual),
+		}
+	}
+
+	return Check{
+		Name:   "expected_mode",
+		Passed: true,
+		Detail: fmt.Sprintf("mode matches expected: %q", expected),
 	}
 }
 

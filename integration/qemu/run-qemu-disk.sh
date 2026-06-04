@@ -71,7 +71,7 @@ timeout --foreground --signal=KILL "${TIMEOUT}" qemu-system-x86_64 \
     -rtc base=utc,clock=rt \
     -kernel "${KERNEL}" \
     -initrd "${INITRD}" \
-    -append "console=ttyS0 loglevel=4 printk.devkmsg=on k3os.test_mode k3os.debug" \
+    -append "console=ttyS0 loglevel=4 printk.devkmsg=on k3os.test_mode k3os.test_expected_mode=disk k3os.debug" \
     -drive "file=${DISK_SNAPSHOT},format=qcow2,if=virtio,id=state" \
     -nographic \
     -serial "file:${SERIAL_LOG}" \
@@ -125,15 +125,16 @@ echo ""
 echo "========================================"
 
 if [[ "${PASSED}" == "true" ]]; then
-    # Even if structured tests passed, check for ERROR-level log entries
-    # that indicate runtime failures not caught by the verifier.
+    # Check for ERROR-level log entries that indicate runtime failures
+    # not caught by the structured verifier. These are hard failures.
     ERROR_LINES=$(grep -c 'level=ERROR' "${SERIAL_LOG}" 2>/dev/null || true)
     if [[ "${ERROR_LINES}" -gt 0 ]]; then
         echo ""
-        echo "WARNING: ${ERROR_LINES} ERROR-level log entries found in serial output:"
+        echo "FAILURE: ${ERROR_LINES} ERROR-level log entries found in serial output:"
         grep 'level=ERROR' "${SERIAL_LOG}" | head -10
         echo ""
-        echo "==> DISK MODE: TESTS PASSED (with warnings — review errors above)"
+        echo "==> DISK MODE: TESTS FAILED (structured checks passed but runtime errors detected)"
+        exit 1
     else
         echo "==> DISK MODE: ALL TESTS PASSED"
     fi

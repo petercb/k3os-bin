@@ -85,6 +85,20 @@ mkdir -p "${WORK_DIR}/etc/ssh"
 # Create /dev/console placeholder (QEMU provides the real device)
 touch "${WORK_DIR}/dev/console"
 
+# Install kernel modules if the tarball is available (downloaded by
+# download-kernel.sh). This allows modaliases() to load drivers like
+# virtio_blk and ext4 during early boot, which is essential for
+# devpopulate to discover block devices.
+MODULES_TAR="${CACHE_DIR}/k3os-modules-amd64.tar.gz"
+if [[ -f "${MODULES_TAR}" ]]; then
+    echo "    [modules] Extracting kernel modules..."
+    tar -xzf "${MODULES_TAR}" -C "${WORK_DIR}" 2>/dev/null || true
+    echo "    [modules] Installed: $(find "${WORK_DIR}/lib/modules" -name '*.ko*' 2>/dev/null | wc -l) module files"
+else
+    echo "    [modules] No modules tarball found at ${MODULES_TAR}, skipping."
+    echo "              (Run 'make qemu-download-kernel' to fetch kernel assets.)"
+fi
+
 # NOTE: busybox and /usr/sbin/mdev are no longer needed in the initramfs.
 # The k3os binary now handles /dev population and /dev/disk/by-label symlink
 # creation natively via the internal devpopulate package (pure Go replacement

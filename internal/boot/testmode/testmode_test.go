@@ -72,7 +72,7 @@ func TestVerifier_Run_AllPassing(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &results))
 
 	assert.True(t, results.Passed)
-	assert.Equal(t, "6/6 checks passed", results.Summary)
+	assert.Equal(t, "7/7 checks passed", results.Summary)
 	assert.Len(t, results.Phases, 4)
 
 	// Verify each phase passed.
@@ -130,7 +130,7 @@ func TestVerifier_Run_SomeFailing(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &results))
 
 	assert.False(t, results.Passed)
-	assert.Equal(t, "3/6 checks passed", results.Summary)
+	assert.Equal(t, "4/7 checks passed", results.Summary)
 
 	// Bootstrap phase: proc_mounted fails, etc_populated passes.
 	bootstrap := results.Phases[0]
@@ -231,6 +231,107 @@ func TestVerifier_Run_EmptyHostname(t *testing.T) {
 	assert.Equal(t, "hostname_set", finalization.Checks[0].Name)
 	assert.False(t, finalization.Checks[0].Passed)
 	assert.Contains(t, finalization.Checks[0].Detail, "empty")
+}
+
+func TestVerifier_Run_ExpectedModeMismatch(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+
+	v := &Verifier{
+		StatFunc: fakeStat,
+		ReadFileFunc: func(name string) ([]byte, error) {
+			switch name {
+			case "/etc/passwd":
+				return []byte("rancher:x:1000:1000::/home/rancher:/bin/bash\n"), nil
+			case "/run/k3os/mode":
+				return []byte("local\n"), nil
+			case "/proc/cmdline":
+				return []byte("console=ttyS0 k3os.test_mode k3os.test_expected_mode=disk k3os.debug\n"), nil
+			default:
+				return nil, errors.New("not found")
+			}
+		},
+		HostnameFunc: func() (string, error) {
+			return "k3os-node", nil
+		},
+		RebootFunc: func() error { return nil },
+		Output:     &buf,
+	}
+
+	err := v.Run()
+	require.NoError(t, err)
+
+	jsonStr := extractJSON(t, buf.String())
+	var results Results
+	require.NoError(t, json.Unmarshal([]byte(jsonStr), &results))
+
+	assert.False(t, results.Passed)
+
+	// Find the expected_mode check in the mode_detection phase.
+	modePhase := results.Phases[1]
+	assert.Equal(t, "mode_detection", modePhase.Name)
+	assert.False(t, modePhase.Passed)
+
+	var expectedCheck *Check
+	for i := range modePhase.Checks {
+		if modePhase.Checks[i].Name == "expected_mode" {
+			expectedCheck = &modePhase.Checks[i]
+			break
+		}
+	}
+	require.NotNil(t, expectedCheck)
+	assert.False(t, expectedCheck.Passed)
+	assert.Contains(t, expectedCheck.Detail, `expected mode "disk" but got "local"`)
+}
+
+func TestVerifier_Run_ExpectedModeMatches(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+
+	v := &Verifier{
+		StatFunc: fakeStat,
+		ReadFileFunc: func(name string) ([]byte, error) {
+			switch name {
+			case "/etc/passwd":
+				return []byte("rancher:x:1000:1000::/home/rancher:/bin/bash\n"), nil
+			case "/run/k3os/mode":
+				return []byte("disk\n"), nil
+			case "/proc/cmdline":
+				return []byte("console=ttyS0 k3os.test_mode k3os.test_expected_mode=disk k3os.debug\n"), nil
+			default:
+				return nil, errors.New("not found")
+			}
+		},
+		HostnameFunc: func() (string, error) {
+			return "k3os-node", nil
+		},
+		RebootFunc: func() error { return nil },
+		Output:     &buf,
+	}
+
+	err := v.Run()
+	require.NoError(t, err)
+
+	jsonStr := extractJSON(t, buf.String())
+	var results Results
+	require.NoError(t, json.Unmarshal([]byte(jsonStr), &results))
+
+	assert.True(t, results.Passed)
+
+	// Find the expected_mode check.
+	modePhase := results.Phases[1]
+	var expectedCheck *Check
+	for i := range modePhase.Checks {
+		if modePhase.Checks[i].Name == "expected_mode" {
+			expectedCheck = &modePhase.Checks[i]
+			break
+		}
+	}
+	require.NotNil(t, expectedCheck)
+	assert.True(t, expectedCheck.Passed)
+	assert.Contains(t, expectedCheck.Detail, `mode matches expected: "disk"`)
 }
 
 func TestVerifier_Run_OutputFormat(t *testing.T) {
