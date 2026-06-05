@@ -143,7 +143,7 @@ func (h *DiskHandler) SetupMounts() error {
 		// filesystem tools against a stale partition layout is unsafe.
 		slog.Warn("disk: partition grow failed, skipping filesystem resize", "error", err)
 	} else {
-		if err := h.deps.Cmd.Run("e2fsck", "-f", devNum); err != nil {
+		if err := h.deps.Cmd.Run("e2fsck", "-fy", devNum); err != nil {
 			slog.Warn("disk: e2fsck failed", "error", err)
 		}
 		if err := h.deps.Cmd.Run("resize2fs", devNum); err != nil {
@@ -250,7 +250,10 @@ func (h *DiskHandler) SetupInit() error {
 	slog.Debug("disk: setting up init")
 
 	initPath := filepath.Join(targetDir, "sbin/init")
-	if _, err := h.deps.FS.Stat(initPath); err == nil {
+	// Use Lstat to check if the symlink itself exists, regardless of whether
+	// its target resolves. Stat() follows symlinks and returns an error for
+	// broken symlinks, which would incorrectly trigger re-creation.
+	if _, err := h.deps.FS.Lstat(initPath); err == nil {
 		return nil
 	}
 
