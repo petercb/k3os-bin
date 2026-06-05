@@ -60,7 +60,7 @@ func TestDiskHandler_SetupMounts_WithGrowpart(t *testing.T) {
 	fs.On("Stat", "/dev/sda2").Return(fakeFileInfo{}, nil)
 	cmd.On("Run", "umount", targetDir).Return(nil)
 	pg.On("GrowPartition", "/dev/sda", 2).Return(nil)
-	cmd.On("Run", "e2fsck", "-f", "/dev/sda2").Return(nil)
+	cmd.On("Run", "e2fsck", "-fy", "/dev/sda2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
 	mnt.On("Mount", "/dev/sda2", targetDir, "ext4", "").Return(nil).Once()
 	fs.On("Remove", targetDir+"/k3os/system/growpart").Return(nil)
@@ -98,7 +98,7 @@ func TestDiskHandler_SetupMounts_GrowpartBlkidFallback(t *testing.T) {
 	fs.On("Stat", "/dev/sda2").Return(fakeFileInfo{}, nil)
 	cmd.On("Run", "umount", targetDir).Return(nil)
 	pg.On("GrowPartition", "/dev/sda", 2).Return(nil)
-	cmd.On("Run", "e2fsck", "-f", "/dev/sda2").Return(nil)
+	cmd.On("Run", "e2fsck", "-fy", "/dev/sda2").Return(nil)
 	cmd.On("Run", "resize2fs", "/dev/sda2").Return(nil)
 	mnt.On("Mount", "/dev/sda2", targetDir, "ext4", "").Return(nil).Once()
 	fs.On("Remove", targetDir+"/k3os/system/growpart").Return(nil)
@@ -265,7 +265,7 @@ func TestDiskHandler_SetupInit_CreatesSymlink(t *testing.T) {
 	h := NewDiskHandler(deps)
 
 	initPath := targetDir + "/sbin/init"
-	fs.On("Stat", initPath).Return(nil, os.ErrNotExist)
+	fs.On("Lstat", initPath).Return(nil, os.ErrNotExist)
 	fs.On("MkdirAll", targetDir+"/sbin", os.FileMode(0o755)).Return(nil)
 	fs.On("Symlink", "../k3os/system/k3os/current/k3os", initPath).Return(nil)
 
@@ -286,7 +286,7 @@ func TestDiskHandler_SetupInit_AlreadyExists(t *testing.T) {
 	h := NewDiskHandler(deps)
 
 	initPath := targetDir + "/sbin/init"
-	fs.On("Stat", initPath).Return(fakeFileInfo{}, nil)
+	fs.On("Lstat", initPath).Return(fakeFileInfo{}, nil)
 
 	err := h.SetupInit()
 	require.NoError(t, err)
@@ -622,8 +622,8 @@ func TestDiskHandler_Execute_TakeoverSkipped(t *testing.T) {
 	// SetupKernelSquashfs - source not present
 	fs.On("Stat", "/.base/k3os/system/kernel/5.15.0/kernel.squashfs").Return(nil, os.ErrNotExist)
 
-	// SetupInit - already exists
-	fs.On("Stat", targetDir+"/sbin/init").Return(fakeFileInfo{}, nil)
+	// SetupInit - already exists (use Lstat since SetupInit uses Lstat)
+	fs.On("Lstat", targetDir+"/sbin/init").Return(fakeFileInfo{}, nil)
 
 	// SetupK3s - already has current
 	fs.On("Stat", targetDir+"/k3os/system/k3s/current/k3s").Return(fakeFileInfo{}, nil)
