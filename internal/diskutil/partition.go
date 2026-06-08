@@ -82,5 +82,19 @@ func growGPT(device string, partNum int) error {
 		return fmt.Errorf("write GPT to %s: %w", device, err)
 	}
 
+	// Notify the kernel of the new partition size via BLKPG_RESIZE_PARTITION.
+	// After GPT write, the on-disk partition table is updated but the kernel's
+	// in-memory view is stale until we inform it.
+	parts := table.Partitions()
+	if idx < len(parts) {
+		p := parts[idx]
+		ss := uint64(blockDev.GetSectorSize())
+		start := p.FirstLBA * ss
+		length := (p.LastLBA - p.FirstLBA + 1) * ss
+		if err := blockDev.KernelPartitionResize(partNum, start, length); err != nil {
+			slog.Warn("growGPT: kernel partition resize failed", "error", err)
+		}
+	}
+
 	return nil
 }

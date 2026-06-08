@@ -86,6 +86,17 @@ func growMBR(device string, partNum int) error {
 		return fmt.Errorf("sync %s: %w", device, err)
 	}
 
+	// Notify the kernel to re-read the partition table. Without this, the
+	// kernel's in-memory partition table is stale and resize2fs will see
+	// the old partition size. Only applicable for actual block devices
+	// (not regular files used in testing).
+	info, _ := f.Stat()
+	if info != nil && !info.Mode().IsRegular() {
+		if _, _, errno := unix.Syscall(unix.SYS_IOCTL, f.Fd(), unix.BLKRRPART, 0); errno != 0 {
+			return fmt.Errorf("BLKRRPART on %s: %w", device, errno)
+		}
+	}
+
 	return nil
 }
 
