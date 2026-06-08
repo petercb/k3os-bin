@@ -168,12 +168,21 @@ func (b *Bootstrapper) SetupDirs() error {
 
 // SetupKernel mounts the kernel squashfs and bind-mounts modules/firmware
 // from it. If the squashfs does not exist, it returns nil.
+//
+// The squashfs is searched at two locations:
+//  1. system.RootPath (default: /k3os/system/kernel/<ver>/kernel.squashfs)
+//  2. /.base + system.RootPath — after enterchroot's pivot_root, the K3OS_STATE
+//     disk is mounted at /.base, so the squashfs is only accessible there.
 func (b *Bootstrapper) SetupKernel() error {
 	slog.Info("bootstrap: setting up kernel")
 
-	kernelPath := system.RootPath("kernel", b.KernelVersion, "kernel.squashfs")
-	if _, err := b.FS.Stat(kernelPath); err != nil {
-		slog.Debug("bootstrap: kernel squashfs not found, skipping", "path", kernelPath)
+	kernelPath := b.findKernelSquashfs()
+	if kernelPath == "" {
+		slog.Debug("bootstrap: kernel squashfs not found, skipping",
+			"searched", []string{
+				system.RootPath("kernel", b.KernelVersion, "kernel.squashfs"),
+				"/.base" + system.RootPath("kernel", b.KernelVersion, "kernel.squashfs"),
+			})
 		return nil
 	}
 
@@ -182,19 +191,24 @@ func (b *Bootstrapper) SetupKernel() error {
 	if err := b.FS.MkdirAll("/run/k3os/kernel", 0o755); err != nil {
 		return fmt.Errorf("mkdir /run/k3os/kernel: %w", err)
 	}
-	if err := b.FS.MkdirAll("/lib/modules", 0o755); err != nil {
-		return fmt.Errorf("mkdir /lib/modules: %w", err)
+	// Use /usr/lib/ as the bind mount target. After enterchroot's pivot,
+	// /lib is a symlink to usr/lib (inside the read-only squashfs overlay).
+	// Bind-mounting to /lib/modules would fail because MkdirAll can't create
+	// directories inside the read-only squashfs. Using /usr/lib/ directly
+	// targets the writable layer and /lib/modules resolves there via symlink.
+	if err := b.FS.MkdirAll("/usr/lib/modules", 0o755); err != nil {
+		return fmt.Errorf("mkdir /usr/lib/modules: %w", err)
 	}
-	if err := b.FS.MkdirAll("/lib/firmware", 0o755); err != nil {
-		return fmt.Errorf("mkdir /lib/firmware: %w", err)
+	if err := b.FS.MkdirAll("/usr/lib/firmware", 0o755); err != nil {
+		return fmt.Errorf("mkdir /usr/lib/firmware: %w", err)
 	}
 	if err := b.Mounter.Mount(kernelPath, "/run/k3os/kernel", "squashfs", ""); err != nil {
 		return fmt.Errorf("mount squashfs: %w", err)
 	}
-	if err := b.Mounter.Mount("/run/k3os/kernel/lib/modules", "/lib/modules", "", "bind"); err != nil {
+	if err := b.Mounter.Mount("/run/k3os/kernel/lib/modules", "/usr/lib/modules", "", "bind"); err != nil {
 		return fmt.Errorf("bind mount kernel modules: %w", err)
 	}
-	if err := b.Mounter.Mount("/run/k3os/kernel/lib/firmware", "/lib/firmware", "", "bind"); err != nil {
+	if err := b.Mounter.Mount("/run/k3os/kernel/lib/firmware", "/usr/lib/firmware", "", "bind"); err != nil {
 		return fmt.Errorf("bind mount kernel firmware: %w", err)
 	}
 	// NOTE: Do NOT unmount /run/k3os/kernel here. The bind mounts above
@@ -204,6 +218,25 @@ func (b *Bootstrapper) SetupKernel() error {
 	// Keeping the squashfs mounted is harmless (read-only, small footprint)
 	// and ensures the bind mounts remain stable.
 	return nil
+}
+
+// findKernelSquashfs searches for the kernel squashfs in multiple locations.
+// After enterchroot's pivot_root, the K3OS_STATE disk is at /.base, so the
+// squashfs is only accessible via /.base prefix.
+func (b *Bootstrapper) findKernelSquashfs() string {
+	relPath := system.RootPath("kernel", b.KernelVersion, "kernel.squashfs")
+
+	candidates := []string{
+		relPath,            // Direct path (first-phase or live mode)
+		"/.base" + relPath, // After enterchroot pivot (disk mode second phase)
+	}
+
+	for _, path := range candidates {
+		if _, err := b.FS.Stat(path); err == nil {
+			return path
+		}
+	}
+	return ""
 }
 
 // SetupConfig runs "k3os config --initrd" unless the mode is "local".
