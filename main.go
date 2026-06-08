@@ -29,6 +29,7 @@ import (
 	"github.com/petercb/k3os-bin/internal/enterchroot"
 	"github.com/petercb/k3os-bin/internal/iface/osimpl"
 	"github.com/petercb/k3os-bin/internal/kernel"
+	"github.com/petercb/k3os-bin/internal/loopdev"
 	"github.com/petercb/k3os-bin/internal/mode"
 	"github.com/petercb/k3os-bin/internal/mount"
 	"github.com/petercb/k3os-bin/internal/transferroot"
@@ -128,6 +129,7 @@ func postChroot() {
 		FS:      fs,
 		Mounter: mounter,
 		Cmd:     cmd,
+		LoopAttacher: loopdev.NewAttacher(),
 		CopyDir: func(src, dst string) error {
 			return cp.Copy(src, dst, cp.Options{
 				PreserveTimes: true,
