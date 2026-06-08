@@ -300,7 +300,9 @@ func TestSetupKernel_SquashfsNotExists(t *testing.T) {
 	b := &Bootstrapper{FS: fs, Mounter: mnt, Cmd: cmd, KernelVersion: "5.15.0"}
 
 	kernelPath := "/k3os/system/kernel/5.15.0/kernel.squashfs"
+	basePath := "/.base/k3os/system/kernel/5.15.0/kernel.squashfs"
 	fs.On("Stat", kernelPath).Return(nil, os.ErrNotExist)
+	fs.On("Stat", basePath).Return(nil, os.ErrNotExist)
 
 	err := b.SetupKernel()
 	require.NoError(t, err)
@@ -430,7 +432,9 @@ func TestRun_AllStepsSucceed(t *testing.T) {
 
 	// SetupKernel
 	kernelPath := "/k3os/system/kernel/5.15.0/kernel.squashfs"
+	basePath := "/.base/k3os/system/kernel/5.15.0/kernel.squashfs"
 	fs.On("Stat", kernelPath).Return(nil, os.ErrNotExist)
+	fs.On("Stat", basePath).Return(nil, os.ErrNotExist)
 
 	// SetupConfig uses ConfigRunner (wired above as no-op)
 

@@ -168,12 +168,21 @@ func (b *Bootstrapper) SetupDirs() error {
 
 // SetupKernel mounts the kernel squashfs and bind-mounts modules/firmware
 // from it. If the squashfs does not exist, it returns nil.
+//
+// The squashfs is searched at two locations:
+//  1. system.RootPath (default: /k3os/system/kernel/<ver>/kernel.squashfs)
+//  2. /.base + system.RootPath — after enterchroot's pivot_root, the K3OS_STATE
+//     disk is mounted at /.base, so the squashfs is only accessible there.
 func (b *Bootstrapper) SetupKernel() error {
 	slog.Info("bootstrap: setting up kernel")
 
-	kernelPath := system.RootPath("kernel", b.KernelVersion, "kernel.squashfs")
-	if _, err := b.FS.Stat(kernelPath); err != nil {
-		slog.Debug("bootstrap: kernel squashfs not found, skipping", "path", kernelPath)
+	kernelPath := b.findKernelSquashfs()
+	if kernelPath == "" {
+		slog.Debug("bootstrap: kernel squashfs not found, skipping",
+			"searched", []string{
+				system.RootPath("kernel", b.KernelVersion, "kernel.squashfs"),
+				"/.base" + system.RootPath("kernel", b.KernelVersion, "kernel.squashfs"),
+			})
 		return nil
 	}
 
@@ -204,6 +213,25 @@ func (b *Bootstrapper) SetupKernel() error {
 	// Keeping the squashfs mounted is harmless (read-only, small footprint)
 	// and ensures the bind mounts remain stable.
 	return nil
+}
+
+// findKernelSquashfs searches for the kernel squashfs in multiple locations.
+// After enterchroot's pivot_root, the K3OS_STATE disk is at /.base, so the
+// squashfs is only accessible via /.base prefix.
+func (b *Bootstrapper) findKernelSquashfs() string {
+	relPath := system.RootPath("kernel", b.KernelVersion, "kernel.squashfs")
+
+	candidates := []string{
+		relPath,            // Direct path (first-phase or live mode)
+		"/.base" + relPath, // After enterchroot pivot (disk mode second phase)
+	}
+
+	for _, path := range candidates {
+		if _, err := b.FS.Stat(path); err == nil {
+			return path
+		}
+	}
+	return ""
 }
 
 // SetupConfig runs "k3os config --initrd" unless the mode is "local".
