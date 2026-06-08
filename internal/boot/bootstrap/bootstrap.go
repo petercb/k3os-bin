@@ -18,6 +18,7 @@ type Bootstrapper struct {
 	FS            iface.FileSystem
 	Mounter       iface.Mounter
 	Cmd           iface.CommandRunner
+	LoopAttacher  iface.LoopAttacher
 	CopyDir       func(src, dst string) error
 	RCRunner      func() error
 	ConfigRunner  func() error
@@ -202,7 +203,25 @@ func (b *Bootstrapper) SetupKernel() error {
 	if err := b.FS.MkdirAll("/usr/lib/firmware", 0o755); err != nil {
 		return fmt.Errorf("mkdir /usr/lib/firmware: %w", err)
 	}
-	if err := b.Mounter.Mount(kernelPath, "/run/k3os/kernel", "squashfs", ""); err != nil {
+
+	// Squashfs files require a block device for mounting. Attach the file
+	// to a loop device first, then mount the loop device as squashfs.
+	var mountDevice string
+	if b.LoopAttacher != nil {
+		dev, err := b.LoopAttacher.Attach(kernelPath, 0, true)
+		if err != nil {
+			return fmt.Errorf("attach loop for kernel squashfs: %w", err)
+		}
+		mountDevice = dev.Path()
+		slog.Debug("bootstrap: attached kernel squashfs to loop device", "path", kernelPath, "device", mountDevice)
+		// Set autoclear so the loop device is cleaned up if unmounted.
+		_ = dev.SetAutoclear()
+	} else {
+		// Fallback: try direct mount (works on kernels with file-backed squashfs).
+		mountDevice = kernelPath
+	}
+
+	if err := b.Mounter.Mount(mountDevice, "/run/k3os/kernel", "squashfs", "ro"); err != nil {
 		return fmt.Errorf("mount squashfs: %w", err)
 	}
 	if err := b.Mounter.Mount("/run/k3os/kernel/lib/modules", "/usr/lib/modules", "", "bind"); err != nil {

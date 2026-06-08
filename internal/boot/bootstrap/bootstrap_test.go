@@ -279,7 +279,7 @@ func TestSetupKernel_SquashfsExists(t *testing.T) {
 	fs.On("MkdirAll", "/run/k3os/kernel", os.FileMode(0o755)).Return(nil)
 	fs.On("MkdirAll", "/usr/lib/modules", os.FileMode(0o755)).Return(nil)
 	fs.On("MkdirAll", "/usr/lib/firmware", os.FileMode(0o755)).Return(nil)
-	mnt.On("Mount", kernelPath, "/run/k3os/kernel", "squashfs", "").Return(nil)
+	mnt.On("Mount", kernelPath, "/run/k3os/kernel", "squashfs", "ro").Return(nil)
 	mnt.On("Mount", "/run/k3os/kernel/lib/modules", "/usr/lib/modules", "", "bind").Return(nil)
 	mnt.On("Mount", "/run/k3os/kernel/lib/firmware", "/usr/lib/firmware", "", "bind").Return(nil)
 
@@ -324,7 +324,7 @@ func TestSetupKernel_MountSquashfsFails(t *testing.T) {
 	fs.On("MkdirAll", "/run/k3os/kernel", os.FileMode(0o755)).Return(nil)
 	fs.On("MkdirAll", "/usr/lib/modules", os.FileMode(0o755)).Return(nil)
 	fs.On("MkdirAll", "/usr/lib/firmware", os.FileMode(0o755)).Return(nil)
-	mnt.On("Mount", kernelPath, "/run/k3os/kernel", "squashfs", "").Return(errors.New("mount squashfs failed"))
+	mnt.On("Mount", kernelPath, "/run/k3os/kernel", "squashfs", "ro").Return(errors.New("mount squashfs failed"))
 
 	err := b.SetupKernel()
 	require.Error(t, err)
