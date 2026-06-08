@@ -173,11 +173,20 @@ func (b *Bootstrapper) SetupKernel() error {
 
 	kernelPath := system.RootPath("kernel", b.KernelVersion, "kernel.squashfs")
 	if _, err := b.FS.Stat(kernelPath); err != nil {
+		slog.Debug("bootstrap: kernel squashfs not found, skipping", "path", kernelPath)
 		return nil
 	}
 
+	slog.Debug("bootstrap: kernel squashfs found", "path", kernelPath)
+
 	if err := b.FS.MkdirAll("/run/k3os/kernel", 0o755); err != nil {
 		return fmt.Errorf("mkdir /run/k3os/kernel: %w", err)
+	}
+	if err := b.FS.MkdirAll("/lib/modules", 0o755); err != nil {
+		return fmt.Errorf("mkdir /lib/modules: %w", err)
+	}
+	if err := b.FS.MkdirAll("/lib/firmware", 0o755); err != nil {
+		return fmt.Errorf("mkdir /lib/firmware: %w", err)
 	}
 	if err := b.Mounter.Mount(kernelPath, "/run/k3os/kernel", "squashfs", ""); err != nil {
 		return fmt.Errorf("mount squashfs: %w", err)
@@ -188,9 +197,12 @@ func (b *Bootstrapper) SetupKernel() error {
 	if err := b.Mounter.Mount("/run/k3os/kernel/lib/firmware", "/lib/firmware", "", "bind"); err != nil {
 		return fmt.Errorf("bind mount kernel firmware: %w", err)
 	}
-	if err := b.Cmd.Run("umount", "/run/k3os/kernel"); err != nil {
-		return fmt.Errorf("umount /run/k3os/kernel: %w", err)
-	}
+	// NOTE: Do NOT unmount /run/k3os/kernel here. The bind mounts above
+	// reference the squashfs filesystem. While Linux bind mounts technically
+	// hold a reference to the underlying fs, unmounting the squashfs can
+	// cause issues in some kernel versions or mount propagation scenarios.
+	// Keeping the squashfs mounted is harmless (read-only, small footprint)
+	// and ensures the bind mounts remain stable.
 	return nil
 }
 
