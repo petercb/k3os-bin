@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/petercb/k3os-bin/internal/iface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -735,6 +736,17 @@ func TestGrowLive_BlkidFails(t *testing.T) {
 // Cleanup
 // ---------------------------------------------------------------------------
 
+// fakeDirEntry implements iface.DirEntry for testing.
+type fakeDirEntry struct {
+	name  string
+	isDir bool
+}
+
+func (f fakeDirEntry) Name() string        { return f.name }
+func (f fakeDirEntry) IsDir() bool         { return f.isDir }
+func (f fakeDirEntry) Type() os.FileMode   { return 0 }
+func (f fakeDirEntry) Info() (os.FileInfo, error) { return nil, nil }
+
 func TestCleanup_EmptyMode(t *testing.T) {
 	t.Parallel()
 	fs := &MockFileSystem{}
@@ -742,7 +754,11 @@ func TestCleanup_EmptyMode(t *testing.T) {
 	mnt := &MockMounter{}
 	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: ""}
 
-	fs.On("RemoveAll", "/run/k3os").Return(nil)
+	// ReadDir returns entries but skips "kernel" (mountpoint).
+	fs.On("ReadDir", "/run/k3os").Return([]iface.DirEntry{
+		fakeDirEntry{name: "target", isDir: true},
+	}, nil)
+	fs.On("RemoveAll", "/run/k3os/target").Return(nil)
 
 	err := f.Cleanup()
 	require.NoError(t, err)
@@ -757,7 +773,10 @@ func TestCleanup_WithMode(t *testing.T) {
 	mnt := &MockMounter{}
 	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: "local"}
 
-	fs.On("RemoveAll", "/run/k3os").Return(nil)
+	fs.On("ReadDir", "/run/k3os").Return([]iface.DirEntry{
+		fakeDirEntry{name: "mode", isDir: false},
+	}, nil)
+	fs.On("RemoveAll", "/run/k3os/mode").Return(nil)
 	fs.On("MkdirAll", "/run/k3os", os.FileMode(0o755)).Return(nil)
 	fs.On("WriteFile", "/run/k3os/mode", []byte("local\n"), os.FileMode(0o644)).Return(nil)
 
@@ -766,18 +785,27 @@ func TestCleanup_WithMode(t *testing.T) {
 	fs.AssertExpectations(t)
 }
 
-func TestCleanup_RemoveAllFails(t *testing.T) {
+func TestCleanup_SkipsKernelMountpoint(t *testing.T) {
 	t.Parallel()
 	fs := &MockFileSystem{}
 	cmd := &MockCommandRunner{}
 	mnt := &MockMounter{}
 	f := &Finalizer{FS: fs, Cmd: cmd, Mounter: mnt, Mode: "local"}
 
-	fs.On("RemoveAll", "/run/k3os").Return(errors.New("remove failed"))
+	// "kernel" should be skipped (active squashfs mountpoint).
+	fs.On("ReadDir", "/run/k3os").Return([]iface.DirEntry{
+		fakeDirEntry{name: "kernel", isDir: true},
+		fakeDirEntry{name: "target", isDir: true},
+	}, nil)
+	fs.On("RemoveAll", "/run/k3os/target").Return(nil)
+	fs.On("MkdirAll", "/run/k3os", os.FileMode(0o755)).Return(nil)
+	fs.On("WriteFile", "/run/k3os/mode", []byte("local\n"), os.FileMode(0o644)).Return(nil)
 
 	err := f.Cleanup()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "remove failed")
+	require.NoError(t, err)
+	fs.AssertExpectations(t)
+	// Verify "kernel" was never passed to RemoveAll.
+	fs.AssertNotCalled(t, "RemoveAll", "/run/k3os/kernel")
 }
 
 // ---------------------------------------------------------------------------
@@ -914,7 +942,7 @@ func TestFinalizer_Run_Success(t *testing.T) {
 	fs.On("MkdirAll", "/var/lib/rancher/k3s/agent/libexec/kubernetes", os.FileMode(0o755)).Return(nil)
 
 	// Cleanup.
-	fs.On("RemoveAll", "/run/k3os").Return(nil)
+	fs.On("ReadDir", "/run/k3os").Return([]iface.DirEntry{}, nil)
 	fs.On("MkdirAll", "/run/k3os", os.FileMode(0o755)).Return(nil)
 	fs.On("WriteFile", "/run/k3os/mode", []byte("local\n"), os.FileMode(0o644)).Return(nil)
 
