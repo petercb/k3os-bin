@@ -118,6 +118,9 @@ func TestRunApply_ChainComposition(t *testing.T) {
 	// --- ApplyDNS: writes /etc/connman/main.conf with default DNS ---
 	mockFS.On("WriteFile", "/etc/connman/main.conf", mock.Anything, os.FileMode(0o644)).Return(nil)
 
+	// --- ApplyHostname: empty hostname, persistence file not found → no-op ---
+	mockFS.On("ReadFile", "/var/lib/rancher/k3os/hostname").Return(nil, os.ErrNotExist)
+
 	// --- ApplySSHKeysWithNet: reads /etc/passwd (key assertion for this test) ---
 	mockFS.On("ReadFile", "/etc/passwd").Return([]byte(mockPasswd), nil)
 	mockFS.On("Stat", "/home/rancher/.ssh").Return(nil, os.ErrNotExist)
@@ -373,6 +376,9 @@ func TestBootApply_ChainComposition(t *testing.T) {
 
 	// --- ApplyDNS: writes /etc/connman/main.conf with default DNS ---
 	mockFS.On("WriteFile", "/etc/connman/main.conf", mock.Anything, os.FileMode(0o644)).Return(nil)
+
+	// --- ApplyHostname: no hostname configured, persistence file not found → no-op ---
+	mockFS.On("ReadFile", "/var/lib/rancher/k3os/hostname").Return(nil, os.ErrNotExist)
 
 	// --- ApplySSHKeys (withNet=false): reads /etc/passwd ---
 	mockFS.On("ReadFile", "/etc/passwd").Return([]byte(mockPasswd), nil)

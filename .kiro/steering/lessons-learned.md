@@ -83,6 +83,9 @@ Linux-only code that reads from `/proc/*` paths can be made testable by extracti
 ### Boot sequence ordering: `/proc` availability is gated by bootstrap
 The `procParser` (cmdline package) reads `/proc/cmdline` lazily on each call, but `/proc` itself is not mounted until `Bootstrap.SetupEtc()` runs. Any logic that depends on `/proc/cmdline` content (e.g., checking `k3os.debug`) must execute _after_ the bootstrap phase, not before it. This applies to any future code that reads procfs during early boot — always verify that `/proc` is mounted at the point of use.
 
+### Don't modify `config.yaml` for system-generated state — use dedicated persistence files
+When the system generates runtime state (hostnames, machine IDs, etc.) that must survive reboots, persist it to a dedicated file under `/var/lib/rancher/k3os/` rather than writing it into `config.yaml`. The config files are user-owned and should only contain explicit user configuration. System-generated state should be read as a fallback by the applier functions when the config field is empty.
+
 ### Use `golang:1` for Docker-based Go test/build commands
 The project's `go.mod` tracks the latest stable Go version. Use `golang:1` (the latest stable major-1 tag) for Docker test runs — not a pinned old version like `golang:1.21.9-bookworm` (will fail on newer `go.mod` requirements), and not `golang:latest` (may pull a pre-release or breaking major bump). The `golang:1` tag always resolves to the latest released Go 1.x and keeps pace with `go.mod` updates.
 

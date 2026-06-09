@@ -9,9 +9,18 @@ import (
 	"github.com/petercb/k3os-bin/internal/iface"
 )
 
+// persistedHostnamePath is the file where a generated hostname is persisted
+// across reboots by the finalize phase.
+const persistedHostnamePath = "/var/lib/rancher/k3os/hostname"
+
 // SetHostname applies the configured hostname and syncs hostname files.
+// If no hostname is configured, it falls back to the persisted hostname
+// file written during boot finalization to ensure a stable identity.
 func SetHostname(c *config.CloudConfig, hs iface.HostnameSetter, fs iface.FileSystem) error {
 	hostname := c.Hostname
+	if hostname == "" {
+		hostname = readPersistedHostname(fs)
+	}
 	if hostname == "" {
 		return nil
 	}
@@ -19,6 +28,16 @@ func SetHostname(c *config.CloudConfig, hs iface.HostnameSetter, fs iface.FileSy
 		return err
 	}
 	return syncHostname(fs)
+}
+
+// readPersistedHostname reads the hostname from the persistence file,
+// returning empty string if the file doesn't exist or is empty.
+func readPersistedHostname(fs iface.FileSystem) string {
+	data, err := fs.ReadFile(persistedHostnamePath)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 func syncHostname(fs iface.FileSystem) error {

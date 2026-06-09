@@ -24,8 +24,25 @@ func TestSetHostname(t *testing.T) {
 		{
 			name:     "empty hostname is no-op",
 			hostname: "",
-			setupMock: func(_ *MockFileSystem, _ *MockHostnameSetter) {
-				// No calls expected
+			setupMock: func(fs *MockFileSystem, _ *MockHostnameSetter) {
+				// Fallback reads persisted hostname file, which also doesn't exist
+				fs.On("ReadFile", persistedHostnamePath).Return(nil, os.ErrNotExist)
+			},
+			wantErr: false,
+		},
+		{
+			name:     "empty hostname falls back to persisted hostname",
+			hostname: "",
+			setupMock: func(fs *MockFileSystem, hn *MockHostnameSetter) {
+				fs.On("ReadFile", persistedHostnamePath).Return([]byte("k3os-12345\n"), nil)
+				hn.On("SetHostname", "k3os-12345").Return(nil)
+				fs.On("Hostname").Return("k3os-12345", nil)
+				fs.On("WriteFile", "/etc/hostname", []byte("k3os-12345\n"), os.FileMode(0o644)).Return(nil)
+				hostsFile := &MockFile{}
+				hostsFile.buf.WriteString("127.0.0.1 localhost\n127.0.1.1 oldhost\n")
+				hostsFile.On("Close").Return(nil)
+				fs.On("Open", "/etc/hosts").Return(hostsFile, nil)
+				fs.On("WriteFile", "/etc/hosts", []byte("127.0.0.1 localhost\n127.0.1.1 k3os-12345\n"), os.FileMode(0o600)).Return(nil)
 			},
 			wantErr: false,
 		},

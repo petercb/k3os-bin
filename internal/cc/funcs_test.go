@@ -216,8 +216,8 @@ func TestApplyHostname(t *testing.T) {
 		{
 			name:     "empty hostname is a no-op",
 			hostname: "",
-			setupMock: func(_ *MockFileSystem, _ *MockHostnameSetter) {
-				// No calls expected
+			setupMock: func(fs *MockFileSystem, _ *MockHostnameSetter) {
+				fs.On("ReadFile", "/var/lib/rancher/k3os/hostname").Return(nil, os.ErrNotExist)
 			},
 			wantErr: false,
 		},
